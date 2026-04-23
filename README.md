@@ -32,7 +32,6 @@ Windows 10/11 PC에 다음 도구를 설치합니다.
 | Python | 3.10.6 | FastAPI AI 서버 실행 |
 | Node.js | 20.18.0 | Frontend 실행 |
 | npm | 10.8.2 | Node.js에 포함, frontend 패키지 관리 |
-| PowerShell | Windows 기본 | 이 문서의 명령어 기준 셸 |
 
 Python 3.10.6과 Node.js 20.18.0은 프로젝트 고정 버전입니다. Python 3.10.6이 최신 버전은 아닐 수 있지만, 현재 AI 패키지 호환성을 위해 고정합니다.
 
@@ -450,31 +449,6 @@ npm run lint
 - `JAVA_HOME`이 JDK 17 경로인지 확인합니다.
 - PATH에 `%JAVA_HOME%\bin`이 있는지 확인합니다.
 - PowerShell을 새로 열고 다시 확인합니다.
-
-### VS Code에서 backend-spring에 빨간불이 뜸
-- 먼저 실제 빌드 오류인지 IDE 인식 문제인지 확인합니다.
-
-```powershell
-cd backend-spring
-.\gradlew.bat clean test
-```
-
-- 이 명령이 성공하면 백엔드 코드 자체보다 VS Code Java/Gradle 인식 문제일 가능성이 큽니다.
-- VS Code에서 `Ctrl + Shift + P`를 누른 뒤 `Java: Clean Java Language Server Workspace`를 실행하고 `Restart and delete`를 선택합니다.
-- VS Code가 다시 열리면 Gradle 프로젝트를 새로고침합니다.
-- 그래도 계속 빨간불이 보이면 VS Code와 PowerShell을 모두 종료한 뒤 다시 열어봅니다.
-
-Gradle 실행 중 다음과 비슷한 오류가 날 수 있습니다.
-
-```text
-gradle-7.6.4-bin.zip.lck (액세스가 거부되었습니다)
-```
-
-이 경우 Gradle 캐시 락 파일이 잠겼거나 권한 문제가 생긴 상태입니다.
-- 실행 중인 Java/Gradle 프로세스가 있으면 종료합니다.
-- VS Code를 완전히 종료한 뒤 다시 실행합니다.
-- 다시 `.\gradlew.bat clean test`를 실행합니다.
-- 문제가 계속되면 `C:\Users\<사용자명>\.gradle\wrapper\dists` 아래의 해당 Gradle 배포 캐시를 정리한 뒤 다시 실행합니다.
 
 ### docker daemon 연결 실패
 - Docker Desktop이 실행 중인지 확인합니다.
