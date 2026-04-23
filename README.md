@@ -32,7 +32,6 @@ Windows 10/11 PC에 다음 도구를 설치합니다.
 | Python | 3.10.6 | FastAPI AI 서버 실행 |
 | Node.js | 20.18.0 | Frontend 실행 |
 | npm | 10.8.2 | Node.js에 포함, frontend 패키지 관리 |
-| PowerShell | Windows 기본 | 이 문서의 명령어 기준 셸 |
 
 Python 3.10.6과 Node.js 20.18.0은 프로젝트 고정 버전입니다. Python 3.10.6이 최신 버전은 아닐 수 있지만, 현재 AI 패키지 호환성을 위해 고정합니다.
 
