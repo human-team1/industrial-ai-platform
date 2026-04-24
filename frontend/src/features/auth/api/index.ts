@@ -1,1 +1,1 @@
-export {}
+export { verifyGoogleLogin } from './login'
