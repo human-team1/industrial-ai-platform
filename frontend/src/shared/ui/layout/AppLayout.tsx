@@ -11,20 +11,26 @@ const navItems = [
 export function AppLayout() {
   return (
     <div className="app-shell">
-      <nav className="navbar navbar-expand-lg bg-white border-bottom">
+      <nav className="navbar">
         <div className="container">
-          <NavLink className="navbar-brand fw-semibold" to="/dashboard">
+          <NavLink className="navbar-brand" to="/dashboard">
             Industrial AI Platform
           </NavLink>
-          <div className="navbar-nav flex-row gap-3">
+          
+          <div className="navbar-nav">
             {navItems.map((item) => (
-              <NavLink key={item.to} className="nav-link" to={item.to}>
+              <NavLink 
+                key={item.to} 
+                className="nav-link" 
+                to={item.to}
+              >
                 {item.label}
               </NavLink>
             ))}
           </div>
         </div>
       </nav>
+
       <main className="app-main">
         <div className="container">
           <Outlet />

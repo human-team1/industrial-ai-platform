@@ -30,3 +30,51 @@ a {
   background: #ffffff;
   padding: 24px;
 }
+
+/* 내비게이션 바 레이아웃 */
+.navbar {
+  display: flex;
+  background-color: #ffffff;
+  border-bottom: 1px solid #dde2ea;
+  height: 64px; /* 높이를 고정하면 더 깔끔합니다 */
+  align-items: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  justify-content: space-between; /* 로고는 왼쪽, 메뉴는 오른쪽 끝으로 배치 */
+  align-items: center;
+}
+
+/* 로고 스타일 */
+.navbar-brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* 메뉴 항목 정렬 */
+.navbar-nav {
+  display: flex;
+  gap: 2rem; /* 메뉴 사이의 간격 */
+  list-style: none;
+}
+
+/* 메뉴 링크 스타일 */
+.nav-link {
+  color: #4b5563;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: #2563eb;
+}
