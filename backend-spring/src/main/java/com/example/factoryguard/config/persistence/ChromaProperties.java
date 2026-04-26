@@ -7,6 +7,7 @@ public class ChromaProperties {
 
     private String host;
     private int port;
+    private String collectionDocuments;
 
     public String getHost() {
         return host;
@@ -22,5 +23,13 @@ public class ChromaProperties {
 
     public void setPort(int port) {
         this.port = port;
+    }
+
+    public String getCollectionDocuments() {
+        return collectionDocuments;
+    }
+
+    public void setCollectionDocuments(String collectionDocuments) {
+        this.collectionDocuments = collectionDocuments;
     }
 }

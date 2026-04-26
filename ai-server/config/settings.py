@@ -10,15 +10,20 @@ class Settings(BaseSettings):
 
     chroma_host: str = "localhost"
     chroma_port: int = 8000
+    chroma_collection_documents: str = "industrial_document_chunks"
 
-    minio_endpoint: str = "localhost:9000"
+    minio_endpoint: str = "http://localhost:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "change_me_minio_password"
-    minio_bucket: str = "industrial-ai"
+    minio_bucket_documents: str = "documents"
+    minio_bucket_inspection_artifacts: str = "inspection-artifacts"
+    minio_bucket_reports: str = "reports"
+    minio_bucket_models: str = "models"
     minio_secure: bool = False
 
     redis_host: str = "localhost"
     redis_port: int = 6379
+    redis_password: str = ""
 
     model_name: str = "anomaly-baseline"
     embedding_model_name: str = ""

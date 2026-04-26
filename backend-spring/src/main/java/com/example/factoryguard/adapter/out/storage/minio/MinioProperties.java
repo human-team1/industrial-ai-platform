@@ -8,8 +8,12 @@ public class MinioProperties {
     private String endpoint;
     private String accessKey;
     private String secretKey;
-    private String bucket;
+    private String bucketDocuments;
+    private String bucketInspectionArtifacts;
+    private String bucketReports;
+    private String bucketModels;
     private boolean secure;
+    private boolean autoCreateBuckets;
 
     public String getEndpoint() {
         return endpoint;
@@ -35,12 +39,36 @@ public class MinioProperties {
         this.secretKey = secretKey;
     }
 
-    public String getBucket() {
-        return bucket;
+    public String getBucketDocuments() {
+        return bucketDocuments;
     }
 
-    public void setBucket(String bucket) {
-        this.bucket = bucket;
+    public void setBucketDocuments(String bucketDocuments) {
+        this.bucketDocuments = bucketDocuments;
+    }
+
+    public String getBucketInspectionArtifacts() {
+        return bucketInspectionArtifacts;
+    }
+
+    public void setBucketInspectionArtifacts(String bucketInspectionArtifacts) {
+        this.bucketInspectionArtifacts = bucketInspectionArtifacts;
+    }
+
+    public String getBucketReports() {
+        return bucketReports;
+    }
+
+    public void setBucketReports(String bucketReports) {
+        this.bucketReports = bucketReports;
+    }
+
+    public String getBucketModels() {
+        return bucketModels;
+    }
+
+    public void setBucketModels(String bucketModels) {
+        this.bucketModels = bucketModels;
     }
 
     public boolean isSecure() {
@@ -49,5 +77,13 @@ public class MinioProperties {
 
     public void setSecure(boolean secure) {
         this.secure = secure;
+    }
+
+    public boolean isAutoCreateBuckets() {
+        return autoCreateBuckets;
+    }
+
+    public void setAutoCreateBuckets(boolean autoCreateBuckets) {
+        this.autoCreateBuckets = autoCreateBuckets;
     }
 }

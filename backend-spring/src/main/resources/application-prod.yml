@@ -6,3 +6,7 @@ spring:
 logging:
   level:
     com.example.factoryguard: WARN
+
+app:
+  minio:
+    auto-create-buckets: false
