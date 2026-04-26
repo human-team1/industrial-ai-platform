@@ -1,7 +1,7 @@
 import { useAppStore } from '../shared/lib/useAppStore'
 
 export function DashboardPage() {
-  const appName = useAppStore((state) => state.appName)
+  const { appName } = useAppStore();
 
   return (
     <section className="page-panel">
