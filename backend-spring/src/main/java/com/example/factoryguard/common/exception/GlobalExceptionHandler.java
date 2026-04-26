@@ -1,5 +1,6 @@
 package com.example.factoryguard.common.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindException;
 import org.springframework.web.context.request.WebRequest;
@@ -7,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -29,6 +31,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ProblemDetailsResponse> handleException(Exception exception, WebRequest request) {
+        log.error("Unhandled exception on {}: {}", request.getDescription(false), exception.getMessage(), exception);
         ErrorCode errorCode = ErrorCode.INTERNAL_ERROR;
         return ResponseEntity.status(errorCode.getStatus())
                 .body(toProblem(errorCode, errorCode.getDefaultMessage(), request.getDescription(false)));

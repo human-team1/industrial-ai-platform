@@ -16,4 +16,8 @@ public class RedisKeyFactory {
     public String idempotencyKey(String domain, String key) {
         return "idempotency:" + domain + ":" + key;
     }
+
+    public String refreshTokenKey(Long userId) {
+        return "refresh:token:" + userId;
+    }
 }

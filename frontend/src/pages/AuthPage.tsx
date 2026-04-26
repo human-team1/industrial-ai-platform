@@ -1,9 +1,37 @@
+import { GoogleLoginButton } from '../features/auth/ui/GoogleLoginButton'
+
 export function AuthPage() {
   return (
-    <section className="page-panel">
-      <p className="text-uppercase text-secondary small mb-2">Auth</p>
-      <h1 className="h3 mb-3">Authentication</h1>
-      <p className="mb-0">로그인과 권한 흐름을 연결할 초기 화면입니다.</p>
-    </section>
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f8f9fa',
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#fff',
+          borderRadius: '12px',
+          padding: '48px 40px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.08)',
+          width: '100%',
+          maxWidth: '400px',
+          textAlign: 'center',
+        }}
+      >
+        <h1 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '8px' }}>
+          Industrial AI Platform
+        </h1>
+        <p style={{ color: '#6c757d', fontSize: '14px', marginBottom: '32px' }}>
+          Google 계정으로 로그인하세요
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <GoogleLoginButton />
+        </div>
+      </div>
+    </div>
   )
 }
