@@ -3,6 +3,7 @@ package com.example.factoryguard.config.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -35,10 +36,10 @@ public class SecurityConfig {
                     "/api/v1/auth/refresh",
                     "/actuator/health"
                 ).permitAll()
-                .antMatchers("POST",  "/api/v1/signup-requests").permitAll()
-                .antMatchers("GET",   "/api/v1/signup-requests").hasRole("ADMIN")
-                .antMatchers("PATCH", "/api/v1/signup-requests/*/approve").hasRole("ADMIN")
-                .antMatchers("PATCH", "/api/v1/signup-requests/*/reject").hasRole("ADMIN")
+                .antMatchers(HttpMethod.POST,  "/api/v1/signup-requests").permitAll()
+                .antMatchers(HttpMethod.GET,   "/api/v1/signup-requests").hasRole("ADMIN")
+                .antMatchers(HttpMethod.PATCH, "/api/v1/signup-requests/*/approve").hasRole("ADMIN")
+                .antMatchers(HttpMethod.PATCH, "/api/v1/signup-requests/*/reject").hasRole("ADMIN")
                 .antMatchers("/api/v1/admin/**", "/api/v1/operations/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .httpBasic(basic -> basic.disable())
