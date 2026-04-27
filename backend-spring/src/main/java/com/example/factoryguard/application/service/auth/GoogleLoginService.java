@@ -35,15 +35,18 @@ public class GoogleLoginService implements GoogleLoginUseCase {
         Optional<User> userOpt = findUserByGoogleSubPort.findByGoogleSub(tokenInfo.getSub());
 
         if (userOpt.isEmpty()) {
-            return GoogleLoginResult.ofNew(tokenInfo);
+            String signupToken = jwtTokenProvider.generateSignupToken(tokenInfo.getSub());
+            return GoogleLoginResult.ofNew(tokenInfo, signupToken);
         }
 
         User user = userOpt.get();
 
         return switch (user.getStatus()) {
             case ACTIVE -> {
-                String accessToken = jwtTokenProvider.generateAccessToken(user.getUserId(), user.getRole());
-                String refreshToken = jwtTokenProvider.generateRefreshToken(user.getUserId(), user.getRole());
+                String accessToken = jwtTokenProvider.generateAccessToken(
+                        user.getUserId(), user.getRole(), user.getOrganizationId());
+                String refreshToken = jwtTokenProvider.generateRefreshToken(
+                        user.getUserId(), user.getRole(), user.getOrganizationId());
                 tokenStorePort.saveRefreshToken(
                         user.getUserId(),
                         refreshToken,
@@ -53,7 +56,8 @@ public class GoogleLoginService implements GoogleLoginUseCase {
                         accessToken, refreshToken,
                         user.getUserId(), user.getGoogleSub(),
                         user.getEmail(), user.getName(),
-                        user.getPicture(), user.getRole().name()
+                        user.getPicture(), user.getRole().name(),
+                        user.getOrganizationId()
                 );
             }
             case PENDING -> GoogleLoginResult.ofPending(user.getEmail(), user.getName());

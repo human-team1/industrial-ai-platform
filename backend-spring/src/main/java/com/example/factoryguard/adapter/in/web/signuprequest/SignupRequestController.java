@@ -1,5 +1,6 @@
 package com.example.factoryguard.adapter.in.web.signuprequest;
 
+import com.example.factoryguard.adapter.in.web.signuprequest.dto.ApproveSignupBody;
 import com.example.factoryguard.adapter.in.web.signuprequest.dto.RejectSignupRequestBody;
 import com.example.factoryguard.adapter.in.web.signuprequest.dto.SignupRequestBody;
 import com.example.factoryguard.application.dto.auth.SignupRequestCommand;
@@ -9,11 +10,14 @@ import com.example.factoryguard.application.port.in.auth.SignupRequestUseCase;
 import com.example.factoryguard.application.port.in.signup.ApproveSignupUseCase;
 import com.example.factoryguard.application.port.in.signup.GetSignupRequestsUseCase;
 import com.example.factoryguard.application.port.in.signup.RejectSignupUseCase;
+import com.example.factoryguard.common.exception.BusinessException;
+import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.common.response.ApiResponse;
+import com.example.factoryguard.config.security.JwtTokenProvider;
+import com.example.factoryguard.config.security.SecurityUtils;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -28,14 +32,27 @@ public class SignupRequestController {
     private final GetSignupRequestsUseCase getSignupRequestsUseCase;
     private final ApproveSignupUseCase approveSignupUseCase;
     private final RejectSignupUseCase rejectSignupUseCase;
+    private final SecurityUtils securityUtils;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping
     public ResponseEntity<ApiResponse<SignupRequestResult>> createSignupRequest(
             @Valid @RequestBody SignupRequestBody body) {
 
+        if (!jwtTokenProvider.validateToken(body.getSignupToken())) {
+            throw new BusinessException(ErrorCode.INVALID_SIGNUP_TOKEN);
+        }
+
+        String googleSub;
+        try {
+            googleSub = jwtTokenProvider.extractSignupGoogleSub(body.getSignupToken());
+        } catch (JwtException e) {
+            throw new BusinessException(ErrorCode.INVALID_SIGNUP_TOKEN);
+        }
+
         SignupRequestResult result = signupRequestUseCase.execute(
                 SignupRequestCommand.builder()
-                        .googleSub(body.getGoogleSub())
+                        .googleSub(googleSub)
                         .email(body.getEmail())
                         .name(body.getName())
                         .picture(body.getPicture())
@@ -52,8 +69,12 @@ public class SignupRequestController {
     }
 
     @PatchMapping("/{requestId}/approve")
-    public ResponseEntity<ApiResponse<Void>> approve(@PathVariable Long requestId) {
-        approveSignupUseCase.execute(requestId, currentUserId());
+    public ResponseEntity<ApiResponse<Void>> approve(
+            @PathVariable Long requestId,
+            @RequestBody(required = false) ApproveSignupBody body) {
+
+        Long organizationId = body != null ? body.getOrganizationId() : null;
+        approveSignupUseCase.execute(requestId, securityUtils.getCurrentUserId(), organizationId);
         return ResponseEntity.ok(ApiResponse.success(null, "가입 승인이 완료되었습니다."));
     }
 
@@ -63,12 +84,7 @@ public class SignupRequestController {
             @RequestBody(required = false) RejectSignupRequestBody body) {
 
         String reason = body != null ? body.getRejectReason() : null;
-        rejectSignupUseCase.execute(requestId, currentUserId(), reason);
+        rejectSignupUseCase.execute(requestId, securityUtils.getCurrentUserId(), reason);
         return ResponseEntity.ok(ApiResponse.success(null, "가입 거절이 완료되었습니다."));
-    }
-
-    private Long currentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return Long.parseLong(auth.getName());
     }
 }

@@ -7,6 +7,7 @@ export type AuthUser = {
   name: string
   picture?: string
   role: string
+  organizationId?: number
 }
 
 export type GoogleLoginResponse = {
@@ -20,11 +21,14 @@ export type GoogleLoginResponse = {
   name?: string
   picture?: string
   role?: string
+  organizationId?: number
+  // NEW일 때만 존재 — googleSub은 이 토큰 안에 포함
+  signupToken?: string
 }
 
-// 회원가입 페이지로 전달할 Google 사용자 정보
+// 회원가입 페이지로 전달할 정보 (display용 + signupToken)
 export type NewUserInfo = {
-  googleSub: string
+  signupToken: string  // 서버 발급 JWT, googleSub 포함
   email: string
   name: string
   picture?: string

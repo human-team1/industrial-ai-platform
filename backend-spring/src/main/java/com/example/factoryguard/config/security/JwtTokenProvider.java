@@ -17,32 +17,62 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
 
+    private static final String SIGNUP_TOKEN_TYPE = "SIGNUP";
+    private static final long SIGNUP_TOKEN_EXPIRE_MINUTES = 10;
+
     private final JwtProperties jwtProperties;
 
-    public String generateAccessToken(Long userId, UserRole role) {
+    public String generateAccessToken(Long userId, UserRole role, Long organizationId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getExpireMinutes() * 60 * 1000L);
 
         return Jwts.builder()
                 .setSubject(userId.toString())
                 .claim("role", role.name())
+                .claim("orgId", organizationId)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(signingKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public String generateRefreshToken(Long userId, UserRole role) {
+    public String generateRefreshToken(Long userId, UserRole role, Long organizationId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getRefreshExpireDays() * 24 * 60 * 60 * 1000L);
 
         return Jwts.builder()
                 .setSubject(userId.toString())
                 .claim("role", role.name())
+                .claim("orgId", organizationId)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(signingKey(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    /** Google OAuth 검증 후 신규 유저에게 발급하는 단기 토큰. googleSub만 포함 (10분 유효). */
+    public String generateSignupToken(String googleSub) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + SIGNUP_TOKEN_EXPIRE_MINUTES * 60 * 1000L);
+
+        return Jwts.builder()
+                .setSubject(googleSub)
+                .claim("type", SIGNUP_TOKEN_TYPE)
+                .setIssuedAt(now)
+                .setExpiration(expiry)
+                .signWith(signingKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    /**
+     * signupToken에서 googleSub 추출. type 클레임이 "SIGNUP"이 아니면 JwtException을 던진다.
+     */
+    public String extractSignupGoogleSub(String token) {
+        Claims claims = extractAllClaims(token);
+        if (!SIGNUP_TOKEN_TYPE.equals(claims.get("type", String.class))) {
+            throw new JwtException("Not a signup token");
+        }
+        return claims.getSubject();
     }
 
     public boolean validateToken(String token) {
@@ -63,6 +93,12 @@ public class JwtTokenProvider {
 
     public String extractRole(String token) {
         return extractAllClaims(token).get("role", String.class);
+    }
+
+    public Long extractOrganizationId(String token) {
+        Object orgId = extractAllClaims(token).get("orgId");
+        if (orgId == null) return null;
+        return ((Number) orgId).longValue();
     }
 
     private Claims extractAllClaims(String token) {

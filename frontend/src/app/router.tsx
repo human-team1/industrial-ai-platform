@@ -1,32 +1,44 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AuthPage } from '../pages/AuthPage'
 import { SignupPage } from '../pages/SignupPage'
-import { PendingPage } from '../pages/PendingPage'
-import { RejectedPage } from '../pages/RejectedPage'
+import { SignupStatusPage } from '../pages/SignupStatusPage'
 import { ChatbotPage } from '../pages/ChatbotPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { InspectionPage } from '../pages/InspectionPage'
 import { ResultPage } from '../pages/ResultPage'
 import { AdminSignupRequestsPage } from '../pages/AdminSignupRequestsPage'
 import { AppLayout } from '../shared/ui/layout/AppLayout'
+import { GuestRoute, ProtectedRoute } from '../shared/ui/route/ProtectedRoute'
 
 export function AppRouter() {
   return (
     <Routes>
-      {/* 인증 없이 접근 가능한 독립 페이지 */}
-      <Route path="/auth" element={<AuthPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/pending" element={<PendingPage />} />
-      <Route path="/rejected" element={<RejectedPage />} />
+      {/* 미인증 전용 — 로그인 유저는 /dashboard로 리다이렉트 */}
+      <Route element={<GuestRoute />}>
+        <Route path="/auth" element={<AuthPage />} />
+      </Route>
 
-      {/* AppLayout이 적용되는 서비스 페이지 */}
-      <Route element={<AppLayout />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/inspections" element={<InspectionPage />} />
-        <Route path="/results" element={<ResultPage />} />
-        <Route path="/chatbot" element={<ChatbotPage />} />
-        <Route path="/admin/signup-requests" element={<AdminSignupRequestsPage />} />
+      {/* 인증 없이 접근 가능한 독립 페이지 */}
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/pending" element={<SignupStatusPage status="pending" />} />
+      <Route path="/rejected" element={<SignupStatusPage status="rejected" />} />
+
+      {/* 인증 필요 — 미인증 시 /auth로 리다이렉트 */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/inspections" element={<InspectionPage />} />
+          <Route path="/results" element={<ResultPage />} />
+          <Route path="/chatbot" element={<ChatbotPage />} />
+        </Route>
+
+        {/* ADMIN 전용 — USER 접근 시 /dashboard로 리다이렉트 */}
+        <Route element={<ProtectedRoute requiredRole="ADMIN" />}>
+          <Route element={<AppLayout />}>
+            <Route path="/admin/signup-requests" element={<AdminSignupRequestsPage />} />
+          </Route>
+        </Route>
       </Route>
     </Routes>
   )

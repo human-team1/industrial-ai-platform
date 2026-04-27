@@ -11,7 +11,7 @@ import javax.validation.constraints.NotBlank;
 public class SignupRequestBody {
 
     @NotBlank
-    private String googleSub;
+    private String signupToken;
 
     @NotBlank
     @Email

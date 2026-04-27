@@ -2,27 +2,33 @@ import axios, { AxiosError } from 'axios'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
 
+// accessToken을 메모리에만 보관 (localStorage 저장 금지 — XSS 탈취 방지)
+let _memoryToken: string | null = null
+
+export function setMemoryToken(token: string | null) {
+  _memoryToken = token
+}
+
+export function getMemoryToken(): string | null {
+  return _memoryToken
+}
+
 export const apiClient = axios.create({
   baseURL: BASE_URL,
   timeout: 10_000,
   withCredentials: true,
 })
 
-export const aiApiClient = axios.create({
-  baseURL: import.meta.env.VITE_AI_API_BASE_URL,
-  timeout: 30_000,
-})
-
 // 토큰 갱신 전용 인스턴스 — 인터셉터 없음 (무한루프 방지)
-const refreshAxios = axios.create({
+export const refreshAxios = axios.create({
   baseURL: BASE_URL,
   timeout: 10_000,
   withCredentials: true,
 })
 
-// Request: localStorage의 accessToken을 Authorization 헤더에 자동 첨부
+// Request: 메모리의 accessToken을 Authorization 헤더에 자동 첨부
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken')
+  const token = getMemoryToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -69,7 +75,7 @@ apiClient.interceptors.response.use(
         '/auth/refresh',
       )
       const newToken = res.data.data.accessToken
-      localStorage.setItem('accessToken', newToken)
+      setMemoryToken(newToken)
       processQueue(null, newToken)
       return apiClient({
         ...original!,
@@ -77,7 +83,7 @@ apiClient.interceptors.response.use(
       })
     } catch (refreshError) {
       processQueue(refreshError, null)
-      localStorage.removeItem('accessToken')
+      setMemoryToken(null)
       localStorage.removeItem('authUser')
       window.location.href = '/auth'
       return Promise.reject(refreshError)

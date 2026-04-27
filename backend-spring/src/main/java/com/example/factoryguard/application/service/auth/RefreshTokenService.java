@@ -25,6 +25,7 @@ public class RefreshTokenService implements RefreshTokenUseCase {
 
         Long userId = jwtTokenProvider.extractUserId(refreshToken);
         String role = jwtTokenProvider.extractRole(refreshToken);
+        Long organizationId = jwtTokenProvider.extractOrganizationId(refreshToken);
 
         String stored = tokenStorePort.getRefreshToken(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN));
@@ -33,7 +34,7 @@ public class RefreshTokenService implements RefreshTokenUseCase {
             throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        String newAccessToken = jwtTokenProvider.generateAccessToken(userId, UserRole.valueOf(role));
+        String newAccessToken = jwtTokenProvider.generateAccessToken(userId, UserRole.valueOf(role), organizationId);
 
         return RefreshTokenResult.builder()
                 .accessToken(newAccessToken)

@@ -1,6 +1,7 @@
 package com.example.factoryguard.adapter.in.web.auth;
 
 import com.example.factoryguard.adapter.in.web.auth.dto.GoogleLoginRequest;
+import com.example.factoryguard.application.dto.auth.AuthMeResult;
 import com.example.factoryguard.application.dto.auth.AuthStatus;
 import com.example.factoryguard.application.dto.auth.GoogleLoginCommand;
 import com.example.factoryguard.application.dto.auth.GoogleLoginResult;
@@ -11,13 +12,13 @@ import com.example.factoryguard.application.port.in.auth.RefreshTokenUseCase;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.common.response.ApiResponse;
+import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.JwtProperties;
+import com.example.factoryguard.config.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
@@ -32,6 +33,7 @@ public class AuthController {
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final LogoutUseCase logoutUseCase;
     private final JwtProperties jwtProperties;
+    private final SecurityUtils securityUtils;
 
     @PostMapping("/google")
     public ResponseEntity<ApiResponse<GoogleLoginResult>> googleLogin(
@@ -67,13 +69,23 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletResponse response) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.isAuthenticated()) {
-            logoutUseCase.execute(Long.parseLong(auth.getName()));
+        try {
+            logoutUseCase.execute(securityUtils.getCurrentUserId());
+        } catch (Exception ignored) {
         }
-
         response.addHeader(HttpHeaders.SET_COOKIE, clearRefreshCookie().toString());
         return ResponseEntity.ok(ApiResponse.success(null, "로그아웃되었습니다."));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<AuthMeResult>> me() {
+        AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
+        AuthMeResult result = AuthMeResult.builder()
+                .userId(principal.userId())
+                .role(principal.role())
+                .organizationId(principal.organizationId())
+                .build();
+        return ResponseEntity.ok(ApiResponse.success(result, "현재 사용자 정보입니다."));
     }
 
     private ResponseCookie buildRefreshCookie(String token, long maxAgeSeconds) {

@@ -1,14 +1,15 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { postGoogleLogin, postLogout } from '../api'
+import { postGoogleLogin, postLogout, postRefreshToken } from '../api'
+import { setMemoryToken } from '../../../shared/api/client'
 import type { AuthUser, NewUserInfo } from '../types'
 
-const ACCESS_TOKEN_KEY = 'accessToken'
 const USER_KEY = 'authUser'
 
 export type AuthState = {
   accessToken: string | null
   user: AuthUser | null
+  loading: boolean
   setAuth: (token: string, user: AuthUser) => void
   logout: () => void
 }
@@ -16,21 +17,54 @@ export type AuthState = {
 export const AuthContext = createContext<AuthState>({
   accessToken: null,
   user: null,
+  loading: true,
   setAuth: () => {},
   logout: () => {},
 })
 
 export function useAuthState(): AuthState {
-  const [accessToken, setAccessToken] = useState<string | null>(
-    () => localStorage.getItem(ACCESS_TOKEN_KEY),
-  )
+  // accessToken은 메모리(state)에만 보관 — localStorage 저장 금지
+  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [user, setUser] = useState<AuthUser | null>(() => {
     const stored = localStorage.getItem(USER_KEY)
     return stored ? (JSON.parse(stored) as AuthUser) : null
   })
+  const [loading, setLoading] = useState(true)
+
+  // 앱 초기화: localStorage에 user가 있으면 refresh 쿠키로 accessToken 복구
+  // cancelled 플래그로 StrictMode 이중 호출 방지
+  useEffect(() => {
+    let cancelled = false
+
+    const storedUser = localStorage.getItem(USER_KEY)
+    if (!storedUser) {
+      setLoading(false)
+      return
+    }
+
+    postRefreshToken()
+      .then(({ accessToken: newToken }) => {
+        if (cancelled) return
+        setMemoryToken(newToken)
+        setAccessToken(newToken)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setMemoryToken(null)
+        localStorage.removeItem(USER_KEY)
+        setUser(null)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const setAuth = useCallback((token: string, authUser: AuthUser) => {
-    localStorage.setItem(ACCESS_TOKEN_KEY, token)
+    setMemoryToken(token)
     localStorage.setItem(USER_KEY, JSON.stringify(authUser))
     setAccessToken(token)
     setUser(authUser)
@@ -38,13 +72,15 @@ export function useAuthState(): AuthState {
 
   const logout = useCallback(() => {
     postLogout().finally(() => {
-      localStorage.removeItem(ACCESS_TOKEN_KEY)
+      setMemoryToken(null)
       localStorage.removeItem(USER_KEY)
+      setAccessToken(null)
+      setUser(null)
       window.location.href = '/auth'
     })
   }, [])
 
-  return { accessToken, user, setAuth, logout }
+  return { accessToken, user, loading, setAuth, logout }
 }
 
 export function useAuth() {
@@ -68,13 +104,14 @@ export function useGoogleLoginHandler() {
             name: result.name!,
             picture: result.picture,
             role: result.role!,
+            organizationId: result.organizationId,
           })
           navigate('/dashboard')
           break
 
         case 'NEW': {
           const newUserInfo: NewUserInfo = {
-            googleSub: result.googleSub!,
+            signupToken: result.signupToken!,
             email: result.email!,
             name: result.name!,
             picture: result.picture,

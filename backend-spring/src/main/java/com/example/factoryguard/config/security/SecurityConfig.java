@@ -30,9 +30,10 @@ public class SecurityConfig {
                     "/api/v1/auth/refresh",
                     "/actuator/health"
                 ).permitAll()
-                .antMatchers("POST", "/api/v1/signup-requests").permitAll()
-                .antMatchers("GET", "/api/v1/signup-requests").hasRole("ADMIN")
-                .antMatchers("PATCH", "/api/v1/signup-requests/**").hasRole("ADMIN")
+                .antMatchers("POST",  "/api/v1/signup-requests").permitAll()
+                .antMatchers("GET",   "/api/v1/signup-requests").hasRole("ADMIN")
+                .antMatchers("PATCH", "/api/v1/signup-requests/*/approve").hasRole("ADMIN")
+                .antMatchers("PATCH", "/api/v1/signup-requests/*/reject").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .httpBasic(basic -> basic.disable())
             .formLogin(form -> form.disable())

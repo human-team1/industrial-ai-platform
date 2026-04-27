@@ -1,5 +1,5 @@
-import { apiClient } from '../../../shared/api/client'
-import type { GoogleLoginResponse, NewUserInfo } from '../types'
+import { apiClient, refreshAxios } from '../../../shared/api/client'
+import type { GoogleLoginResponse } from '../types'
 
 export async function postGoogleLogin(idToken: string): Promise<GoogleLoginResponse> {
   const response = await apiClient.post<{ success: boolean; data: GoogleLoginResponse }>(
@@ -9,10 +9,26 @@ export async function postGoogleLogin(idToken: string): Promise<GoogleLoginRespo
   return response.data.data
 }
 
-export async function postSignupRequest(userInfo: NewUserInfo): Promise<{ userId: number; status: string }> {
+type SignupRequestPayload = {
+  signupToken: string
+  email: string
+  name: string
+  picture?: string
+}
+
+export async function postSignupRequest(
+  payload: SignupRequestPayload,
+): Promise<{ userId: number; status: string }> {
   const response = await apiClient.post<{ success: boolean; data: { userId: number; status: string } }>(
     '/signup-requests',
-    userInfo,
+    payload,
+  )
+  return response.data.data
+}
+
+export async function postRefreshToken(): Promise<{ accessToken: string }> {
+  const response = await refreshAxios.post<{ success: boolean; data: { accessToken: string } }>(
+    '/auth/refresh',
   )
   return response.data.data
 }

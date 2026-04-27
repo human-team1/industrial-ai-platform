@@ -1,6 +1,7 @@
 package com.example.factoryguard.application.service.signup;
 
 import com.example.factoryguard.application.dto.signup.SignupRequestSummary;
+import com.example.factoryguard.application.port.in.organization.OrganizationAssignUseCase;
 import com.example.factoryguard.application.port.in.signup.ApproveSignupUseCase;
 import com.example.factoryguard.application.port.in.signup.GetSignupRequestsUseCase;
 import com.example.factoryguard.application.port.in.signup.RejectSignupUseCase;
@@ -21,6 +22,7 @@ public class SignupAdminService implements GetSignupRequestsUseCase, ApproveSign
     private final FindPendingSignupRequestsPort findPendingSignupRequestsPort;
     private final ProcessSignupRequestPort processSignupRequestPort;
     private final UpdateUserStatusPort updateUserStatusPort;
+    private final OrganizationAssignUseCase organizationAssignUseCase;
 
     @Override
     @Transactional(readOnly = true)
@@ -30,9 +32,12 @@ public class SignupAdminService implements GetSignupRequestsUseCase, ApproveSign
 
     @Override
     @Transactional
-    public void execute(Long requestId, Long adminUserId) {
+    public void execute(Long requestId, Long adminUserId, Long organizationId) {
         Long userId = processSignupRequestPort.approve(requestId, adminUserId);
         updateUserStatusPort.updateStatus(userId, UserStatus.ACTIVE);
+        if (organizationId != null) {
+            organizationAssignUseCase.assignUser(userId, organizationId);
+        }
     }
 
     @Override
