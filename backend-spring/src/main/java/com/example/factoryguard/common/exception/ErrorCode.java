@@ -7,6 +7,7 @@ public enum ErrorCode {
     INVALID_REQUEST("COMMON-400", HttpStatus.BAD_REQUEST, "Invalid request"),
     RESOURCE_NOT_FOUND("COMMON-404", HttpStatus.NOT_FOUND, "Resource not found"),
     UNAUTHORIZED("AUTH-401", HttpStatus.UNAUTHORIZED, "Authentication required"),
+    FORBIDDEN("AUTH-FORBIDDEN", HttpStatus.FORBIDDEN, "Access denied"),
     INVALID_GOOGLE_TOKEN("AUTH-402", HttpStatus.UNAUTHORIZED, "Invalid Google ID token"),
     INVALID_REFRESH_TOKEN("AUTH-403", HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token"),
     INVALID_SIGNUP_TOKEN("AUTH-404", HttpStatus.UNAUTHORIZED, "Invalid or expired signup token");

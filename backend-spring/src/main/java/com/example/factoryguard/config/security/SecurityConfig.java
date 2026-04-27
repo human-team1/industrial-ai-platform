@@ -14,6 +14,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ProblemDetailsAuthenticationEntryPoint authenticationEntryPoint;
+    private final ProblemDetailsAccessDeniedHandler accessDeniedHandler;
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
@@ -23,6 +25,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(exception -> exception
+                .authenticationEntryPoint(authenticationEntryPoint)
+                .accessDeniedHandler(accessDeniedHandler))
             .authorizeHttpRequests(auth -> auth
                 .antMatchers(
                     "/api/v1/health",
@@ -34,6 +39,7 @@ public class SecurityConfig {
                 .antMatchers("GET",   "/api/v1/signup-requests").hasRole("ADMIN")
                 .antMatchers("PATCH", "/api/v1/signup-requests/*/approve").hasRole("ADMIN")
                 .antMatchers("PATCH", "/api/v1/signup-requests/*/reject").hasRole("ADMIN")
+                .antMatchers("/api/v1/admin/**", "/api/v1/operations/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .httpBasic(basic -> basic.disable())
             .formLogin(form -> form.disable())

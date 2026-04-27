@@ -1,4 +1,5 @@
 export type AuthStatus = 'NEW' | 'PENDING' | 'REJECTED' | 'ACTIVE'
+export type AuthRole = 'USER' | 'ADMIN'
 
 export type AuthUser = {
   userId: number
@@ -6,7 +7,7 @@ export type AuthUser = {
   email: string
   name: string
   picture?: string
-  role: string
+  role: AuthRole
   organizationId?: number
 }
 
@@ -20,7 +21,7 @@ export type GoogleLoginResponse = {
   email?: string
   name?: string
   picture?: string
-  role?: string
+  role?: AuthRole
   organizationId?: number
   // NEW일 때만 존재 — googleSub은 이 토큰 안에 포함
   signupToken?: string

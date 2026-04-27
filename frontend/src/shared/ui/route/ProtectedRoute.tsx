@@ -1,12 +1,17 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../../../features/auth/model'
+import type { AuthRole } from '../../../features/auth/types'
 
 type Props = {
-  requiredRole?: string
+  requiredRole?: AuthRole
 }
 
 export function ProtectedRoute({ requiredRole }: Props) {
-  const { accessToken, user } = useAuth()
+  const { accessToken, user, loading } = useAuth()
+
+  if (loading) {
+    return null
+  }
 
   if (!accessToken || !user) {
     return <Navigate to="/auth" replace />
@@ -20,7 +25,11 @@ export function ProtectedRoute({ requiredRole }: Props) {
 }
 
 export function GuestRoute() {
-  const { accessToken, user } = useAuth()
+  const { accessToken, user, loading } = useAuth()
+
+  if (loading) {
+    return null
+  }
 
   if (accessToken && user) {
     return <Navigate to="/dashboard" replace />
