@@ -64,6 +64,13 @@ public class InspectionRunJpaEntity {
 
     public void updateStatus(RunStatus runStatus) {
         this.runStatus = runStatus;
+        if (runStatus == RunStatus.COMPLETED || runStatus == RunStatus.FAILED || runStatus == RunStatus.STOPPED) {
+            this.completedAt = LocalDateTime.now();
+        }
+    }
+
+    public void updateError(String errorCode) {
+        this.errorCode = errorCode;
     }
 
     @Builder

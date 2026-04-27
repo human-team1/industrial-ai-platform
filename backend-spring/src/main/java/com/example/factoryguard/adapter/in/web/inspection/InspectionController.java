@@ -1,14 +1,19 @@
 package com.example.factoryguard.adapter.in.web.inspection;
 
-import com.example.factoryguard.adapter.in.web.inspection.dto.SubmitInspectionRequest;
+import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionEventLogResponse;
+import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionRunResponse;
 import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
 import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
 import com.example.factoryguard.application.dto.inspection.InspectionStatusResponse;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
+import com.example.factoryguard.application.port.in.inspection.GetInspectionEventsUseCase;
 import com.example.factoryguard.application.port.in.inspection.GetInspectionStatusUseCase;
+import com.example.factoryguard.application.port.in.inspection.GetInspectionsUseCase;
+import com.example.factoryguard.application.port.in.inspection.StopInspectionUseCase;
 import com.example.factoryguard.application.port.in.inspection.SubmitInspectionUseCase;
 import com.example.factoryguard.common.response.ApiResponse;
+import com.example.factoryguard.common.validation.FileValidator;
 import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -26,9 +32,13 @@ public class InspectionController {
 
     private final GetInspectionStatusUseCase getInspectionStatusUseCase;
     private final SubmitInspectionUseCase submitInspectionUseCase;
+    private final StopInspectionUseCase stopInspectionUseCase;
+    private final GetInspectionsUseCase getInspectionsUseCase;
+    private final GetInspectionEventsUseCase getInspectionEventsUseCase;
     private final MinioStorageAdapter minioStorageAdapter;
     private final MinioProperties minioProperties;
     private final SecurityUtils securityUtils;
+    private final FileValidator fileValidator;
 
     @GetMapping("/status")
     public ApiResponse<InspectionStatusResponse> getStatus() {
@@ -40,6 +50,8 @@ public class InspectionController {
             @RequestPart("file") MultipartFile file,
             @RequestPart("targetId") String targetId,
             @RequestPart(value = "thresholdId", required = false) String thresholdId) throws Exception {
+
+        fileValidator.validate(file);
 
         AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
 
@@ -65,5 +77,37 @@ public class InspectionController {
         ));
 
         return ResponseEntity.ok(ApiResponse.success(result, "검사 요청이 완료되었습니다."));
+    }
+
+    @PatchMapping("/{inspectionId}/stop")
+    public ApiResponse<Void> stop(@PathVariable Long inspectionId) {
+        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
+        stopInspectionUseCase.execute(p.userId(), p.organizationId(), inspectionId);
+        return ApiResponse.success(null, "검사가 중단되었습니다.");
+    }
+
+    @GetMapping
+    public ApiResponse<List<InspectionRunResponse>> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
+        return ApiResponse.success(getInspectionsUseCase.list(p.organizationId(), page, size).stream()
+                .map(InspectionRunResponse::from)
+                .toList());
+    }
+
+    @GetMapping("/{inspectionId}")
+    public ApiResponse<InspectionRunResponse> detail(@PathVariable Long inspectionId) {
+        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
+        return ApiResponse.success(InspectionRunResponse.from(
+                getInspectionsUseCase.detail(p.organizationId(), inspectionId)));
+    }
+
+    @GetMapping("/{inspectionId}/events")
+    public ApiResponse<List<InspectionEventLogResponse>> events(@PathVariable Long inspectionId) {
+        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
+        return ApiResponse.success(getInspectionEventsUseCase.execute(p.organizationId(), inspectionId).stream()
+                .map(InspectionEventLogResponse::from)
+                .toList());
     }
 }

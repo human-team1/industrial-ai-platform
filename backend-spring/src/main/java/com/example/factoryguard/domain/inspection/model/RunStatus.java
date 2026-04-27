@@ -1,7 +1,9 @@
 package com.example.factoryguard.domain.inspection.model;
 
 public enum RunStatus {
-    RUNNING,
+    PENDING,
+    PROCESSING,
     COMPLETED,
-    FAILED
+    FAILED,
+    STOPPED
 }
