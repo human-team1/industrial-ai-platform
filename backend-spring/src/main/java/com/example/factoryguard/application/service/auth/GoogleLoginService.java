@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
@@ -43,15 +44,17 @@ public class GoogleLoginService implements GoogleLoginUseCase {
 
         return switch (user.getStatus()) {
             case ACTIVE -> {
+                String sessionId = UUID.randomUUID().toString();
+                Duration ttl = Duration.ofDays(jwtProperties.getRefreshExpireDays());
+
                 String accessToken = jwtTokenProvider.generateAccessToken(
-                        user.getUserId(), user.getRole(), user.getOrganizationId());
+                        user.getUserId(), user.getRole(), user.getOrganizationId(), sessionId);
                 String refreshToken = jwtTokenProvider.generateRefreshToken(
-                        user.getUserId(), user.getRole(), user.getOrganizationId());
-                tokenStorePort.saveRefreshToken(
-                        user.getUserId(),
-                        refreshToken,
-                        Duration.ofDays(jwtProperties.getRefreshExpireDays())
-                );
+                        user.getUserId(), user.getRole(), user.getOrganizationId(), sessionId);
+
+                tokenStorePort.saveRefreshToken(user.getUserId(), refreshToken, ttl);
+                tokenStorePort.saveSessionId(user.getUserId(), sessionId, ttl);
+
                 yield GoogleLoginResult.ofActive(
                         accessToken, refreshToken,
                         user.getUserId(), user.getGoogleSub(),

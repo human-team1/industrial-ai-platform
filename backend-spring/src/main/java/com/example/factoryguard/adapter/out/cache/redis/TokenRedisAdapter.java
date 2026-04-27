@@ -28,4 +28,19 @@ public class TokenRedisAdapter implements TokenStorePort {
     public void deleteRefreshToken(Long userId) {
         redisCacheAdapter.delete(redisKeyFactory.refreshTokenKey(userId));
     }
+
+    @Override
+    public void saveSessionId(Long userId, String sessionId, Duration ttl) {
+        redisCacheAdapter.set(redisKeyFactory.currentSessionKey(userId), sessionId, ttl);
+    }
+
+    @Override
+    public Optional<String> getSessionId(Long userId) {
+        return redisCacheAdapter.get(redisKeyFactory.currentSessionKey(userId));
+    }
+
+    @Override
+    public void deleteSessionId(Long userId) {
+        redisCacheAdapter.delete(redisKeyFactory.currentSessionKey(userId));
+    }
 }

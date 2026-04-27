@@ -20,4 +20,8 @@ public class RedisKeyFactory {
     public String refreshTokenKey(Long userId) {
         return "refresh:token:" + userId;
     }
+
+    public String currentSessionKey(Long userId) {
+        return "session:current:" + userId;
+    }
 }
