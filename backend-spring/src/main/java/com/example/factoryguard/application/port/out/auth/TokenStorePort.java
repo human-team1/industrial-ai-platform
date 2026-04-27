@@ -10,4 +10,10 @@ public interface TokenStorePort {
     Optional<String> getRefreshToken(Long userId);
 
     void deleteRefreshToken(Long userId);
+
+    void saveSessionId(Long userId, String sessionId, Duration ttl);
+
+    Optional<String> getSessionId(Long userId);
+
+    void deleteSessionId(Long userId);
 }

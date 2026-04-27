@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { postGoogleLogin, postLogout, postRefreshToken } from '../api'
+import { postGoogleLogin, postLogout, postRefreshToken, getAuthMe } from '../api'
 import { setMemoryToken } from '../../../shared/api/client'
 import type { AuthUser, NewUserInfo } from '../types'
 
@@ -30,29 +30,52 @@ export function useAuthState(): AuthState {
     return stored ? (JSON.parse(stored) as AuthUser) : null
   })
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   // 앱 초기화: localStorage에 user가 있으면 refresh 쿠키로 accessToken 복구
+  // refresh 성공 후 /auth/me로 최신 user 정보 동기화
   // cancelled 플래그로 StrictMode 이중 호출 방지
   useEffect(() => {
     let cancelled = false
 
-    const storedUser = localStorage.getItem(USER_KEY)
-    if (!storedUser) {
+    const storedRaw = localStorage.getItem(USER_KEY)
+    if (!storedRaw) {
       setLoading(false)
       return
     }
+
+    const storedUser = JSON.parse(storedRaw) as AuthUser
 
     postRefreshToken()
       .then(({ accessToken: newToken }) => {
         if (cancelled) return
         setMemoryToken(newToken)
         setAccessToken(newToken)
+        return getAuthMe()
       })
-      .catch(() => {
+      .then((authMe) => {
+        if (cancelled || !authMe) return
+        const updated: AuthUser = { ...storedUser, ...authMe }
+        localStorage.setItem(USER_KEY, JSON.stringify(updated))
+        setUser(updated)
+      })
+      .catch((err) => {
         if (cancelled) return
-        setMemoryToken(null)
-        localStorage.removeItem(USER_KEY)
-        setUser(null)
+        const errorCode: string | undefined = (err as any)?.response?.data?.errorCode
+        if (errorCode === 'AUTH-405') {
+          // PENDING_APPROVAL — 로그아웃 없이 안내 페이지로
+          setMemoryToken(null)
+          navigate('/pending')
+        } else if (errorCode === 'AUTH-406') {
+          // ACCOUNT_REJECTED — 로그아웃 없이 거절 페이지로
+          setMemoryToken(null)
+          navigate('/rejected')
+        } else {
+          // 세션 만료, 탈취 등 → 완전 로그아웃
+          setMemoryToken(null)
+          localStorage.removeItem(USER_KEY)
+          setUser(null)
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)

@@ -7,6 +7,8 @@ import { DashboardPage } from '../pages/DashboardPage'
 import { InspectionPage } from '../pages/InspectionPage'
 import { ResultPage } from '../pages/ResultPage'
 import { AdminSignupRequestsPage } from '../pages/AdminSignupRequestsPage'
+import { MyPage } from '../pages/MyPage'
+import { UserSettingsPage } from '../pages/UserSettingsPage'
 import { AppLayout } from '../shared/ui/layout/AppLayout'
 import { GuestRoute, ProtectedRoute } from '../shared/ui/route/ProtectedRoute'
 
@@ -31,6 +33,8 @@ export function AppRouter() {
           <Route path="/inspections" element={<InspectionPage />} />
           <Route path="/results" element={<ResultPage />} />
           <Route path="/chatbot" element={<ChatbotPage />} />
+          <Route path="/mypage" element={<MyPage />} />
+          <Route path="/settings" element={<UserSettingsPage />} />
         </Route>
 
         {/* ADMIN 전용 — USER 접근 시 /dashboard로 리다이렉트 */}

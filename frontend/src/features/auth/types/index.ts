@@ -6,8 +6,10 @@ export type AuthUser = {
   email: string
   name: string
   picture?: string
+  phone?: string
   role: string
   organizationId?: number
+  status?: string
 }
 
 export type GoogleLoginResponse = {
@@ -32,4 +34,26 @@ export type NewUserInfo = {
   email: string
   name: string
   picture?: string
+}
+
+// GET /auth/me 응답 — 인증 검증 + 컨텍스트 획득용
+export type AuthMeResponse = {
+  userId: number
+  name: string
+  role: string
+  status: string
+  organizationId?: number
+}
+
+// GET /users/me 응답 — 전체 프로필용
+export type UserMeResponse = {
+  userId: number
+  email: string
+  name: string
+  picture?: string
+  phone?: string
+  role: string
+  organizationId?: number
+  status: string
+  createdAt: string
 }

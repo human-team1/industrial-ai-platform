@@ -2,6 +2,8 @@ import { useId, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import type { NewUserInfo } from '../features/auth/types'
 import { postSignupRequest } from '../features/auth/api'
+import { AppSidebar } from '../shared/ui/layout/AppSidebar'
+import { AppHeader } from '../shared/ui/layout/AppHeader'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,18 +44,6 @@ const countryCodeOptions = [
   { value: '+1', label: '+1' },
 ]
 
-const navItems = [
-  { label: '대시보드', icon: <IconDashboard /> },
-  { label: '실시간 탐지', icon: <IconRadar /> },
-  { label: '탐지 업로드', icon: <IconUpload /> },
-  { label: '탐지 이력', icon: <IconHistory /> },
-  { label: '설비 관리', icon: <IconEquipment /> },
-  { label: '모델 관리', icon: <IconModel /> },
-  { label: '알림 관리', icon: <IconBell /> },
-  { label: '보고서', icon: <IconReport /> },
-  { label: '시스템 관리', icon: <IconSettings /> },
-]
-
 const infoCards = [
   {
     icon: '/icons/auth_icon.png',
@@ -72,94 +62,7 @@ const infoCards = [
   },
 ]
 
-// ─── SVG Icons ────────────────────────────────────────────────────────────────
-
-function IconDashboard() {
-  return (
-    <svg className="w-[18px] h-[18px] shrink-0" fill="none" viewBox="0 0 18 18" stroke="currentColor" strokeWidth={1.4}>
-      <rect x="2" y="2" width="6" height="6" rx="1" />
-      <rect x="10" y="2" width="6" height="6" rx="1" />
-      <rect x="2" y="10" width="6" height="6" rx="1" />
-      <rect x="10" y="10" width="6" height="6" rx="1" />
-    </svg>
-  )
-}
-
-function IconRadar() {
-  return (
-    <svg className="w-[18px] h-[19px] shrink-0" fill="none" viewBox="0 0 18 18" stroke="currentColor" strokeWidth={1.4}>
-      <circle cx="9" cy="9" r="7" />
-      <circle cx="9" cy="9" r="3.5" />
-      <line x1="9" y1="9" x2="14.5" y2="4.5" />
-    </svg>
-  )
-}
-
-function IconUpload() {
-  return (
-    <svg className="w-[18px] h-[16px] shrink-0" fill="none" viewBox="0 0 18 16" stroke="currentColor" strokeWidth={1.4}>
-      <path strokeLinecap="round" d="M9 11V2M5.5 5.5L9 2l3.5 3.5" />
-      <path strokeLinecap="round" d="M3 10v3a1 1 0 001 1h10a1 1 0 001-1v-3" />
-    </svg>
-  )
-}
-
-function IconHistory() {
-  return (
-    <svg className="w-[18px] h-[18px] shrink-0" fill="none" viewBox="0 0 18 18" stroke="currentColor" strokeWidth={1.4}>
-      <circle cx="9" cy="9" r="7" />
-      <path strokeLinecap="round" d="M9 5v4l3 2" />
-    </svg>
-  )
-}
-
-function IconEquipment() {
-  return (
-    <svg className="w-[18px] h-[18px] shrink-0" fill="none" viewBox="0 0 18 18" stroke="currentColor" strokeWidth={1.4}>
-      <rect x="2" y="5" width="14" height="9" rx="1" />
-      <path strokeLinecap="round" d="M6 5V3h6v2" />
-      <circle cx="9" cy="9.5" r="2" />
-    </svg>
-  )
-}
-
-function IconModel() {
-  return (
-    <svg className="w-[18px] h-[18px] shrink-0" fill="none" viewBox="0 0 18 18" stroke="currentColor" strokeWidth={1.4}>
-      <path d="M9 2l7 4v6l-7 4L2 12V6z" strokeLinejoin="round" />
-      <path d="M9 2v14M2 6l7 4 7-4" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function IconBell() {
-  return (
-    <svg className="w-[16px] h-[19px] shrink-0" fill="none" viewBox="0 0 16 18" stroke="currentColor" strokeWidth={1.4}>
-      <path strokeLinecap="round" d="M8 1a5 5 0 015 5v4l1.5 2.5H1.5L3 10V6a5 5 0 015-5z" />
-      <path strokeLinecap="round" d="M6 15a2 2 0 004 0" />
-    </svg>
-  )
-}
-
-function IconReport() {
-  return (
-    <svg className="w-[16px] h-[19px] shrink-0" fill="none" viewBox="0 0 16 18" stroke="currentColor" strokeWidth={1.4}>
-      <rect x="2" y="1" width="12" height="16" rx="1" />
-      <line x1="5" y1="6" x2="11" y2="6" />
-      <line x1="5" y1="9" x2="11" y2="9" />
-      <line x1="5" y1="12" x2="9" y2="12" />
-    </svg>
-  )
-}
-
-function IconSettings() {
-  return (
-    <svg className="w-[17px] h-[18px] shrink-0" fill="none" viewBox="0 0 17 18" stroke="currentColor" strokeWidth={1.4}>
-      <circle cx="8.5" cy="9" r="2.5" />
-      <path strokeLinejoin="round" d="M8.5 1.5l1.2 2.1a5.5 5.5 0 011.4.6l2.4-.4 1.5 2.6-1.7 1.8v1.2l1.7 1.8-1.5 2.6-2.4-.4a5.5 5.5 0 01-1.4.6L8.5 16.5 7.3 14.4a5.5 5.5 0 01-1.4-.6l-2.4.4L2 11.6l1.7-1.8V8.6L2 6.8 3.5 4.2l2.4.4a5.5 5.5 0 011.4-.6L8.5 1.5z" />
-    </svg>
-  )
-}
+// ─── Icons ────────────────────────────────────────────────────────────────────
 
 function IconGoogle() {
   return (
@@ -185,165 +88,6 @@ function IconCheck() {
     <svg className="w-4 h-4" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l4 4 6-6" />
     </svg>
-  )
-}
-
-
-function IconCollapseMenu() {
-  return (
-    <svg className="w-2.5 h-[11px] shrink-0" fill="none" viewBox="0 0 10 11" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" d="M8 2L3 5.5 8 9" />
-    </svg>
-  )
-}
-
-function IconNotification() {
-  return (
-    <svg className="w-[18px] h-[19px]" fill="none" viewBox="0 0 18 19" stroke="currentColor" strokeWidth={1.4}>
-      <path strokeLinecap="round" d="M9 1.5a6 6 0 016 6v4.5l1.5 2H1.5L3 12V7.5a6 6 0 016-6z" />
-      <path strokeLinecap="round" d="M7 16a2 2 0 004 0" />
-    </svg>
-  )
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function SidebarNavigationSection({
-  isCollapsed,
-  onCollapse,
-  onExpand,
-}: {
-  isCollapsed: boolean
-  onCollapse: () => void
-  onExpand: () => void
-}) {
-  if (isCollapsed) {
-    return (
-      <div className="fixed bottom-6 left-6 z-50">
-        <button
-          type="button"
-          onClick={onExpand}
-          aria-label="사이드바 펼치기"
-          className="w-9 h-9 bg-[#1e2333] border border-[#2d3347] rounded flex items-center justify-center text-[#b0b5c1] hover:bg-[#2d3347] transition-colors"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 14 14" stroke="currentColor" strokeWidth={1.8}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 2l5 5-5 5" />
-          </svg>
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <aside
-      aria-label="사이드바 내비게이션"
-      className="w-[219px] min-h-screen bg-[#1e2333] flex flex-col shrink-0"
-    >
-      <div className="px-5 pt-[22px] pb-5">
-        <span className="text-[#5a6175] text-[11px] font-medium uppercase tracking-widest">
-          Factory Guard
-        </span>
-      </div>
-
-      <nav aria-label="주요 메뉴" className="flex-1">
-        <ul className="m-0 p-0 list-none">
-          {navItems.map((item) => (
-            <li key={item.label}>
-              <button
-                type="button"
-                className="w-full flex items-center gap-3 px-5 py-[13px] text-[#d8dbe2] text-[13px] hover:bg-white/5 transition-colors text-left"
-              >
-                <span className="text-[#6a7089]">{item.icon}</span>
-                {item.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <div className="px-5 pb-[55px]">
-        <button
-          type="button"
-          onClick={onCollapse}
-          className="flex items-center gap-3 text-[#b0b5c1] text-[13px] hover:text-white transition-colors"
-        >
-          <span className="text-[#6a7089]">
-            <IconCollapseMenu />
-          </span>
-          메뉴접기
-        </button>
-      </div>
-    </aside>
-  )
-}
-
-function RegistrationHeaderSection({ userName }: { userName: string }) {
-  return (
-    <header
-      aria-label="산업 이상 탐지 시스템 상단 헤더"
-      className="h-[58px] bg-[#1e2333] flex items-center justify-between px-6 shrink-0"
-    >
-      <div className="flex items-center gap-3 text-[#a5b0c4] text-lg font-bold leading-none">
-        <img src="/icons/logo_icon.png" alt="" aria-hidden="true" className="w-[40px] h-[40px] shrink-0" />
-        산업 이상 탐지 시스템
-      </div>
-
-      <div className="flex items-center gap-4">
-        {/* 알림 */}
-        <button
-          type="button"
-          aria-label="알림 12개"
-          className="relative text-[#6a7089] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
-        >
-          <IconNotification />
-          <span className="absolute -top-1 -right-1 text-[10px] font-light text-[#f5afa3] leading-none">
-            12
-          </span>
-        </button>
-
-        {/* 구분선 */}
-        <div className="h-[33px] w-px bg-[#2d3347]" />
-
-        {/* 설정 아이콘 */}
-        <button type="button" aria-label="설정" className="text-[#6a7089]">
-          <svg className="w-[30px] h-[30px]" fill="none" viewBox="0 0 30 30" stroke="currentColor" strokeWidth={1.3}>
-            <circle cx="15" cy="15" r="3" />
-            <path d="M15 5l1.5 2.6a8 8 0 011.8.75l3-.5 1.8 3.15-2.1 2.2v1.6l2.1 2.2-1.8 3.15-3-.5a8 8 0 01-1.8.75L15 25l-1.5-2.6a8 8 0 01-1.8-.75l-3 .5-1.8-3.15 2.1-2.2v-1.6l-2.1-2.2 1.8-3.15 3 .5a8 8 0 011.8-.75L15 5z" strokeLinejoin="round" />
-          </svg>
-        </button>
-
-        {/* 구분선 */}
-        <div className="h-[33px] w-px bg-[#2d3347]" />
-
-        {/* 사용자 정보 */}
-        <div className="flex flex-col items-end">
-          <span className="text-[#a5b0c4] text-xs leading-[1.3]">{userName}</span>
-          <span className="text-[#6a7089] text-[10px] leading-[1.3]">관리자</span>
-        </div>
-
-        {/* 프로필 아바타 */}
-        <div className="w-[31px] h-[35px] rounded bg-[#2d3347] flex items-center justify-center overflow-hidden">
-          <svg className="w-5 h-5 text-[#6a7089]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" />
-          </svg>
-        </div>
-
-        {/* 구분선 */}
-        <div className="h-[33px] w-px bg-[#2d3347]" />
-
-        {/* 챗봇 버튼 */}
-        <button
-          type="button"
-          aria-label="챗봇 상담"
-          className="flex items-center gap-1.5 px-4 py-[7px] bg-[#109498] border border-[#07687e] rounded-[15.5px] text-[#8dccce] text-[11px] hover:bg-[#0d8285] transition-colors"
-        >
-          <svg className="w-[17px] h-4" fill="none" viewBox="0 0 17 16" stroke="currentColor" strokeWidth={1.3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H3a1 1 0 00-1 1v7a1 1 0 001 1h2l2 3 2-3h5a1 1 0 001-1V3a1 1 0 00-1-1z" />
-          </svg>
-          챗봇 상담
-        </button>
-      </div>
-    </header>
   )
 }
 
@@ -755,7 +499,7 @@ export function SignupPage() {
   return (
     <div className="flex min-h-screen bg-[#fbfcfe] min-w-[1342px]">
       {/* 사이드바 */}
-      <SidebarNavigationSection
+      <AppSidebar
         isCollapsed={sidebarCollapsed}
         onCollapse={() => setSidebarCollapsed(true)}
         onExpand={() => setSidebarCollapsed(false)}
@@ -764,7 +508,7 @@ export function SignupPage() {
       {/* 우측 전체 영역 */}
       <div className="flex-1 flex flex-col min-h-screen">
         {/* 헤더 */}
-        <RegistrationHeaderSection userName={formData.name || userInfo.name} />
+        <AppHeader userName={formData.name || userInfo.name} userRole="신규 사용자" />
 
         {/* 콘텐츠 */}
         <div className="flex flex-1 min-h-0">

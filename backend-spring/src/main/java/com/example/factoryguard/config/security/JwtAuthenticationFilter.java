@@ -32,8 +32,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Long userId = jwtTokenProvider.extractUserId(token);
             String role = jwtTokenProvider.extractRole(token);
             Long organizationId = jwtTokenProvider.extractOrganizationId(token);
+            String sessionId = jwtTokenProvider.extractSessionId(token);
 
-            AuthenticatedPrincipal principal = new AuthenticatedPrincipal(userId, role, organizationId);
+            AuthenticatedPrincipal principal = new AuthenticatedPrincipal(userId, role, organizationId, sessionId);
             var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
             var auth = new UsernamePasswordAuthenticationToken(principal, null, authorities);
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

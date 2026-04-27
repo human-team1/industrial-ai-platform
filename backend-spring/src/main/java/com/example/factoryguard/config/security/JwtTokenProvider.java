@@ -22,7 +22,7 @@ public class JwtTokenProvider {
 
     private final JwtProperties jwtProperties;
 
-    public String generateAccessToken(Long userId, UserRole role, Long organizationId) {
+    public String generateAccessToken(Long userId, UserRole role, Long organizationId, String sessionId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getExpireMinutes() * 60 * 1000L);
 
@@ -30,13 +30,14 @@ public class JwtTokenProvider {
                 .setSubject(userId.toString())
                 .claim("role", role.name())
                 .claim("orgId", organizationId)
+                .claim("sid", sessionId)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(signingKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public String generateRefreshToken(Long userId, UserRole role, Long organizationId) {
+    public String generateRefreshToken(Long userId, UserRole role, Long organizationId, String sessionId) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getRefreshExpireDays() * 24 * 60 * 60 * 1000L);
 
@@ -44,6 +45,7 @@ public class JwtTokenProvider {
                 .setSubject(userId.toString())
                 .claim("role", role.name())
                 .claim("orgId", organizationId)
+                .claim("sid", sessionId)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(signingKey(), SignatureAlgorithm.HS256)
@@ -99,6 +101,10 @@ public class JwtTokenProvider {
         Object orgId = extractAllClaims(token).get("orgId");
         if (orgId == null) return null;
         return ((Number) orgId).longValue();
+    }
+
+    public String extractSessionId(String token) {
+        return extractAllClaims(token).get("sid", String.class);
     }
 
     private Claims extractAllClaims(String token) {
