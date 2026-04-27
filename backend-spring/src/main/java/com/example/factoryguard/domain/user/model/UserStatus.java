@@ -1,8 +1,8 @@
 package com.example.factoryguard.domain.user.model;
 
 public enum UserStatus {
-    ACTIVE,
     PENDING,
+    ACTIVE,
     REJECTED,
     INACTIVE
 }
