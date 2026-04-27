@@ -45,5 +45,5 @@ app:
     expire-minutes: ${JWT_EXPIRE_MINUTES:60}
   oauth2:
     google:
-      client-id: ${GOOGLE_CLIENT_ID:}
+      client-id: ${GOOGLE_CLIENT_ID:354049085922-5dbjmlo3qbmpoalapeh0n8fnus72bc65.apps.googleusercontent.com}
       client-secret: ${GOOGLE_CLIENT_SECRET:}
