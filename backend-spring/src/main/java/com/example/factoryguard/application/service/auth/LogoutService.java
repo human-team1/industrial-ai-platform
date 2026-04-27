@@ -14,5 +14,6 @@ public class LogoutService implements LogoutUseCase {
     @Override
     public void execute(Long userId) {
         tokenStorePort.deleteRefreshToken(userId);
+        tokenStorePort.deleteSessionId(userId);
     }
 }

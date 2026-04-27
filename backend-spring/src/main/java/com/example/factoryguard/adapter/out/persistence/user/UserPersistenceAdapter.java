@@ -1,6 +1,7 @@
 package com.example.factoryguard.adapter.out.persistence.user;
 
 import com.example.factoryguard.application.port.out.user.FindUserByGoogleSubPort;
+import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.application.port.out.user.SaveUserPort;
 import com.example.factoryguard.application.port.out.user.UpdateUserStatusPort;
 import com.example.factoryguard.common.exception.BusinessException;
@@ -14,13 +15,19 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class UserPersistenceAdapter implements FindUserByGoogleSubPort, SaveUserPort, UpdateUserStatusPort {
+public class UserPersistenceAdapter implements FindUserByGoogleSubPort, FindUserByIdPort, SaveUserPort, UpdateUserStatusPort {
 
     private final UserJpaRepository userJpaRepository;
 
     @Override
     public Optional<User> findByGoogleSub(String googleSub) {
         return userJpaRepository.findByGoogleSub(googleSub)
+                .map(this::toDomain);
+    }
+
+    @Override
+    public Optional<User> findById(Long userId) {
+        return userJpaRepository.findById(userId)
                 .map(this::toDomain);
     }
 

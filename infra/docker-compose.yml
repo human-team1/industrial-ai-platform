@@ -1,6 +1,7 @@
 services:
   mariadb:
     image: mariadb:10.6.21
+    platform: linux/amd64
     container_name: industrial-mariadb
     restart: unless-stopped
     environment:
@@ -16,6 +17,7 @@ services:
 
   redis:
     image: redis:7
+    platform: linux/amd64
     container_name: industrial-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
@@ -31,6 +33,7 @@ services:
 
   minio:
     image: minio/minio:latest
+    platform: linux/amd64
     container_name: industrial-minio
     restart: unless-stopped
     environment:
@@ -51,6 +54,7 @@ services:
 
   chroma:
     image: chromadb/chroma:0.5.15
+    platform: linux/amd64
     container_name: industrial-chroma
     restart: unless-stopped
     environment:
