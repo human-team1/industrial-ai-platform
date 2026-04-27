@@ -5,10 +5,14 @@ import com.example.factoryguard.application.port.in.auth.RefreshTokenUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
+import com.example.factoryguard.config.security.JwtProperties;
 import com.example.factoryguard.config.security.JwtTokenProvider;
 import com.example.factoryguard.domain.user.model.UserRole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -16,6 +20,7 @@ public class RefreshTokenService implements RefreshTokenUseCase {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenStorePort tokenStorePort;
+    private final JwtProperties jwtProperties;
 
     @Override
     public RefreshTokenResult execute(String refreshToken) {
@@ -34,7 +39,13 @@ public class RefreshTokenService implements RefreshTokenUseCase {
             throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        String newAccessToken = jwtTokenProvider.generateAccessToken(userId, UserRole.valueOf(role), organizationId);
+        String newSessionId = UUID.randomUUID().toString();
+        Duration ttl = Duration.ofDays(jwtProperties.getRefreshExpireDays());
+
+        String newAccessToken = jwtTokenProvider.generateAccessToken(
+                userId, UserRole.valueOf(role), organizationId, newSessionId);
+
+        tokenStorePort.saveSessionId(userId, newSessionId, ttl);
 
         return RefreshTokenResult.builder()
                 .accessToken(newAccessToken)

@@ -24,4 +24,12 @@ public class SecurityUtils {
     public Long getCurrentOrgId() {
         return getCurrentPrincipal().organizationId();
     }
+
+    public Long requireOrganizationId() {
+        Long orgId = getCurrentPrincipal().organizationId();
+        if (orgId == null) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+        return orgId;
+    }
 }

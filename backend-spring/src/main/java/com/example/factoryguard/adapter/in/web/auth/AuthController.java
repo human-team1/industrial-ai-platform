@@ -6,6 +6,7 @@ import com.example.factoryguard.application.dto.auth.AuthStatus;
 import com.example.factoryguard.application.dto.auth.GoogleLoginCommand;
 import com.example.factoryguard.application.dto.auth.GoogleLoginResult;
 import com.example.factoryguard.application.dto.auth.RefreshTokenResult;
+import com.example.factoryguard.application.port.in.auth.GetAuthMeUseCase;
 import com.example.factoryguard.application.port.in.auth.GoogleLoginUseCase;
 import com.example.factoryguard.application.port.in.auth.LogoutUseCase;
 import com.example.factoryguard.application.port.in.auth.RefreshTokenUseCase;
@@ -15,6 +16,7 @@ import com.example.factoryguard.common.response.ApiResponse;
 import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.JwtProperties;
 import com.example.factoryguard.config.security.SecurityUtils;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -32,6 +34,7 @@ public class AuthController {
     private final GoogleLoginUseCase googleLoginUseCase;
     private final RefreshTokenUseCase refreshTokenUseCase;
     private final LogoutUseCase logoutUseCase;
+    private final GetAuthMeUseCase getAuthMeUseCase;
     private final JwtProperties jwtProperties;
     private final SecurityUtils securityUtils;
 
@@ -79,12 +82,8 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<AuthMeResult>> me() {
-        AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
-        AuthMeResult result = AuthMeResult.builder()
-                .userId(principal.userId())
-                .role(principal.role())
-                .organizationId(principal.organizationId())
-                .build();
+        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
+        AuthMeResult result = getAuthMeUseCase.execute(p.userId(), p.sessionId());
         return ResponseEntity.ok(ApiResponse.success(result, "현재 사용자 정보입니다."));
     }
 
