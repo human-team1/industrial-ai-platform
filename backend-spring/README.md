@@ -1,13 +1,13 @@
 # Backend Spring
 
-Spring Boot API 서버 전용 프로젝트입니다. SSR, JSP, WAR 구조를 사용하지 않고 persistence는 MyBatis만 사용합니다.
+Spring Boot API 서버 전용 프로젝트입니다. SSR, JSP, WAR 구조를 사용하지 않고 persistence는 Spring Data JPA를 사용합니다.
 
 ## 기술 스택
 
 - Java 17
 - Spring Boot 2.7.18
 - Gradle Wrapper 7.6.4
-- MyBatis Spring Boot Starter 2.2.2
+- Spring Data JPA
 - MariaDB Java Client 2.7.5
 - Spring Security
 - OAuth2 Client
@@ -69,4 +69,4 @@ com.example.factoryguard
   adapter/      # web, persistence, fastapi, minio, redis adapter
 ```
 
-MyBatis mapper XML은 `src/main/resources/mapper` 하위에 둡니다.
+JPA Entity와 Spring Data Repository는 `adapter/out/persistence` 하위에 둡니다.
