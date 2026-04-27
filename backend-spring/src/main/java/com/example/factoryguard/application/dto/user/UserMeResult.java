@@ -17,10 +17,12 @@ public class UserMeResult {
     private final String phone;
     private final String role;
     private final Long organizationId;
+    private final String organizationName;
     private final String status;
+    private final LocalDateTime lastLoginAt;
     private final LocalDateTime createdAt;
 
-    public static UserMeResult from(User user) {
+    public static UserMeResult from(User user, String organizationName) {
         return UserMeResult.builder()
                 .userId(user.getUserId())
                 .email(user.getEmail())
@@ -29,7 +31,9 @@ public class UserMeResult {
                 .phone(user.getPhone())
                 .role(user.getRole().name())
                 .organizationId(user.getOrganizationId())
+                .organizationName(organizationName)
                 .status(user.getStatus().name())
+                .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

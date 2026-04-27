@@ -36,7 +36,7 @@ export type NewUserInfo = {
   picture?: string
 }
 
-// GET /auth/me 응답 — 인증 검증 + 컨텍스트 획득용
+// GET /auth/me 응답 — 인증 검증 + 컨텍스트 획득용 (가벼운 헬스체크)
 export type AuthMeResponse = {
   userId: number
   name: string
@@ -54,6 +54,8 @@ export type UserMeResponse = {
   phone?: string
   role: string
   organizationId?: number
+  organizationName?: string
   status: string
+  lastLoginAt?: string
   createdAt: string
 }
