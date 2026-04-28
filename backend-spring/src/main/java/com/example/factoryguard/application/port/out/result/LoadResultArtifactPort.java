@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface LoadResultArtifactPort {
 
-    List<ResultArtifact> findAllByResultId(Long resultId);
+    List<ResultArtifact> findArtifactsByResultId(Long resultId);
 }

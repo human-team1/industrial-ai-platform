@@ -4,6 +4,7 @@ import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTarg
 import com.example.factoryguard.application.port.out.inspection.LoadInspectionRunPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionResultPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionRunPort;
+import com.example.factoryguard.application.port.out.result.LoadInspectionResultPort;
 import com.example.factoryguard.domain.inspection.model.AnalysisTarget;
 import com.example.factoryguard.domain.inspection.model.InspectionResult;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
@@ -23,7 +24,8 @@ public class InspectionPersistenceAdapter implements
         LoadAnalysisTargetPort,
         SaveInspectionRunPort,
         LoadInspectionRunPort,
-        SaveInspectionResultPort {
+        SaveInspectionResultPort,
+        LoadInspectionResultPort {
 
     private final AnalysisTargetJpaRepository analysisTargetJpaRepository;
     private final InspectionRunJpaRepository inspectionRunJpaRepository;
@@ -122,6 +124,36 @@ public class InspectionPersistenceAdapter implements
                 .modelVersionId(saved.getModelVersionId())
                 .failureReason(saved.getFailureReason())
                 .createdAt(saved.getCreatedAt())
+                .build();
+    }
+
+    @Override
+    public Optional<InspectionResult> findResultById(Long resultId) {
+        return inspectionResultJpaRepository.findById(resultId).map(this::toDomain);
+    }
+
+    @Override
+    public List<InspectionResult> findAllByInspectionId(Long inspectionId) {
+        return inspectionResultJpaRepository.findAllByInspectionIdOrderByCreatedAtAsc(inspectionId).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    private InspectionResult toDomain(InspectionResultJpaEntity e) {
+        return InspectionResult.builder()
+                .resultId(e.getResultId())
+                .inspectionId(e.getInspectionId())
+                .score(e.getScore())
+                .confidence(e.getConfidence())
+                .decisionCode(e.getDecisionCode())
+                .finalDecisionCode(e.getFinalDecisionCode())
+                .resultStatus(e.getResultStatus())
+                .thresholdSource(e.getThresholdSource())
+                .thresholdId(e.getThresholdId())
+                .thresholdVersion(e.getThresholdVersion())
+                .modelVersionId(e.getModelVersionId())
+                .failureReason(e.getFailureReason())
+                .createdAt(e.getCreatedAt())
                 .build();
     }
 

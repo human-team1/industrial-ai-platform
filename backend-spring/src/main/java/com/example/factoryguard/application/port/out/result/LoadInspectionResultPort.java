@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface LoadInspectionResultPort {
 
-    Optional<InspectionResult> findById(Long resultId);
+    Optional<InspectionResult> findResultById(Long resultId);
 
     List<InspectionResult> findAllByInspectionId(Long inspectionId);
 }
