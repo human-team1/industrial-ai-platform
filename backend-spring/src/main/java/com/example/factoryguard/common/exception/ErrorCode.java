@@ -20,6 +20,8 @@ public enum ErrorCode {
     INSPECTION_FAILED("INSPECTION-500", HttpStatus.INTERNAL_SERVER_ERROR, "검사 처리 중 오류가 발생했습니다."),
     INSPECTION_NOT_FOUND("INSPECTION-404", HttpStatus.NOT_FOUND, "검사를 찾을 수 없습니다."),
     INSPECTION_INVALID_STATE("INSPECTION-409", HttpStatus.CONFLICT, "검사 상태에서 허용되지 않는 동작입니다."),
+    IDEMPOTENCY_CONFLICT("INSPECTION-409B", HttpStatus.CONFLICT, "동일 Idempotency-Key로 다른 요청이 이미 처리되었습니다."),
+    INVALID_IDEMPOTENCY_KEY("INSPECTION-422", HttpStatus.UNPROCESSABLE_ENTITY, "Idempotency-Key 값이 올바르지 않습니다."),
     INVALID_FILE_EMPTY("FILE-400", HttpStatus.BAD_REQUEST, "파일이 비어있습니다."),
     INVALID_FILE_SIZE("FILE-401", HttpStatus.BAD_REQUEST, "허용된 파일 크기를 초과했습니다."),
     INVALID_FILE_MIME("FILE-402", HttpStatus.BAD_REQUEST, "허용되지 않은 MIME 타입입니다."),
@@ -29,6 +31,7 @@ public enum ErrorCode {
     CAMERA_INVALID_URL("CAMERA-400", HttpStatus.BAD_REQUEST, "스트림 URL 형식이 올바르지 않습니다."),
     AI_SERVER_ERROR("AI-503", HttpStatus.SERVICE_UNAVAILABLE, "AI 서버와 통신 중 오류가 발생했습니다."),
     AI_TIMEOUT("AI-504", HttpStatus.GATEWAY_TIMEOUT, "AI 서버 호출이 시간 초과되었습니다."),
+    AI_REQUEST_INVALID("AI-400", HttpStatus.BAD_GATEWAY, "AI 서버 요청 형식이 올바르지 않습니다."),
     REALTIME_NOT_ENABLED("REALTIME-503", HttpStatus.SERVICE_UNAVAILABLE, "실시간 검사는 현재 사용할 수 없습니다.");
 
     private final String code;

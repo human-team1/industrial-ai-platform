@@ -49,7 +49,8 @@ public class InspectionController {
     public ResponseEntity<ApiResponse<SubmitInspectionResult>> upload(
             @RequestPart("file") MultipartFile file,
             @RequestPart("targetId") String targetId,
-            @RequestPart(value = "thresholdId", required = false) String thresholdId) throws Exception {
+            @RequestPart(value = "thresholdId", required = false) String thresholdId,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) throws Exception {
 
         fileValidator.validate(file);
 
@@ -73,10 +74,20 @@ public class InspectionController {
                 thresholdId != null ? Long.parseLong(thresholdId) : null,
                 fileUrl,
                 file.getOriginalFilename(),
-                file.getContentType()
+                file.getContentType(),
+                file.getSize(),
+                idempotencyKey
         ));
 
-        return ResponseEntity.ok(ApiResponse.success(result, "검사 요청이 완료되었습니다."));
+        String message = switch (result.getRunStatus()) {
+            case PENDING, PROCESSING -> "검사가 진행 중입니다.";
+            case COMPLETED -> "검사 요청이 완료되었습니다.";
+            default -> "검사 요청이 처리되었습니다.";
+        };
+
+        return ResponseEntity.ok()
+                .header("Idempotent-Replay", String.valueOf(result.isReplay()))
+                .body(ApiResponse.success(result, message));
     }
 
     @PatchMapping("/{inspectionId}/stop")

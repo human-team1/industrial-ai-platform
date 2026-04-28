@@ -11,7 +11,13 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "inspection_run")
+@Table(
+        name = "inspection_run",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_inspection_run_org_user_idempotency",
+                columnNames = {"organization_id", "user_id", "idempotency_key"}
+        )
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InspectionRunJpaEntity {
@@ -50,8 +56,11 @@ public class InspectionRunJpaEntity {
     @Column(name = "applied_threshold", nullable = false)
     private double appliedThreshold;
 
-    @Column(name = "idempotency_key", unique = true)
+    @Column(name = "idempotency_key", nullable = false)
     private String idempotencyKey;
+
+    @Column(name = "payload_fingerprint", length = 64)
+    private String payloadFingerprint;
 
     @Column(name = "error_code")
     private String errorCode;
@@ -77,7 +86,8 @@ public class InspectionRunJpaEntity {
     public InspectionRunJpaEntity(Long organizationId, Long userId, Long targetId,
                                   RunType runType, String inputType, String sourceType,
                                   String sourceId, RunStatus runStatus, double appliedThreshold,
-                                  String idempotencyKey, LocalDateTime startedAt) {
+                                  String idempotencyKey, String payloadFingerprint,
+                                  LocalDateTime startedAt) {
         this.organizationId = organizationId;
         this.userId = userId;
         this.targetId = targetId;
@@ -88,6 +98,7 @@ public class InspectionRunJpaEntity {
         this.runStatus = runStatus;
         this.appliedThreshold = appliedThreshold;
         this.idempotencyKey = idempotencyKey;
+        this.payloadFingerprint = payloadFingerprint;
         this.startedAt = startedAt;
     }
 }

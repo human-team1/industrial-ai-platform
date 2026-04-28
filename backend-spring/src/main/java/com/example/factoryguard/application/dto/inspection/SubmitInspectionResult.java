@@ -14,6 +14,7 @@ public class SubmitInspectionResult {
     private final Long inspectionId;
     private final RunStatus runStatus;
     private final ResultPayload result;
+    private final boolean replay;
 
     public static SubmitInspectionResult of(InspectionRun run, InspectionResult result, boolean reviewQueued) {
         return new SubmitInspectionResult(
@@ -26,7 +27,24 @@ public class SubmitInspectionResult {
                         result.getScore(),
                         result.getConfidence(),
                         reviewQueued
-                )
+                ),
+                false
+        );
+    }
+
+    public static SubmitInspectionResult ofReplay(InspectionRun run, InspectionResult result, boolean reviewQueued) {
+        return new SubmitInspectionResult(
+                run.getInspectionId(),
+                run.getRunStatus(),
+                result == null ? null : new ResultPayload(
+                        result.getResultId(),
+                        result.getDecisionCode(),
+                        result.getResultStatus(),
+                        result.getScore(),
+                        result.getConfidence(),
+                        reviewQueued
+                ),
+                true
         );
     }
 

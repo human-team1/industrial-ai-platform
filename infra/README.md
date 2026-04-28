@@ -1,5 +1,7 @@
 # Infra
 
+industrial-ai-platform.sql — USER_THRESHOLD_HISTORY.version INT 컬럼 추가 (init 일관성)
+
 로컬 개발 인프라 전용 Docker Compose입니다. 전체 개발환경 설치 절차는 루트 [README.md](../README.md)를 참고하세요.
 
 ## 서비스

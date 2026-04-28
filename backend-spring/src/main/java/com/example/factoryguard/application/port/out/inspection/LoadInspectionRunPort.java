@@ -11,4 +11,6 @@ public interface LoadInspectionRunPort {
     Optional<InspectionRun> findRunById(Long inspectionId);
     List<InspectionRun> findRunsByOrganizationId(Long organizationId, int page, int size);
     List<InspectionRun> findRunsByStatusAndStartedAtBefore(RunStatus status, LocalDateTime threshold);
+    Optional<InspectionRun> findByOrganizationIdAndUserIdAndIdempotencyKey(
+            Long organizationId, Long userId, String idempotencyKey);
 }

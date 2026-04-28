@@ -103,6 +103,7 @@
   CREATE TABLE USER_THRESHOLD_HISTORY (
     threshold_history_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     threshold_id BIGINT NOT NULL,
+    version INT,
     old_anomaly_threshold DECIMAL(5,4),
     new_anomaly_threshold DECIMAL(5,4),
     change_reason TEXT,
@@ -185,10 +186,12 @@
     source_id BIGINT,
     run_status VARCHAR(20) NOT NULL DEFAULT 'REQUESTED',
     applied_threshold DECIMAL(5,4),
-    idempotency_key VARCHAR(255) UNIQUE,
+    idempotency_key VARCHAR(255) NOT NULL,
+    payload_fingerprint VARCHAR(64),
     error_code VARCHAR(50),
     started_at TIMESTAMP NULL,
     completed_at TIMESTAMP NULL,
+    CONSTRAINT uk_inspection_run_org_user_idempotency UNIQUE (organization_id, user_id, idempotency_key),
     CONSTRAINT fk_inspection_run_organization FOREIGN KEY (organization_id) REFERENCES ORGANIZATION(organization_id),
     CONSTRAINT fk_inspection_run_user FOREIGN KEY (user_id) REFERENCES USERS(user_id),
     CONSTRAINT fk_inspection_run_target FOREIGN KEY (target_id) REFERENCES ANALYSIS_TARGET(target_id)

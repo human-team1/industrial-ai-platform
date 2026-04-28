@@ -29,11 +29,12 @@ import com.example.factoryguard.domain.inspection.model.RunType;
 import com.example.factoryguard.domain.review.model.ReviewQueue;
 import com.example.factoryguard.domain.review.vo.ReviewQueueStatus;
 import com.example.factoryguard.domain.user.model.User;
+import com.example.factoryguard.adapter.out.fastapi.client.AiInvalidRequestException;
+import com.example.factoryguard.adapter.out.fastapi.client.AiServerException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestClientException;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -125,7 +126,14 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
                 runRecorder.markFailed(runId, ErrorCode.AI_TIMEOUT.name());
                 eventLogger.logFailure(runId, InspectionEventType.FAILED, "ai timeout");
                 throw new BusinessException(ErrorCode.AI_TIMEOUT);
-            } catch (RestClientException aiEx) {
+            } catch (AiInvalidRequestException aiEx) {
+                String detail = "AI_REQUEST_INVALID: " + safeMessage(aiEx);
+                saveFailedResult(runId, resolved, detail);
+                eventLogger.logFailure(runId, InspectionEventType.AI_FAILED, detail);
+                runRecorder.markFailed(runId, ErrorCode.AI_REQUEST_INVALID.name());
+                eventLogger.logFailure(runId, InspectionEventType.FAILED, "ai 4xx");
+                throw new BusinessException(ErrorCode.AI_REQUEST_INVALID);
+            } catch (AiServerException aiEx) {
                 String detail = "AI_SERVER_ERROR: " + safeMessage(aiEx);
                 saveFailedResult(runId, resolved, detail);
                 eventLogger.logFailure(runId, InspectionEventType.AI_FAILED, detail);

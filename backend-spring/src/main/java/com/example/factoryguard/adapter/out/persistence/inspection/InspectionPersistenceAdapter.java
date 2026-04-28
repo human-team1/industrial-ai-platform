@@ -67,11 +67,20 @@ public class InspectionPersistenceAdapter implements
                             .runStatus(run.getRunStatus())
                             .appliedThreshold(run.getAppliedThreshold())
                             .idempotencyKey(run.getIdempotencyKey())
+                            .payloadFingerprint(run.getPayloadFingerprint())
                             .startedAt(run.getStartedAt())
                             .build()
             );
         }
         return toDomain(saved);
+    }
+
+    @Override
+    public Optional<InspectionRun> findByOrganizationIdAndUserIdAndIdempotencyKey(
+            Long organizationId, Long userId, String idempotencyKey) {
+        return inspectionRunJpaRepository
+                .findByOrganizationIdAndUserIdAndIdempotencyKey(organizationId, userId, idempotencyKey)
+                .map(this::toDomain);
     }
 
     @Override
@@ -170,6 +179,7 @@ public class InspectionPersistenceAdapter implements
                 .runStatus(e.getRunStatus())
                 .appliedThreshold(e.getAppliedThreshold())
                 .idempotencyKey(e.getIdempotencyKey())
+                .payloadFingerprint(e.getPayloadFingerprint())
                 .errorCode(e.getErrorCode())
                 .startedAt(e.getStartedAt())
                 .completedAt(e.getCompletedAt())

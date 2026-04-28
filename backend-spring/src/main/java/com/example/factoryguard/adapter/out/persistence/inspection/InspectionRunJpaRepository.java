@@ -7,8 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface InspectionRunJpaRepository extends JpaRepository<InspectionRunJpaEntity, Long> {
     Page<InspectionRunJpaEntity> findByOrganizationId(Long organizationId, Pageable pageable);
     List<InspectionRunJpaEntity> findByRunStatusAndStartedAtBefore(RunStatus runStatus, LocalDateTime threshold);
+    Optional<InspectionRunJpaEntity> findByOrganizationIdAndUserIdAndIdempotencyKey(
+            Long organizationId, Long userId, String idempotencyKey);
 }

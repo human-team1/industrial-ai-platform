@@ -18,13 +18,13 @@ public class ResolvedThreshold {
     private final Long thresholdId;
     private final Integer thresholdVersion;
 
-    public static ResolvedThreshold fromUserThreshold(UserThreshold threshold) {
+    public static ResolvedThreshold fromUserThreshold(UserThreshold threshold, Integer version) {
         return new ResolvedThreshold(
                 threshold.getAnomalyThreshold(),
                 threshold.getLowConfidenceThreshold(),
                 ThresholdSource.USER,
                 threshold.getThresholdId(),
-                null
+                version
         );
     }
 

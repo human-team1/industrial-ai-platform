@@ -27,6 +27,10 @@ management:
       exposure:
         include: health,info
 
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%X{requestId:-}] %logger{36} - %msg%n"
+
 inspection:
   upload:
     max-size: 50MB
@@ -47,6 +51,8 @@ inspection:
 app:
   ai-server:
     base-url: ${AI_SERVER_BASE_URL:http://localhost:8001}
+    connect-timeout-sec: ${AI_SERVER_CONNECT_TIMEOUT_SEC:5}
+    read-timeout-sec: ${AI_SERVER_READ_TIMEOUT_SEC:60}
   chroma:
     host: ${CHROMA_HOST:localhost}
     port: ${CHROMA_PORT:8000}

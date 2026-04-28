@@ -11,6 +11,7 @@ public class UserThresholdHistory {
 
     private final Long thresholdHistoryId;
     private final Long thresholdId;
+    private final Integer version;
     private final double oldAnomalyThreshold;
     private final double newAnomalyThreshold;
     private final String changeReason;
