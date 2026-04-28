@@ -14,6 +14,7 @@ public class InspectionInput {
     private final Long fileId;
     private final Long cameraId;
     private final String streamUrl;
+    private final InputSourceType sourceType;
     private final String sourceName;
     private final String mimeType;
     private final Integer durationSec;
