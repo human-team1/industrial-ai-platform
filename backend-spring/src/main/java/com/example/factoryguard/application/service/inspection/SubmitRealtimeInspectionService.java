@@ -1,13 +1,30 @@
 package com.example.factoryguard.application.service.inspection;
 
-import com.example.factoryguard.application.dto.inspection.*;
-import com.example.factoryguard.application.port.in.inspection.SubmitInspectionUseCase;
+import com.example.factoryguard.application.dto.inspection.AiInspectionResponse;
+import com.example.factoryguard.application.dto.inspection.AiRealtimeInspectionRequest;
+import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
+import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
+import com.example.factoryguard.application.dto.inspection.SubmitRealtimeInspectionCommand;
+import com.example.factoryguard.application.port.in.inspection.SubmitRealtimeInspectionUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
-import com.example.factoryguard.application.port.out.inspection.*;
+import com.example.factoryguard.application.port.out.inspection.CallAiInspectionPort;
+import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
+import com.example.factoryguard.application.port.out.inspection.LoadCameraSourcePort;
+import com.example.factoryguard.application.port.out.inspection.SaveInspectionResultPort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
-import com.example.factoryguard.domain.inspection.model.*;
+import com.example.factoryguard.domain.inspection.model.AnalysisTarget;
+import com.example.factoryguard.domain.inspection.model.CameraSource;
+import com.example.factoryguard.domain.inspection.model.DecisionCalculator;
+import com.example.factoryguard.domain.inspection.model.DecisionCode;
+import com.example.factoryguard.domain.inspection.model.InputSourceType;
+import com.example.factoryguard.domain.inspection.model.InspectionEventType;
+import com.example.factoryguard.domain.inspection.model.InspectionInput;
+import com.example.factoryguard.domain.inspection.model.InspectionResult;
+import com.example.factoryguard.domain.inspection.model.InspectionRun;
+import com.example.factoryguard.domain.inspection.model.RunStatus;
+import com.example.factoryguard.domain.inspection.model.RunType;
 import com.example.factoryguard.domain.user.model.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,11 +39,12 @@ import java.util.concurrent.TimeoutException;
 @Service
 @Transactional
 @RequiredArgsConstructor
-public class SubmitInspectionService implements SubmitInspectionUseCase {
+public class SubmitRealtimeInspectionService implements SubmitRealtimeInspectionUseCase {
 
     private final TokenStorePort tokenStorePort;
     private final FindUserByIdPort findUserByIdPort;
     private final LoadAnalysisTargetPort loadAnalysisTargetPort;
+    private final LoadCameraSourcePort loadCameraSourcePort;
     private final SaveInspectionResultPort saveInspectionResultPort;
     private final CallAiInspectionPort callAiInspectionPort;
     private final ResolveInspectionThresholdService resolveInspectionThresholdService;
@@ -35,8 +53,8 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
     private final InspectionEventLogger eventLogger;
 
     @Override
-    public SubmitInspectionResult execute(SubmitInspectionCommand command) {
-        // ① 사전 검증 (RUN 생성 전 — 유령 RUN 방지)
+    public SubmitInspectionResult execute(SubmitRealtimeInspectionCommand command) {
+        // ① 사전 검증
         validateSession(command.getUserId(), command.getSessionId());
         User user = validateUserStatus(command.getUserId());
         ResolvedThreshold resolved = resolveInspectionThresholdService.resolve(
@@ -46,16 +64,21 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         if (!target.getOrganizationId().equals(user.getOrganizationId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
+        CameraSource camera = loadCameraSourcePort.findById(command.getCameraId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.CAMERA_NOT_FOUND));
+        if (!camera.getOrganizationId().equals(user.getOrganizationId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
 
-        // ② RUN 생성 (REQUIRES_NEW — 즉시 커밋)
+        // ② RUN 생성 (REQUIRES_NEW)
         InspectionRun run = runRecorder.create(InspectionRun.builder()
                 .organizationId(user.getOrganizationId())
                 .userId(command.getUserId())
                 .targetId(command.getTargetId())
-                .runType(RunType.UPLOAD)
-                .inputType("FILE")
-                .sourceType("UPLOAD")
-                .sourceId(command.getOriginalFileName())
+                .runType(RunType.REALTIME)
+                .inputType("CAMERA")
+                .sourceType("CAMERA")
+                .sourceId(String.valueOf(camera.getCameraId()))
                 .runStatus(RunStatus.PENDING)
                 .appliedThreshold(resolved.getAnomalyThreshold())
                 .idempotencyKey(UUID.randomUUID().toString())
@@ -63,30 +86,28 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                 .build());
         Long runId = run.getInspectionId();
 
-        // ③ 이 시점부터 RUN이 DB에 존재 → 모든 예외 경로에서 FAILED 마킹 보장
         try {
-            // ④ INPUT 저장 (REQUIRES_NEW)
+            // ③ INPUT 저장 (REQUIRES_NEW) — sourceType=CAMERA
             inputRecorder.record(InspectionInput.builder()
                     .inspectionId(runId)
-                    .sourceType(InputSourceType.FILE)
-                    .sourceName(command.getOriginalFileName())
-                    .mimeType(command.getMimeType())
+                    .sourceType(InputSourceType.CAMERA)
+                    .cameraId(camera.getCameraId())
+                    .streamUrl(camera.getStreamUrl())
+                    .sourceName(camera.getCameraName())
                     .build());
 
-            // ⑤ 메인 트랜잭션 이벤트
-            eventLogger.log(runId, InspectionEventType.UPLOAD_RECEIVED, command.getOriginalFileName());
-            eventLogger.log(runId, InspectionEventType.INPUT_SAVED, "input persisted");
+            eventLogger.log(runId, InspectionEventType.UPLOAD_RECEIVED, "camera=" + camera.getCameraId());
+            eventLogger.log(runId, InspectionEventType.INPUT_SAVED, "camera input persisted");
 
-            // ⑥ PROCESSING 전이
             runRecorder.transitTo(runId, RunStatus.PROCESSING);
             eventLogger.log(runId, InspectionEventType.PROCESS_STARTED, "processing started");
 
-            // ⑦ FastAPI 호출
-            eventLogger.log(runId, InspectionEventType.AI_CALLED, "ai called");
+            eventLogger.log(runId, InspectionEventType.AI_CALLED, "realtime ai called");
             AiInspectionResponse aiResponse;
             try {
-                aiResponse = callAiInspectionPort.call(new AiInspectionRequest(
-                        command.getFileUrl(),
+                aiResponse = callAiInspectionPort.callRealtime(new AiRealtimeInspectionRequest(
+                        camera.getCameraId(),
+                        camera.getStreamUrl(),
                         resolved.getAnomalyThreshold(),
                         resolved.getLowConfidenceThreshold()
                 ));
@@ -104,7 +125,6 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                 throw new BusinessException(ErrorCode.AI_SERVER_ERROR);
             }
 
-            // ⑧ 판단 + RESULT 저장
             DecisionCode decision = DecisionCalculator.decide(
                     aiResponse.getScore(),
                     aiResponse.getConfidence(),
@@ -123,18 +143,15 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                     .build());
             eventLogger.log(runId, InspectionEventType.RESULT_SAVED, "result saved");
 
-            // ⑨ COMPLETED 전이
             runRecorder.transitTo(runId, RunStatus.COMPLETED);
             eventLogger.log(runId, InspectionEventType.COMPLETED, "completed");
 
             return SubmitInspectionResult.of(run.toBuilder().runStatus(RunStatus.COMPLETED).build(), result);
 
         } catch (BusinessException be) {
-            // 위 catch 블록에서 throw된 경우 — 이미 markFailed 처리됨
             throw be;
         } catch (Exception e) {
-            // ★ v4 핵심: 예상치 못한 예외 — RUN이 PENDING/PROCESSING으로 잔존 방지
-            log.error("Unexpected error during inspection submission, runId={}", runId, e);
+            log.error("Unexpected error during realtime inspection submission, runId={}", runId, e);
             runRecorder.markFailed(runId, "UNEXPECTED_ERROR");
             eventLogger.logFailure(runId, InspectionEventType.FAILED, "unexpected: " + safeMessage(e));
             throw new BusinessException(ErrorCode.INSPECTION_FAILED);

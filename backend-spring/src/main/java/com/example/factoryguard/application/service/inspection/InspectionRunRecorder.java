@@ -1,6 +1,9 @@
 package com.example.factoryguard.application.service.inspection;
 
+import com.example.factoryguard.application.port.out.inspection.LoadInspectionRunPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionRunPort;
+import com.example.factoryguard.common.exception.BusinessException;
+import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import com.example.factoryguard.domain.inspection.model.RunStatus;
 import lombok.RequiredArgsConstructor;
@@ -13,27 +16,27 @@ import org.springframework.transaction.annotation.Transactional;
 public class InspectionRunRecorder {
 
     private final SaveInspectionRunPort saveInspectionRunPort;
+    private final LoadInspectionRunPort loadInspectionRunPort;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public InspectionRun record(InspectionRun run) {
+    public InspectionRun create(InspectionRun run) {
         return saveInspectionRunPort.save(run);
     }
 
+    @Transactional(propagation = Propagation.REQUIRED)
+    public void transitTo(Long inspectionId, RunStatus next) {
+        InspectionRun existing = loadInspectionRunPort.findRunById(inspectionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INSPECTION_NOT_FOUND));
+        saveInspectionRunPort.save(existing.toBuilder().runStatus(next).build());
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markFailed(InspectionRun run) {
-        saveInspectionRunPort.save(InspectionRun.builder()
-                .inspectionId(run.getInspectionId())
-                .organizationId(run.getOrganizationId())
-                .userId(run.getUserId())
-                .targetId(run.getTargetId())
-                .runType(run.getRunType())
-                .inputType(run.getInputType())
-                .sourceType(run.getSourceType())
-                .sourceId(run.getSourceId())
+    public void markFailed(Long inspectionId, String errorCode) {
+        InspectionRun existing = loadInspectionRunPort.findRunById(inspectionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INSPECTION_NOT_FOUND));
+        saveInspectionRunPort.save(existing.toBuilder()
                 .runStatus(RunStatus.FAILED)
-                .appliedThreshold(run.getAppliedThreshold())
-                .idempotencyKey(run.getIdempotencyKey())
-                .startedAt(run.getStartedAt())
+                .errorCode(errorCode)
                 .build());
     }
 }
