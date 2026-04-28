@@ -9,7 +9,9 @@ import java.util.Optional;
 public interface UserRepository {
     Optional<User> findById(Long id);
     Optional<User> findByEmail(String email);
+    Optional<User> findByGoogleSub(String googleSub);
     User save(User user);
     List<User> findByStatus(UserStatus status);
     boolean existsByEmail(String email);
+    boolean existsByGoogleSub(String googleSub);
 }

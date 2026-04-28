@@ -15,7 +15,12 @@ public class SecurityConfig {
                 .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
                 .authorizeRequests()
-                .antMatchers("/api/v1/health", "/api/v1/inspections/**", "/actuator/health").permitAll()
+                .antMatchers(
+                    "/api/v1/health",
+                    "/api/v1/inspections/**",
+                    "/actuator/health",
+                    "/api/auth/signup" // ✅ 추가
+                ).permitAll()
                 .anyRequest().authenticated()
                 .and()
                 .httpBasic().disable()

@@ -3,10 +3,16 @@ package com.example.factoryguard.adapter.in.web;
 import com.example.factoryguard.adapter.in.web.dto.SignupRequest;
 import com.example.factoryguard.adapter.in.web.dto.SignupResponse;
 import com.example.factoryguard.application.port.in.SignupUseCase;
-import com.example.factoryguard.common.ApiResponse;
+import com.example.factoryguard.application.port.in.dto.SignupResult;
+import com.example.factoryguard.common.response.ApiResponse; 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import javax.validation.Valid;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -19,10 +25,10 @@ public class SignupController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<SignupResponse>> signup(@RequestBody SignupRequest request) {
-        var result = signupUseCase.signup(request.toCommand());
-        var response = SignupResponse.from(result);
+    public ResponseEntity<ApiResponse<SignupResponse>> signup(@Valid @RequestBody SignupRequest request) {
+        SignupResult result = signupUseCase.signup(request.toCommand());
+        SignupResponse response = SignupResponse.from(result);
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.ok(response, "회원가입이 완료되었습니다. 관리자 승인을 기다려주세요."));
+            .body(ApiResponse.success(response, "회원가입 신청이 완료되었습니다. 관리자 승인 후 이용 가능합니다.")); // ✅ ok() → success()
     }
 }

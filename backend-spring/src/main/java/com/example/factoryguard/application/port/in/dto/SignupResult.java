@@ -1,33 +1,23 @@
 package com.example.factoryguard.application.port.in.dto;
 
-import com.example.factoryguard.domain.user.UserStatus;
-
 public class SignupResult {
-    private final Long userId;
+    private final Long id; 
     private final String email;
     private final String name;
-    private final UserStatus status;
+    private final String picture;
+    private final String status; 
 
-    public SignupResult(Long userId, String email, String name, UserStatus status) {
-        this.userId = userId;
+    public SignupResult(Long id, String email, String name, String picture, String status) {
+        this.id = id;
         this.email = email;
         this.name = name;
+        this.picture = picture;
         this.status = status;
     }
 
-    public Long getUserId() {
-        return userId;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public UserStatus getStatus() {
-        return status;
-    }
+    public Long getId() { return id; } 
+    public String getEmail() { return email; }
+    public String getName() { return name; }
+    public String getPicture() { return picture; }
+    public String getStatus() { return status; } 
 }
