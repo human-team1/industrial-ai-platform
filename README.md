@@ -1,319 +1,193 @@
 # industrial-ai-platform
 
-Windows 10/11 신규 개발자 PC에서 `industrial-ai-platform` 개발환경을 구성하기 위한 루트 가이드입니다. 아무것도 설치되어 있지 않은 상태를 기준으로 작성했습니다.
+AI 기반 설비 점검 보조 시스템입니다. 로컬 개발은 아래 순서로 실행합니다.
 
-## 1. 프로젝트 개요
+- Infra: MariaDB, Redis, MinIO, ChromaDB
+- Backend: Spring Boot API
+- AI Server: FastAPI
+- Frontend: React + Vite
 
-`industrial-ai-platform`은 산업 현장 이상 탐지 시스템의 초기 개발환경과 모노레포 골격입니다. 현재 단계는 비즈니스 로직보다 로컬 개발환경, 서비스 분리, 설정 파일, 환경변수 템플릿, 실행 가능성 확보에 집중합니다.
+## 1. 필수 설치 파일
 
-전체 구성요소:
+아래 프로그램을 먼저 설치합니다.
 
-| 디렉터리 | 역할 |
-| --- | --- |
-| `infra/` | Docker Compose로 실행하는 MariaDB, Redis, MinIO, Chroma |
-| `backend-spring/` | Spring Boot API 서버, `/api/v1` prefix |
-| `frontend/` | React + Vite + TypeScript 클라이언트 |
-| `ai-server/` | FastAPI 기반 이상 탐지/RAG 서버, `/ai/v1` prefix |
-| `docs/` | 로컬 실행 구조와 개발환경 문서 |
-
-Docker는 현재 `infra`에만 사용합니다. `backend-spring`, `frontend`, `ai-server`는 디버깅, 빠른 수정, IDE 연동을 쉽게 하기 위해 로컬 런타임으로 실행합니다. 추후 배포 환경에서는 애플리케이션 서비스도 컨테이너화되거나 운영 인프라 구성이 달라질 수 있습니다.
-
-## 2. 사전 준비물
-
-Windows 10/11 PC에 다음 도구를 설치합니다.
-
-| 도구 | 고정/권장 버전 | 용도 |
+| 항목 | 권장 버전 | 용도 |
 | --- | --- | --- |
-| Git | 최신 안정 버전 | 저장소 clone, 버전 관리 |
-| Visual Studio Code | 최신 안정 버전 | 공통 IDE |
-| WSL2 | Windows 기능 | Docker Desktop의 Linux 기반 실행 환경 |
-| Docker Desktop | 최신 안정 버전 | 로컬 인프라 실행 |
+| Git | 최신 안정 버전 | 저장소 clone / branch 관리 |
+| Docker Desktop | Docker 24.x 이상 | MariaDB, Redis, MinIO, ChromaDB 실행 |
 | JDK | 17 | Spring Boot 실행 |
 | Python | 3.10.6 | FastAPI AI 서버 실행 |
-| Node.js | 20.18.0 | Frontend 실행 |
-| npm | 10.8.2 | Node.js에 포함, frontend 패키지 관리 |
+| Node.js | 20.x | Frontend 실행 |
+| DBeaver | 최신 안정 버전 | MariaDB 접속 / ERD 확인 |
 
-Python 3.10.6과 Node.js 20.18.0은 프로젝트 고정 버전입니다. Python 3.10.6이 최신 버전은 아닐 수 있지만, 현재 AI 패키지 호환성을 위해 고정합니다.
+다운로드:
 
-## 3. 권장 설치 순서
+- Git: https://git-scm.com/download/win
+- Docker Desktop: https://www.docker.com/products/docker-desktop/
+- JDK 17: https://adoptium.net/temurin/releases/?version=17
+- Python 3.10.6: https://www.python.org/downloads/release/python-3106/
+- Node.js: https://nodejs.org/
+- DBeaver: https://dbeaver.io/download/
 
-1. Git 설치
-2. VS Code 설치
-3. WSL2 설치
-4. Docker Desktop 설치
-5. JDK 17 설치
-6. Python 3.10.6 설치
-7. Node.js 20.18.0 설치
-8. VS Code 확장 설치
-9. 프로젝트 clone
-10. 환경변수 파일 생성
-11. `infra` 실행
-12. `backend-spring`, `ai-server`, `frontend` 실행
-
-## 4. 설치 가이드
-
-### A. Git
-
-무엇을 설치하나요:
-- Git for Windows
-
-왜 필요한가요:
-- GitHub/GitLab 저장소 clone, branch 관리, commit에 필요합니다.
-
-설치 방식:
-- Git for Windows 설치 파일을 사용합니다.
-- 설치 중 PATH 옵션은 기본값을 사용해도 대부분 PowerShell에서 `git` 명령을 사용할 수 있습니다.
-
-확인:
+설치 확인:
 
 ```powershell
 git --version
-```
-
-주의사항:
-- 명령어가 인식되지 않으면 PowerShell을 새로 열고 다시 확인합니다.
-- 그래도 안 되면 Git 설치 경로의 `cmd` 또는 `bin`이 PATH에 있는지 확인합니다.
-
-### B. Visual Studio Code
-
-무엇을 설치하나요:
-- VS Code Windows installer
-
-왜 필요한가요:
-- Java, Python, TypeScript, Docker 작업을 한 IDE에서 처리하기 위해 사용합니다.
-
-설치 방식:
-- Windows installer로 설치합니다.
-- 설치 옵션에서 "Add to PATH"와 "Open with Code" 항목을 선택하면 편합니다.
-
-사용:
-
-```powershell
-code .
-```
-
-주의사항:
-- 프로젝트 루트인 `industrial-ai-platform` 폴더를 VS Code로 여세요.
-- 터미널은 VS Code 통합 터미널의 PowerShell을 기준으로 사용합니다.
-
-### C. WSL2
-
-무엇을 설치하나요:
-- Windows Subsystem for Linux 2
-
-왜 필요한가요:
-- Docker Desktop이 Linux 컨테이너를 안정적으로 실행하는 기반입니다.
-
-설치 방식:
-- 관리자 권한 PowerShell에서 실행합니다.
-
-```powershell
-wsl --install
-```
-
-설치 후 재부팅이 필요할 수 있습니다.
-
-확인:
-
-```powershell
-wsl -l -v
-```
-
-주의사항:
-- Ubuntu 같은 기본 배포판이 설치되어 있고 VERSION이 `2`인지 확인합니다.
-- VERSION이 1이면 WSL2로 전환해야 합니다.
-
-### D. Docker Desktop
-
-무엇을 설치하나요:
-- Docker Desktop for Windows
-
-왜 필요한가요:
-- MariaDB, Redis, MinIO, Chroma를 로컬 인프라로 실행합니다.
-
-설치 방식:
-- Docker Desktop installer를 사용합니다.
-- 설치 후 Docker Desktop을 실행합니다.
-- Settings > Resources > WSL Integration에서 사용하는 WSL 배포판 연동을 켭니다.
-
-확인:
-
-```powershell
 docker --version
 docker compose version
-```
-
-주의사항:
-- Docker Desktop이 켜져 있어야 `docker compose`가 동작합니다.
-- `Cannot connect to the Docker daemon` 오류가 나오면 Docker Desktop 실행 상태를 먼저 확인합니다.
-
-### E. JDK 17
-
-무엇을 설치하나요:
-- JDK 17
-
-왜 필요한가요:
-- Spring Boot backend를 실행하고 Gradle Wrapper를 사용하기 위해 필요합니다.
-
-설치 방식:
-- Windows용 JDK 17 installer를 사용합니다.
-- 설치 후 `JAVA_HOME`과 PATH를 확인합니다.
-
-시스템 변수 예시:
-
-```text
-JAVA_HOME=C:\Program Files\Java\jdk-17
-Path=%JAVA_HOME%\bin
-```
-
-확인:
-
-```powershell
-java -version
-javac -version
-```
-
-주의사항:
-- `java`는 되는데 `javac`가 안 되면 JRE가 아니라 JDK가 설치되었는지 확인합니다.
-- 환경변수 변경 후 PowerShell을 새로 열어야 반영됩니다.
-
-### F. Python 3.10.6
-
-무엇을 설치하나요:
-- Python 3.10.6 Windows installer
-
-왜 필요한가요:
-- FastAPI AI 서버와 RAG/문서 처리 패키지를 실행합니다.
-
-설치 방식:
-- Python 3.10.6 installer를 사용합니다.
-- 설치 첫 화면에서 "Add Python to PATH"를 선택합니다.
-
-확인:
-
-```powershell
-python --version
-pip --version
-```
-
-주의사항:
-- 버전이 `Python 3.10.6`인지 확인합니다.
-- AI 서버는 프로젝트 내부 `ai-server/.venv` 가상환경을 사용합니다.
-
-### G. Node.js 20.18.0
-
-무엇을 설치하나요:
-- Node.js 20.18.0
-
-왜 필요한가요:
-- React + Vite frontend 개발 서버와 빌드에 필요합니다.
-
-설치 방식:
-- Node.js Windows installer를 사용합니다.
-- npm은 Node.js에 포함됩니다.
-
-확인:
-
-```powershell
-node -v
-npm -v
-```
-
-기대 버전:
-
-```text
-node: v20.18.0
-npm: 10.8.2
-```
-
-주의사항:
-- `npm`이 인식되지 않으면 PowerShell을 새로 열고, Node.js 설치 경로가 PATH에 있는지 확인합니다.
-
-## 5. VS Code 권장 확장
-
-| 확장 | 용도 |
-| --- | --- |
-| Extension Pack for Java | Java 개발, Gradle, 테스트 지원 |
-| Spring Boot Extension Pack | Spring Boot 실행/설정 지원 |
-| Python | Python 인터프리터, 테스트, 디버깅 |
-| Pylance | Python 타입 분석과 자동완성 |
-| ESLint | Frontend lint 표시 |
-| Prettier | Frontend formatting |
-| Docker | Compose, container, image 확인 |
-| Remote - WSL | WSL 환경 접근과 Docker 연동 작업 보조 |
-
-## 6. 시스템 변수 / PATH 가이드
-
-확인 명령:
-
-```powershell
-git --version
 java -version
 javac -version
 python --version
 pip --version
 node -v
 npm -v
-docker --version
-docker compose version
 ```
 
-점검 포인트:
-- Java는 `JAVA_HOME`이 JDK 17 경로를 가리켜야 합니다.
-- Java `bin` 경로가 PATH에 있어야 `java`, `javac`가 동작합니다.
-- Python, Node.js, Git은 보통 installer가 PATH를 자동 등록합니다.
-- 명령어가 인식되지 않으면 PowerShell을 새로 열고 다시 확인합니다.
-- Docker Desktop은 일반적으로 수동 PATH 편집보다 앱 실행 상태와 WSL Integration 확인이 중요합니다.
-
-## 7. 프로젝트 clone 및 초기 세팅
-
-저장소를 clone합니다.
+## 2. 프로젝트 받기
 
 ```powershell
 git clone <REPOSITORY_URL>
 cd industrial-ai-platform
-git branch
 ```
 
-프로젝트 루트 구조:
+프로젝트 구조:
 
 ```text
 industrial-ai-platform/
-  infra/
-  backend-spring/
-  frontend/
-  ai-server/
-  docs/
+  infra/            # MariaDB, Redis, MinIO, ChromaDB Docker Compose
+  backend-spring/   # Spring Boot API 서버
+  ai-server/        # FastAPI AI/RAG 서버
+  frontend/         # React + Vite 클라이언트
+  docs/             # 프로젝트 문서
 ```
 
-각 서비스 위치:
-- `infra`: 로컬 DB/cache/storage/vector DB
-- `backend-spring`: Java/Spring API
-- `frontend`: React client
-- `ai-server`: Python/FastAPI AI API
+## 3. 환경 파일 생성
 
-## 8. 환경변수 파일 생성 방법
-
-PowerShell 기준:
+루트에서 아래 명령을 실행합니다.
 
 ```powershell
 Copy-Item infra\.env.example infra\.env
-Copy-Item frontend\.env.example frontend\.env
 Copy-Item backend-spring\.env.example backend-spring\.env
 Copy-Item ai-server\.env.example ai-server\.env
+Copy-Item frontend\.env.example frontend\.env
 ```
 
-채워야 할 값:
-- MariaDB root/user password
-- MinIO access key, secret key, bucket
-- Backend `JWT_SECRET`
-- Google OAuth `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- API base URL
-- AI model, embedding model, LLM model 이름
+주의:
 
-실제 비밀값은 Git에 커밋하지 않습니다.
+- `.env` 파일은 실제 비밀번호/토큰이 들어갈 수 있으므로 커밋하지 않습니다.
+- 기본 로컬 실행은 `.env.example` 값 그대로 복사해도 동작하도록 맞춰져 있습니다.
+- 비밀번호를 바꾸면 `infra/.env`, `backend-spring/.env`, `ai-server/.env`의 MinIO/DB 값도 같이 맞춥니다.
 
-## 9. 인프라 실행 가이드
+## 4. env 값 예시
+
+### infra/.env
+
+```env
+MARIADB_ROOT_PASSWORD=change_me_root_password
+MARIADB_DATABASE=industrial_ai
+MARIADB_USER=industrial_user
+MARIADB_PASSWORD=change_me_user_password
+
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+MINIO_ROOT_USER=minioadmin
+MINIO_ROOT_PASSWORD=change_me_minio_password
+MINIO_ENDPOINT=http://minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=change_me_minio_password
+MINIO_BUCKET_DOCUMENTS=documents
+MINIO_BUCKET_INSPECTION_ARTIFACTS=inspection-artifacts
+MINIO_BUCKET_REPORTS=reports
+MINIO_BUCKET_MODELS=models
+
+CHROMA_HOST=chromadb
+CHROMA_PORT=8000
+CHROMA_COLLECTION_DOCUMENTS=industrial_document_chunks
+```
+
+### backend-spring/.env
+
+```env
+APP_NAME=factory-guard-api
+APP_ENV=local
+APP_PORT=8080
+
+DB_HOST=localhost
+DB_PORT=3307
+DB_NAME=industrial_ai
+DB_USER=industrial_user
+DB_PASSWORD=change_me_user_password
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+MINIO_ENDPOINT=http://localhost:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=change_me_minio_password
+MINIO_BUCKET_DOCUMENTS=documents
+MINIO_BUCKET_INSPECTION_ARTIFACTS=inspection-artifacts
+MINIO_BUCKET_REPORTS=reports
+MINIO_BUCKET_MODELS=models
+MINIO_SECURE=false
+MINIO_AUTO_CREATE_BUCKETS=true
+
+CHROMA_HOST=localhost
+CHROMA_PORT=8000
+CHROMA_COLLECTION_DOCUMENTS=industrial_document_chunks
+AI_SERVER_BASE_URL=http://localhost:8001
+
+JWT_SECRET=change_me_jwt_secret
+JWT_EXPIRE_MINUTES=60
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+### ai-server/.env
+
+```env
+APP_NAME=industrial-ai-server
+APP_ENV=local
+APP_PORT=8001
+
+CHROMA_HOST=localhost
+CHROMA_PORT=8000
+CHROMA_COLLECTION_DOCUMENTS=industrial_document_chunks
+
+MINIO_ENDPOINT=http://localhost:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=change_me_minio_password
+MINIO_BUCKET_DOCUMENTS=documents
+MINIO_BUCKET_INSPECTION_ARTIFACTS=inspection-artifacts
+MINIO_BUCKET_REPORTS=reports
+MINIO_BUCKET_MODELS=models
+MINIO_SECURE=false
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+
+MODEL_NAME=anomaly-baseline
+EMBEDDING_MODEL_NAME=
+LLM_MODEL_NAME=
+LOG_LEVEL=INFO
+TZ=Asia/Seoul
+```
+
+### frontend/.env
+
+```env
+VITE_APP_NAME=Industrial AI Platform
+VITE_API_BASE_URL=http://localhost:8080/api/v1
+VITE_AI_API_BASE_URL=http://localhost:8001/ai/v1
+VITE_GOOGLE_CLIENT_ID=
+```
+
+## 5. Infra 실행
+
+Docker Desktop을 먼저 실행한 뒤 진행합니다.
 
 ```powershell
 cd infra
@@ -321,29 +195,89 @@ docker compose --env-file .env up -d
 docker ps
 ```
 
-중지:
+기본 포트:
 
-```powershell
-docker compose down
-```
-
-포트:
-
-| 서비스 | 포트 |
+| 서비스 | URL / Port |
 | --- | --- |
 | MariaDB | `localhost:3307` |
 | Redis | `localhost:6379` |
 | MinIO API | `http://localhost:9000` |
 | MinIO Console | `http://localhost:9001` |
-| Chroma | `http://localhost:8000` |
+| ChromaDB | `http://localhost:8000` |
 
-## 10. Backend 실행 가이드
+MinIO Console 로그인:
 
-Java 확인:
+- ID: `infra/.env`의 `MINIO_ROOT_USER`
+- PW: `infra/.env`의 `MINIO_ROOT_PASSWORD`
+
+Infra 중지:
 
 ```powershell
-java -version
-javac -version
+cd infra
+docker compose down
+```
+
+로컬 데이터를 모두 삭제하고 다시 시작해야 할 때만 사용합니다.
+
+```powershell
+cd infra
+docker compose down -v
+```
+
+## 6. MariaDB 테이블 생성
+
+테이블 생성 SQL 파일:
+
+```text
+infra/mariadb/init/industrial-ai-platform.sql
+```
+
+현재 `docker-compose.yml`은 MariaDB init SQL을 자동 마운트하지 않습니다. 따라서 최초 1회 수동 실행합니다.
+
+```powershell
+cd infra
+Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw | docker exec -i industrial-mariadb sh -c 'mariadb -uindustrial_user -p"$MARIADB_PASSWORD" industrial_ai'
+```
+
+테이블 생성 확인:
+
+```powershell
+docker exec -it industrial-mariadb mariadb -uindustrial_user -p industrial_ai
+```
+
+MariaDB 접속 후:
+
+```sql
+SHOW TABLES;
+
+SELECT COUNT(*) AS table_count
+FROM information_schema.tables
+WHERE table_schema = 'industrial_ai';
+
+SHOW TABLES LIKE 'USERS';
+SHOW TABLES LIKE 'INSPECTION_RUN';
+SHOW TABLES LIKE 'DOCUMENT';
+```
+
+이미 테이블이 있으면 `Table already exists`가 날 수 있습니다. 완전히 다시 만들려면 MariaDB 볼륨을 삭제한 뒤 SQL을 다시 실행합니다.
+
+```powershell
+cd infra
+docker compose down
+docker volume rm infra_mariadb_data
+docker compose --env-file .env up -d mariadb
+Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw | docker exec -i industrial-mariadb sh -c 'mariadb -uindustrial_user -p"$MARIADB_PASSWORD" industrial_ai'
+```
+
+주의: `docker volume rm infra_mariadb_data`는 로컬 MariaDB 데이터를 삭제합니다.
+
+## 7. Backend 실행
+
+패키지 다운로드/컴파일:
+
+```powershell
+cd backend-spring
+.\gradlew.bat compileJava
 ```
 
 실행:
@@ -353,125 +287,269 @@ cd backend-spring
 .\gradlew.bat bootRun --args="--spring.profiles.active=local"
 ```
 
-테스트:
+검증:
 
 ```powershell
+cd backend-spring
 .\gradlew.bat test
 ```
 
-확인:
-- `http://localhost:8080/api/v1/health`
+확인 URL:
+
 - `http://localhost:8080/actuator/health`
+- `http://localhost:8080/api/v1/health`
 
-필요 환경변수:
-- DB, Redis, MinIO, Chroma, AI server URL
-- JWT secret/expire
-- Google OAuth client 값
+참고:
 
-## 11. AI Server 실행 가이드
+- Spring Boot는 기본값으로 `application.yml`과 `application-local.yml`을 사용합니다.
+- 기본 로컬 값은 `.env.example`과 맞춰져 있습니다.
+- IDE에서 `.env`를 직접 주입하려면 EnvFile 플러그인 또는 Run Configuration 환경변수 설정을 사용합니다.
+
+## 8. AI Server 실행
+
+가상환경 생성:
 
 ```powershell
 cd ai-server
 python -m venv .venv
+```
+
+가상환경 활성화:
+
+```powershell
 .\.venv\Scripts\Activate.ps1
+```
+
+PowerShell 실행 정책 때문에 활성화가 막히면 1회 실행합니다.
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+패키지 설치:
+
+```powershell
 pip install -r requirements.txt
+```
+
+실행:
+
+```powershell
 uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-실행 확인:
-- `http://localhost:8001/docs`
-- `http://localhost:8001/ai/v1/health`
-
-테스트:
+검증:
 
 ```powershell
 pytest
 ```
 
-PowerShell 실행 정책 때문에 activate가 막히면 현재 사용자 범위로 완화합니다.
+확인 URL:
 
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
+- `http://localhost:8001/docs`
+- `http://localhost:8001/ai/v1/health`
 
-## 12. Frontend 실행 가이드
+## 9. Frontend 실행
+
+패키지 설치:
 
 ```powershell
 cd frontend
 npm install
+```
+
+실행:
+
+```powershell
 npm run dev
 ```
 
-확인:
-- `http://localhost:5173`
-
-빌드:
+검증:
 
 ```powershell
 npm run build
-```
-
-Lint:
-
-```powershell
 npm run lint
 ```
 
-참고:
-- `npm audit` 경고가 나올 수 있습니다.
-- 현재 단계에서는 강제 업그레이드보다 프로젝트 고정 버전과 호환성을 우선합니다.
+확인 URL:
 
-## 13. 설치 및 실행 확인 체크리스트
+- `http://localhost:5173`
 
-- [ ] `git --version` 확인
-- [ ] `java -version` 확인
-- [ ] `javac -version` 확인
-- [ ] `python --version` 확인
-- [ ] `pip --version` 확인
-- [ ] `node -v` 확인
-- [ ] `npm -v` 확인
-- [ ] `docker compose version` 확인
-- [ ] VS Code 권장 확장 설치
-- [ ] `.env` 파일 생성
-- [ ] `infra` 기동 확인
-- [ ] `backend-spring` 실행 확인
-- [ ] `ai-server` 실행 확인
-- [ ] `frontend` 실행 확인
+## 10. 전체 실행 순서 요약
 
-## 14. 자주 겪는 문제 해결
+PowerShell 창을 서비스별로 나누어 실행하는 것을 권장합니다.
 
-### npm 명령어 인식 안 됨
-- PowerShell을 새로 엽니다.
-- `node -v`, `npm -v`를 확인합니다.
-- Node.js 설치 경로가 PATH에 있는지 확인합니다.
-
-### java 명령어 인식 안 됨
-- `JAVA_HOME`이 JDK 17 경로인지 확인합니다.
-- PATH에 `%JAVA_HOME%\bin`이 있는지 확인합니다.
-- PowerShell을 새로 열고 다시 확인합니다.
-
-### docker daemon 연결 실패
-- Docker Desktop이 실행 중인지 확인합니다.
-- Docker Desktop 초기화가 끝날 때까지 기다립니다.
-- WSL Integration이 켜져 있는지 확인합니다.
-
-### .env 변수 미인식
-- `.env.example`이 아니라 `.env` 파일을 만들었는지 확인합니다.
-- 현재 터미널의 작업 디렉터리가 각 서비스 폴더인지 확인합니다.
-- backend는 Spring `application.yml`의 기본값도 함께 확인합니다.
-
-### WSL/Docker 연동 안 됨
-- `wsl -l -v`로 WSL2 배포판 상태를 확인합니다.
-- Docker Desktop Settings > Resources > WSL Integration을 확인합니다.
-
-### PowerShell 실행 정책으로 venv activate 실패
+### 1번 터미널: Infra
 
 ```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+cd infra
+docker compose --env-file .env up -d
 ```
 
-명령 실행 후 PowerShell을 새로 열고 다시 시도합니다.
+### 2번 터미널: Backend
 
-### 포트 충돌
-- MariaDB 기본 포트 `3306`을 피하기 위해 compose는 `3307:3306`을 사용합니다.
-- 이미 `3307`, `6379`, `9000`, `9001`, `8000`, `8001`, `8080`, `5173`을 사용하는 프로세스가 있으면 종료하거나 포트를 조정해야 합니다.
+```powershell
+cd backend-spring
+.\gradlew.bat bootRun --args="--spring.profiles.active=local"
+```
+
+### 3번 터미널: AI Server
+
+```powershell
+cd ai-server
+.\.venv\Scripts\Activate.ps1
+uvicorn main:app --reload --host 0.0.0.0 --port 8001
+```
+
+### 4번 터미널: Frontend
+
+```powershell
+cd frontend
+npm run dev
+```
+
+## 11. DBeaver 접속 정보
+
+| 항목 | 값 |
+| --- | --- |
+| DBMS | MariaDB |
+| Host | `localhost` |
+| Port | `3307` |
+| Database | `industrial_ai` |
+| Username | `industrial_user` |
+| Password | `infra/.env`의 `MARIADB_PASSWORD` |
+
+DBeaver에서 ERD 확인:
+
+1. MariaDB 연결 생성
+2. `industrial_ai` 데이터베이스 선택
+3. `Tables` 우클릭
+4. `View Diagram` 선택
+
+## 12. 최초 관리자 계정 만들기
+
+현재 로컬 개발 환경에는 관리자 seed 계정이 자동 생성되지 않습니다.
+
+Google 로그인 후 가입 승인 대기 화면이 뜨면, 해당 이메일을 관리자 권한으로 승격합니다.
+
+프로젝트 루트에서 실행:
+
+```powershell
+.\infra\scripts\promote-admin.ps1 -Email "bonggyulim0728@gmail.com"
+```
+
+조직명을 직접 지정하려면:
+
+```powershell
+.\infra\scripts\promote-admin.ps1 -Email "본인구글이메일@example.com" -OrganizationName "Factory Guard Admin"
+```
+
+처리 내용:
+
+- `ORGANIZATION`에 관리자 조직이 없으면 생성
+- `USERS.status`를 `ACTIVE`로 변경
+- `USERS.role`을 `ADMIN`으로 변경
+- `USERS.organization_id`를 관리자 조직으로 연결
+- `SIGNUP_REQUEST.request_status`를 `APPROVED`로 변경
+
+승격 후 브라우저에서 로그아웃한 뒤 다시 로그인합니다.
+
+수동으로 확인하려면:
+
+```powershell
+docker exec -it industrial-mariadb mariadb -uindustrial_user -p industrial_ai
+```
+
+```sql
+SELECT user_id, email, status, role, organization_id
+FROM USERS
+WHERE email = '본인구글이메일@example.com';
+```
+
+## 13. 자주 나는 문제
+
+### Docker daemon 연결 실패
+
+Docker Desktop이 실행 중인지 확인합니다.
+
+```powershell
+docker ps
+```
+
+### MariaDB 접속은 되는데 테이블이 없음
+
+초기 SQL을 실행하지 않은 상태입니다.
+
+```powershell
+cd infra
+Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw | docker exec -i industrial-mariadb sh -c 'mariadb -uindustrial_user -p"$MARIADB_PASSWORD" industrial_ai'
+```
+
+### Table already exists
+
+이미 테이블이 생성된 상태입니다. 로컬 데이터를 지워도 되는 경우에만 MariaDB 볼륨을 삭제합니다.
+
+```powershell
+cd infra
+docker compose down
+docker volume rm infra_mariadb_data
+```
+
+### Backend DB 로그인 실패
+
+`infra/.env`와 `backend-spring/.env`의 DB 값이 같은지 확인합니다.
+
+```text
+MARIADB_DATABASE=industrial_ai
+MARIADB_USER=industrial_user
+MARIADB_PASSWORD=change_me_user_password
+
+DB_NAME=industrial_ai
+DB_USER=industrial_user
+DB_PASSWORD=change_me_user_password
+```
+
+### 3307 포트 충돌
+
+```powershell
+netstat -ano | findstr :3307
+```
+
+충돌 프로세스를 종료하거나 `infra/docker-compose.yml`의 포트 매핑을 조정합니다.
+
+### npm / java / python 명령 인식 실패
+
+설치 후 새 PowerShell을 열고 다시 확인합니다.
+
+```powershell
+node -v
+java -version
+python --version
+```
+
+## 14. 제출 전 기본 검증
+
+```powershell
+cd backend-spring
+.\gradlew.bat compileJava
+```
+
+```powershell
+cd frontend
+npm run build
+```
+
+```powershell
+cd ai-server
+.\.venv\Scripts\Activate.ps1
+pytest
+```
+
+커밋 전 확인:
+
+```powershell
+git status
+git diff
+```
+
+`.env`, 비밀번호, API Key, 토큰은 커밋하지 않습니다.
