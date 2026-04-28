@@ -1,5 +1,7 @@
 package com.example.factoryguard.domain.organization.model;
 
+
+import com.example.factoryguard.domain.organization.vo.OrganizationStatus;
 import lombok.Builder;
 import lombok.Getter;
 

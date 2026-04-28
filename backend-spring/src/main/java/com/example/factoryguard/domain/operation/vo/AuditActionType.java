@@ -1,0 +1,16 @@
+package com.example.factoryguard.domain.operation.vo;
+
+public enum AuditActionType {
+    SIGNUP_APPROVED,
+    SIGNUP_REJECTED,
+    LOGIN,
+    LOGOUT,
+    INSPECTION_REQUESTED,
+    DECISION_CORRECTED,
+    THRESHOLD_CHANGED,
+    DOCUMENT_CREATED,
+    DOCUMENT_UPDATED,
+    DOCUMENT_DELETED,
+    MODEL_DEPLOYED,
+    MODEL_ROLLED_BACK
+}

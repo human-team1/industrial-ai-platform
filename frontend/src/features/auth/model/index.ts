@@ -61,7 +61,8 @@ export function useAuthState(): AuthState {
       })
       .catch((err) => {
         if (cancelled) return
-        const errorCode: string | undefined = (err as any)?.response?.data?.errorCode
+        const errorCode: string | undefined =
+          (err as any)?.response?.data?.code ?? (err as any)?.response?.data?.errorCode
         if (errorCode === 'AUTH-405') {
           // PENDING_APPROVAL — 로그아웃 없이 안내 페이지로
           setMemoryToken(null)

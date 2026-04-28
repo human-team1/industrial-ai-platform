@@ -9,8 +9,8 @@ React + Vite + TypeScript 기반 클라이언트입니다.
 - TypeScript 5.6.3
 - React Router 6.28.0
 - Axios 1.7.7
-- Bootstrap 5.3.3
-- Zustand 5.0.1
+- Tailwind CSS 3.4.19
+- Google OAuth React 0.13.5
 - ESLint 8.57.1
 - Prettier 3.3.3
 
@@ -27,6 +27,7 @@ Copy-Item .env.example .env
 | `VITE_APP_NAME` | 화면에 표시할 앱 이름 |
 | `VITE_API_BASE_URL` | Spring API 서버 base URL |
 | `VITE_AI_API_BASE_URL` | FastAPI AI 서버 base URL |
+| `VITE_GOOGLE_CLIENT_ID` | Google OAuth client ID |
 
 ## 설치
 

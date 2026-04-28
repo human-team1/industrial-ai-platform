@@ -1,4 +1,5 @@
 export type AuthStatus = 'NEW' | 'PENDING' | 'REJECTED' | 'ACTIVE'
+export type AuthRole = 'USER' | 'ADMIN'
 
 export type AuthUser = {
   userId: number
@@ -7,9 +8,9 @@ export type AuthUser = {
   name: string
   picture?: string
   phone?: string
-  role: string
+  role: AuthRole
   organizationId?: number
-  status?: string
+  status?: AuthStatus
 }
 
 export type GoogleLoginResponse = {
@@ -22,7 +23,7 @@ export type GoogleLoginResponse = {
   email?: string
   name?: string
   picture?: string
-  role?: string
+  role?: AuthRole
   organizationId?: number
   // NEW일 때만 존재 — googleSub은 이 토큰 안에 포함
   signupToken?: string
@@ -30,7 +31,7 @@ export type GoogleLoginResponse = {
 
 // 회원가입 페이지로 전달할 정보 (display용 + signupToken)
 export type NewUserInfo = {
-  signupToken: string  // 서버 발급 JWT, googleSub 포함
+  signupToken: string
   email: string
   name: string
   picture?: string
@@ -40,8 +41,8 @@ export type NewUserInfo = {
 export type AuthMeResponse = {
   userId: number
   name: string
-  role: string
-  status: string
+  role: AuthRole
+  status: AuthStatus
   organizationId?: number
 }
 
@@ -52,10 +53,10 @@ export type UserMeResponse = {
   name: string
   picture?: string
   phone?: string
-  role: string
+  role: AuthRole
   organizationId?: number
   organizationName?: string
-  status: string
+  status: AuthStatus
   lastLoginAt?: string
   createdAt: string
 }
