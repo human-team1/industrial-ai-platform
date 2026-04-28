@@ -1,5 +1,5 @@
 import { apiClient, refreshAxios } from '../../../shared/api/client'
-import type { AuthMeResponse, GoogleLoginResponse, UserMeResponse } from '../types'
+import type { AuthMeResponse, GoogleLoginResponse } from '../types'
 
 export async function postGoogleLogin(idToken: string): Promise<GoogleLoginResponse> {
   const response = await apiClient.post<{ success: boolean; data: GoogleLoginResponse }>(
@@ -39,10 +39,5 @@ export async function postLogout(): Promise<void> {
 
 export async function getAuthMe(): Promise<AuthMeResponse> {
   const response = await apiClient.get<{ success: boolean; data: AuthMeResponse }>('/auth/me')
-  return response.data.data
-}
-
-export async function getMyProfile(): Promise<UserMeResponse> {
-  const response = await apiClient.get<{ success: boolean; data: UserMeResponse }>('/users/me')
   return response.data.data
 }
