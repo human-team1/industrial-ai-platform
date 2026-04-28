@@ -28,7 +28,7 @@ public class UserThresholdResult {
         return new UserThresholdResult(
                 DEFAULT_ANOMALY_THRESHOLD,
                 DEFAULT_LOW_CONFIDENCE_THRESHOLD,
-                ThresholdSource.DEFAULT
+                ThresholdSource.SYSTEM_DEFAULT
         );
     }
 }

@@ -41,6 +41,8 @@ inspection:
       - png
       - webp
       - mp4
+  decision:
+    boundary-margin: 0.05
 
 app:
   ai-server:

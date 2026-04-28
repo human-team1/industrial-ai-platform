@@ -1,6 +1,6 @@
 package com.example.factoryguard.domain.user.model;
 
 public enum ThresholdSource {
-    DEFAULT,
+    SYSTEM_DEFAULT,
     USER
 }

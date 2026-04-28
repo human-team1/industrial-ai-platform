@@ -1,17 +1,26 @@
 package com.example.factoryguard.domain.inspection.model;
 
-public class DecisionCalculator {
+import com.example.factoryguard.domain.review.vo.ReviewQueuedReason;
+
+public final class DecisionCalculator {
 
     private DecisionCalculator() {}
 
-    public static DecisionCode decide(double score, double confidence,
-                                      double anomalyThreshold, double lowConfidenceThreshold) {
-        if (score >= anomalyThreshold) {
-            return DecisionCode.DEFECT;
-        }
+    public static DecisionResult decide(double score, double confidence,
+                                        double anomalyThreshold,
+                                        double lowConfidenceThreshold,
+                                        double boundaryMargin) {
         if (confidence < lowConfidenceThreshold) {
-            return DecisionCode.RECHECK;
+            return new DecisionResult(DecisionCode.RECHECK, ReviewQueuedReason.LOW_CONFIDENCE);
         }
-        return DecisionCode.NORMAL;
+        if (Math.abs(score - anomalyThreshold) <= boundaryMargin) {
+            return new DecisionResult(DecisionCode.RECHECK, ReviewQueuedReason.BOUNDARY_SCORE);
+        }
+        if (score >= anomalyThreshold) {
+            return new DecisionResult(DecisionCode.DEFECT, null);
+        }
+        return new DecisionResult(DecisionCode.NORMAL, null);
     }
+
+    public record DecisionResult(DecisionCode decisionCode, ReviewQueuedReason queuedReason) {}
 }

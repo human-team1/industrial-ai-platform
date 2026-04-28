@@ -7,7 +7,11 @@ import com.example.factoryguard.application.port.out.inspection.CallAiInspection
 import com.example.factoryguard.adapter.out.fastapi.client.FastApiClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+
+import java.net.SocketTimeoutException;
+import java.util.concurrent.TimeoutException;
 
 @Component
 @RequiredArgsConstructor
@@ -17,14 +21,21 @@ public class InspectionAiAdapter implements CallAiInspectionPort {
     private final RestTemplate restTemplate;
 
     @Override
-    public AiInspectionResponse call(AiInspectionRequest request) {
+    public AiInspectionResponse call(AiInspectionRequest request) throws TimeoutException {
         String url = fastApiClient.baseUrl() + "/inspect";
-        return restTemplate.postForObject(url, request, AiInspectionResponse.class);
+        try {
+            return restTemplate.postForObject(url, request, AiInspectionResponse.class);
+        } catch (ResourceAccessException e) {
+            if (e.getCause() instanceof SocketTimeoutException) {
+                throw (TimeoutException) new TimeoutException(e.getMessage()).initCause(e);
+            }
+            throw e;
+        }
     }
 
     @Override
     public AiInspectionResponse callRealtime(AiRealtimeInspectionRequest request) {
-        // TODO: FastAPI 실시간 스트림 추론 엔드포인트 연동 시 구현
+        // realtime AI 어댑터는 컨트롤러 레벨에서 REALTIME_NOT_ENABLED로 차단되므로 여기 도달하지 않음.
         throw new UnsupportedOperationException("realtime inspection not implemented yet");
     }
 }

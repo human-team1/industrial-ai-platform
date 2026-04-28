@@ -27,7 +27,9 @@ public enum ErrorCode {
     INVALID_FILE_NAME("FILE-404", HttpStatus.BAD_REQUEST, "파일명이 올바르지 않습니다."),
     CAMERA_NOT_FOUND("CAMERA-404", HttpStatus.NOT_FOUND, "카메라를 찾을 수 없습니다."),
     CAMERA_INVALID_URL("CAMERA-400", HttpStatus.BAD_REQUEST, "스트림 URL 형식이 올바르지 않습니다."),
-    AI_SERVER_ERROR("AI-503", HttpStatus.SERVICE_UNAVAILABLE, "AI 서버와 통신 중 오류가 발생했습니다.");
+    AI_SERVER_ERROR("AI-503", HttpStatus.SERVICE_UNAVAILABLE, "AI 서버와 통신 중 오류가 발생했습니다."),
+    AI_TIMEOUT("AI-504", HttpStatus.GATEWAY_TIMEOUT, "AI 서버 호출이 시간 초과되었습니다."),
+    REALTIME_NOT_ENABLED("REALTIME-503", HttpStatus.SERVICE_UNAVAILABLE, "실시간 검사는 현재 사용할 수 없습니다.");
 
     private final String code;
     private final HttpStatus status;

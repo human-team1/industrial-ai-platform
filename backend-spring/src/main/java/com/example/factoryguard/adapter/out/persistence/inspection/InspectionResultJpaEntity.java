@@ -11,7 +11,13 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "inspection_result")
+@Table(
+        name = "inspection_result",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_inspection_result_inspection_id",
+                columnNames = "inspection_id"
+        )
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class InspectionResultJpaEntity {
@@ -24,36 +30,36 @@ public class InspectionResultJpaEntity {
     @Column(name = "inspection_id", nullable = false)
     private Long inspectionId;
 
-    @Column(name = "score", nullable = false)
-    private double score;
+    @Column(name = "score", precision = 6, scale = 4)
+    private Double score;
 
-    @Column(name = "confidence", nullable = false)
-    private double confidence;
+    @Column(name = "confidence", precision = 6, scale = 4)
+    private Double confidence;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "decision_code", nullable = false)
+    @Column(name = "decision_code", length = 20)
     private DecisionCode decisionCode;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "final_decision_code")
+    @Column(name = "final_decision_code", length = 20)
     private DecisionCode finalDecisionCode;
 
-    @Column(name = "result_status")
+    @Column(name = "result_status", length = 20)
     private String resultStatus;
 
-    @Column(name = "threshold_source")
+    @Column(name = "threshold_source", length = 20)
     private String thresholdSource;
 
     @Column(name = "threshold_id")
     private Long thresholdId;
 
     @Column(name = "threshold_version")
-    private String thresholdVersion;
+    private Integer thresholdVersion;
 
     @Column(name = "model_version_id")
     private Long modelVersionId;
 
-    @Column(name = "failure_reason")
+    @Column(name = "failure_reason", columnDefinition = "TEXT")
     private String failureReason;
 
     @CreationTimestamp
@@ -61,10 +67,10 @@ public class InspectionResultJpaEntity {
     private LocalDateTime createdAt;
 
     @Builder
-    public InspectionResultJpaEntity(Long inspectionId, double score, double confidence,
+    public InspectionResultJpaEntity(Long inspectionId, Double score, Double confidence,
                                      DecisionCode decisionCode, DecisionCode finalDecisionCode,
                                      String resultStatus, String thresholdSource,
-                                     Long thresholdId, String thresholdVersion,
+                                     Long thresholdId, Integer thresholdVersion,
                                      Long modelVersionId, String failureReason) {
         this.inspectionId = inspectionId;
         this.score = score;
