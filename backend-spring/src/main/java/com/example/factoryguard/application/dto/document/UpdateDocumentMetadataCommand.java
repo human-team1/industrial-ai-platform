@@ -3,6 +3,8 @@ package com.example.factoryguard.application.dto.document;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 @Builder
 public class UpdateDocumentMetadataCommand {
@@ -14,5 +16,5 @@ public class UpdateDocumentMetadataCommand {
     private final String category;
     private final String equipmentType;
     private final String description;
-    private final String tags;
+    private final List<String> tags;
 }

@@ -31,6 +31,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/documents")
@@ -96,7 +98,7 @@ public class DocumentController {
                 .category(category)
                 .equipmentType(equipmentType)
                 .description(description)
-                .tags(tags)
+                .tags(parseCsvTags(tags))
                 .build());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(result, "문서를 등록했습니다."));
     }
@@ -141,5 +143,15 @@ public class DocumentController {
     public ResponseEntity<Void> deleteDocument(@PathVariable Long documentId) {
         documentCrudUseCase.softDelete(documentId);
         return ResponseEntity.noContent().build();
+    }
+
+    private List<String> parseCsvTags(String tags) {
+        if (tags == null || tags.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(tags.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .toList();
     }
 }

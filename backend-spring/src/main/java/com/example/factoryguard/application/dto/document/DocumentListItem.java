@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -15,6 +16,7 @@ public class DocumentListItem {
     private final String documentType;
     private final String category;
     private final String equipmentType;
+    private final List<String> tags;
     private final String authorName;
     private final IndexingStatus indexingStatus;
     private final Integer versionNo;

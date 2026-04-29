@@ -32,7 +32,15 @@ export async function createDocument(formData: FormData) {
   return response.data.data
 }
 
-export async function updateDocument(documentId: number, body: Record<string, unknown>) {
+export type UpdateDocumentMetadataPayload = {
+  title: string
+  category?: string
+  equipmentType?: string
+  description?: string
+  tags: string[]
+}
+
+export async function updateDocument(documentId: number, body: UpdateDocumentMetadataPayload) {
   const response = await apiClient.patch<ApiResponse<DocumentDetail>>(`/documents/${documentId}`, body)
   return response.data.data
 }

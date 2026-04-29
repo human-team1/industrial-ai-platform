@@ -37,13 +37,19 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
             where.append(" AND d.organization_id = :organizationId ");
         }
         if (hasText(query.getKeyword())) {
-            where.append(" AND d.title LIKE :keyword ");
+            where.append(" AND (d.title LIKE :keyword OR d.description LIKE :keyword OR EXISTS (SELECT 1 FROM document_tag dt WHERE dt.document_id = d.document_id AND dt.tag_name LIKE :keyword)) ");
         }
         if (hasText(query.getDocumentType())) {
             where.append(" AND d.document_type = :documentType ");
         }
         if (hasText(query.getIndexingStatus())) {
             where.append(" AND dv.indexing_status = :indexingStatus ");
+        }
+        if (hasText(query.getCategory())) {
+            where.append(" AND d.category = :category ");
+        }
+        if (hasText(query.getEquipmentType())) {
+            where.append(" AND d.equipment_type = :equipmentType ");
         }
         if (query.getStartDate() != null) {
             where.append(" AND d.created_at >= :startDate ");
@@ -53,21 +59,24 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
         }
 
         String contentSql = """
-                SELECT d.document_id, d.title, d.document_type,
+                SELECT d.document_id, d.title, d.document_type, d.category, d.equipment_type,
+                       GROUP_CONCAT(dt.tag_name ORDER BY dt.tag_name SEPARATOR ',') AS tags,
                        dv.indexing_status, dv.version_no, d.created_at, d.updated_at, CAST(NULL AS DATETIME) AS last_used_at,
                        f.file_size, f.file_name
-                FROM DOCUMENT d
+                FROM document d
                 JOIN (
                     SELECT document_id, MAX(version_no) AS latest_version_no
-                    FROM DOCUMENT_VERSION
+                    FROM document_version
                     GROUP BY document_id
                 ) latest ON latest.document_id = d.document_id
-                JOIN DOCUMENT_VERSION dv
+                JOIN document_version dv
                     ON dv.document_id = latest.document_id
                    AND dv.version_no = latest.latest_version_no
-                LEFT JOIN FILE f ON f.file_id = dv.file_id
+                LEFT JOIN document_tag dt ON dt.document_id = d.document_id
+                LEFT JOIN file f ON f.file_id = dv.file_id
                 WHERE
                 """ + where + """
+                GROUP BY d.document_id, d.title, d.document_type, d.category, d.equipment_type, dv.indexing_status, dv.version_no, d.created_at, d.updated_at, f.file_size, f.file_name
                 ORDER BY COALESCE(d.updated_at, d.created_at) DESC
                 LIMIT :limit OFFSET :offset
                 """;
@@ -84,30 +93,32 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
                     .documentId(toLong(row[0]))
                     .title(toString(row[1]))
                     .documentType(toString(row[2]))
-                    .category(null)
-                    .equipmentType(null)
+                    .category(toString(row[3]))
+                    .equipmentType(toString(row[4]))
+                    .tags(toTags(row[5]))
                     .authorName(null)
-                    .indexingStatus(toIndexingStatus(row[3]))
-                    .versionNo(toInteger(row[4]))
-                    .createdAt(toDateTime(row[5]))
-                    .updatedAt(toDateTime(row[6]))
-                    .lastUsedAt(toDateTime(row[7]))
-                    .fileSize(toLong(row[8]))
-                    .fileName(toString(row[9]))
+                    .indexingStatus(toIndexingStatus(row[6]))
+                    .versionNo(toInteger(row[7]))
+                    .createdAt(toDateTime(row[8]))
+                    .updatedAt(toDateTime(row[9]))
+                    .lastUsedAt(toDateTime(row[10]))
+                    .fileSize(toLong(row[11]))
+                    .fileName(toString(row[12]))
                     .build());
         }
 
         String countSql = """
-                SELECT COUNT(*)
-                FROM DOCUMENT d
+                SELECT COUNT(DISTINCT d.document_id)
+                FROM document d
                 JOIN (
                     SELECT document_id, MAX(version_no) AS latest_version_no
-                    FROM DOCUMENT_VERSION
+                    FROM document_version
                     GROUP BY document_id
                 ) latest ON latest.document_id = d.document_id
-                JOIN DOCUMENT_VERSION dv
+                JOIN document_version dv
                     ON dv.document_id = latest.document_id
                    AND dv.version_no = latest.latest_version_no
+                LEFT JOIN document_tag dt ON dt.document_id = d.document_id
                 WHERE
                 """ + where;
         Query countQuery = entityManager.createNativeQuery(countSql);
@@ -134,13 +145,13 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
                     SUM(CASE WHEN dv.indexing_status = 'COMPLETED' THEN 1 ELSE 0 END) AS completed_count,
                     SUM(CASE WHEN dv.indexing_status = 'PROCESSING' THEN 1 ELSE 0 END) AS processing_count,
                     SUM(CASE WHEN dv.indexing_status = 'FAILED' THEN 1 ELSE 0 END) AS failed_count
-                FROM DOCUMENT d
+                FROM document d
                 JOIN (
                     SELECT document_id, MAX(version_no) AS latest_version_no
-                    FROM DOCUMENT_VERSION
+                    FROM document_version
                     GROUP BY document_id
                 ) latest ON latest.document_id = d.document_id
-                JOIN DOCUMENT_VERSION dv
+                JOIN document_version dv
                     ON dv.document_id = latest.document_id
                    AND dv.version_no = latest.latest_version_no
                 WHERE d.deleted_at IS NULL
@@ -163,25 +174,33 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
     @Override
     public Optional<DocumentDetailResult> findDetail(Long documentId, Long organizationId, boolean isAdmin) {
         String sql = """
-                SELECT d.document_id, d.title, d.document_type,
+                SELECT d.document_id, d.title, d.document_type, d.category, d.equipment_type, d.description,
+                       GROUP_CONCAT(dt.tag_name ORDER BY dt.tag_name SEPARATOR ',') AS tags,
                        d.owner_user_id, d.current_status,
                        d.created_at AS doc_created_at, d.updated_at AS doc_updated_at,
                        dv.document_version_id, dv.version_no, dv.file_id, f.file_name, f.file_size, f.file_ext,
                        f.mime_type, dv.file_hash, dv.indexing_status, dv.indexed_chunk_count, dv.index_error_message,
                        dv.indexed_at AS version_indexed_at, dv.created_at AS version_created_at
-                FROM DOCUMENT d
+                FROM document d
                 JOIN (
                     SELECT document_id, MAX(version_no) AS latest_version_no
-                    FROM DOCUMENT_VERSION
+                    FROM document_version
                     GROUP BY document_id
                 ) latest ON latest.document_id = d.document_id
-                JOIN DOCUMENT_VERSION dv
+                JOIN document_version dv
                     ON dv.document_id = latest.document_id
                    AND dv.version_no = latest.latest_version_no
-                LEFT JOIN FILE f ON f.file_id = dv.file_id
+                LEFT JOIN document_tag dt ON dt.document_id = d.document_id
+                LEFT JOIN file f ON f.file_id = dv.file_id
                 WHERE d.document_id = :documentId
                   AND d.deleted_at IS NULL
-                """ + (isAdmin ? "" : " AND d.organization_id = :organizationId ");
+                """ + (isAdmin ? "" : " AND d.organization_id = :organizationId ") + """
+                GROUP BY d.document_id, d.title, d.document_type, d.category, d.equipment_type, d.description,
+                         d.owner_user_id, d.current_status, d.created_at, d.updated_at,
+                         dv.document_version_id, dv.version_no, dv.file_id, f.file_name, f.file_size, f.file_ext,
+                         f.mime_type, dv.file_hash, dv.indexing_status, dv.indexed_chunk_count, dv.index_error_message,
+                         dv.indexed_at, dv.created_at
+                """;
         Query q = entityManager.createNativeQuery(sql);
         q.setParameter("documentId", documentId);
         if (!isAdmin) {
@@ -197,29 +216,29 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
                 .documentId(toLong(row[0]))
                 .title(toString(row[1]))
                 .documentType(toString(row[2]))
-                .category(null)
-                .equipmentType(null)
-                .description(null)
-                .tags(List.of())
-                .ownerUserId(toLong(row[3]))
+                .category(toString(row[3]))
+                .equipmentType(toString(row[4]))
+                .description(toString(row[5]))
+                .tags(toTags(row[6]))
+                .ownerUserId(toLong(row[7]))
                 .authorName(null)
-                .currentStatus(toDocumentStatus(row[4]))
-                .createdAt(toDateTime(row[5]))
-                .updatedAt(toDateTime(row[6]))
+                .currentStatus(toDocumentStatus(row[8]))
+                .createdAt(toDateTime(row[9]))
+                .updatedAt(toDateTime(row[10]))
                 .latestVersion(DocumentVersionDetailResult.builder()
-                        .documentVersionId(toLong(row[7]))
-                        .versionNo(toInteger(row[8]))
-                        .fileId(toLong(row[9]))
-                        .fileName(toString(row[10]))
-                        .fileSize(toLong(row[11]))
-                        .fileExt(toString(row[12]))
-                        .mimeType(toString(row[13]))
-                        .fileHash(toString(row[14]))
-                        .indexingStatus(toIndexingStatus(row[15]))
-                        .indexedChunkCount(toInteger(row[16]))
-                        .indexErrorMessage(toString(row[17]))
-                        .indexedAt(toDateTime(row[18]))
-                        .createdAt(toDateTime(row[19]))
+                        .documentVersionId(toLong(row[11]))
+                        .versionNo(toInteger(row[12]))
+                        .fileId(toLong(row[13]))
+                        .fileName(toString(row[14]))
+                        .fileSize(toLong(row[15]))
+                        .fileExt(toString(row[16]))
+                        .mimeType(toString(row[17]))
+                        .fileHash(toString(row[18]))
+                        .indexingStatus(toIndexingStatus(row[19]))
+                        .indexedChunkCount(toInteger(row[20]))
+                        .indexErrorMessage(toString(row[21]))
+                        .indexedAt(toDateTime(row[22]))
+                        .createdAt(toDateTime(row[23]))
                         .build())
                 .build());
     }
@@ -228,7 +247,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
     public Optional<Long> findDocumentOrganizationId(Long documentId) {
         Query q = entityManager.createNativeQuery("""
                 SELECT organization_id
-                FROM DOCUMENT
+                FROM document
                 WHERE document_id = :documentId
                   AND deleted_at IS NULL
                 """);
@@ -242,12 +261,12 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
     }
 
     @Override
-    public DocumentCreateResult createDocument(Long organizationId, Long ownerUserId, String title, String documentType, String category, String equipmentType, String description, String tags, Long fileId, String authorName) {
+    public DocumentCreateResult createDocument(Long organizationId, Long ownerUserId, String title, String documentType, String category, String equipmentType, String description, List<String> tags, Long fileId, String authorName) {
         Query insertDocument = entityManager.createNativeQuery("""
-                INSERT INTO DOCUMENT (
-                    organization_id, owner_user_id, title, document_type, current_status, created_at, updated_at
+                INSERT INTO document (
+                    organization_id, owner_user_id, title, document_type, category, equipment_type, description, current_status, created_at, updated_at
                 ) VALUES (
-                    :organizationId, :ownerUserId, :title, :documentType, :currentStatus, :createdAt, :updatedAt
+                    :organizationId, :ownerUserId, :title, :documentType, :category, :equipmentType, :description, :currentStatus, :createdAt, :updatedAt
                 )
                 """);
         LocalDateTime now = LocalDateTime.now();
@@ -255,6 +274,9 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
         insertDocument.setParameter("ownerUserId", ownerUserId);
         insertDocument.setParameter("title", title);
         insertDocument.setParameter("documentType", documentType);
+        insertDocument.setParameter("category", category);
+        insertDocument.setParameter("equipmentType", equipmentType);
+        insertDocument.setParameter("description", description);
         insertDocument.setParameter("currentStatus", DocumentStatus.ACTIVE.name());
         insertDocument.setParameter("createdAt", Timestamp.valueOf(now));
         insertDocument.setParameter("updatedAt", Timestamp.valueOf(now));
@@ -262,7 +284,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
         Long documentId = ((Number) entityManager.createNativeQuery("SELECT LAST_INSERT_ID()").getSingleResult()).longValue();
 
         Query insertVersion = entityManager.createNativeQuery("""
-                INSERT INTO DOCUMENT_VERSION (
+                INSERT INTO document_version (
                     document_id, version_no, file_id, file_hash, indexing_status, indexed_chunk_count,
                     index_error_message, indexed_at, created_at
                 ) VALUES (
@@ -276,6 +298,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
         insertVersion.executeUpdate();
         Long documentVersionId = ((Number) entityManager.createNativeQuery("SELECT LAST_INSERT_ID()").getSingleResult()).longValue();
 
+        replaceDocumentTags(documentId, tags);
         createIndexJob(documentVersionId, IndexingStatus.PENDING.name(), null);
         return DocumentCreateResult.builder()
                 .documentId(documentId)
@@ -285,15 +308,22 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
     }
 
     @Override
-    public DocumentDetailResult updateMetadata(Long documentId, Long organizationId, boolean isAdmin, String title, String category, String equipmentType, String description, String tags) {
+    public DocumentDetailResult updateMetadata(Long documentId, Long organizationId, boolean isAdmin, String title, String category, String equipmentType, String description, List<String> tags) {
         String sql = """
-                UPDATE DOCUMENT
-                SET title = :title, updated_at = :updatedAt
+                UPDATE document
+                SET title = :title,
+                    category = :category,
+                    equipment_type = :equipmentType,
+                    description = :description,
+                    updated_at = :updatedAt
                 WHERE document_id = :documentId
                   AND deleted_at IS NULL
                 """ + (isAdmin ? "" : " AND organization_id = :organizationId ");
         Query q = entityManager.createNativeQuery(sql);
         q.setParameter("title", title);
+        q.setParameter("category", category);
+        q.setParameter("equipmentType", equipmentType);
+        q.setParameter("description", description);
         q.setParameter("updatedAt", Timestamp.valueOf(LocalDateTime.now()));
         q.setParameter("documentId", documentId);
         if (!isAdmin) {
@@ -303,6 +333,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
         if (updated == 0) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "문서를 찾을 수 없거나 수정 권한이 없습니다.");
         }
+        replaceDocumentTags(documentId, tags);
         return findDetail(documentId, organizationId, isAdmin)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "문서를 찾을 수 없습니다."));
     }
@@ -311,8 +342,8 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
     public DocumentVersionDetailResult createVersion(Long documentId, Long organizationId, boolean isAdmin, Long fileId, String fileHash, String changeReason) {
         String selectSql = """
                 SELECT COALESCE(MAX(dv.version_no), 0)
-                FROM DOCUMENT d
-                JOIN DOCUMENT_VERSION dv ON dv.document_id = d.document_id
+                FROM document d
+                JOIN document_version dv ON dv.document_id = d.document_id
                 WHERE d.document_id = :documentId
                   AND d.deleted_at IS NULL
                 """ + (isAdmin ? "" : " AND d.organization_id = :organizationId ");
@@ -328,7 +359,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
         int nextVersion = currentVersionNo.intValue() + 1;
         LocalDateTime now = LocalDateTime.now();
         Query insertVersion = entityManager.createNativeQuery("""
-                INSERT INTO DOCUMENT_VERSION (
+                INSERT INTO document_version (
                     document_id, version_no, file_id, file_hash, indexing_status, indexed_chunk_count,
                     index_error_message, indexed_at, created_at
                 ) VALUES (
@@ -343,7 +374,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
         insertVersion.setParameter("createdAt", Timestamp.valueOf(now));
         insertVersion.executeUpdate();
         Long versionId = ((Number) entityManager.createNativeQuery("SELECT LAST_INSERT_ID()").getSingleResult()).longValue();
-        entityManager.createNativeQuery("UPDATE DOCUMENT SET updated_at = :updatedAt WHERE document_id = :documentId")
+        entityManager.createNativeQuery("UPDATE document SET updated_at = :updatedAt WHERE document_id = :documentId")
                 .setParameter("updatedAt", Timestamp.valueOf(now))
                 .setParameter("documentId", documentId)
                 .executeUpdate();
@@ -353,8 +384,8 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
                 SELECT dv.document_version_id, dv.version_no, dv.file_id, f.file_name, f.file_size, f.file_ext,
                        f.mime_type, dv.file_hash, dv.indexing_status, dv.indexed_chunk_count, dv.index_error_message,
                        dv.indexed_at, dv.created_at
-                FROM DOCUMENT_VERSION dv
-                LEFT JOIN FILE f ON f.file_id = dv.file_id
+                FROM document_version dv
+                LEFT JOIN file f ON f.file_id = dv.file_id
                 WHERE dv.document_version_id = :versionId
                 """)
                 .setParameter("versionId", versionId)
@@ -379,7 +410,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
     @Override
     public boolean softDelete(Long documentId, Long organizationId, boolean isAdmin) {
         String sql = """
-                UPDATE DOCUMENT
+                UPDATE document
                 SET deleted_at = :deletedAt, current_status = :deletedStatus, updated_at = :updatedAt
                 WHERE document_id = :documentId
                   AND deleted_at IS NULL
@@ -399,7 +430,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
 
     private void createIndexJob(Long documentVersionId, String status, String errorMessage) {
         entityManager.createNativeQuery("""
-                INSERT INTO DOCUMENT_INDEX_JOB (
+                INSERT INTO document_index_job (
                     document_version_id, job_status, error_message, started_at, completed_at
                 ) VALUES (
                     :documentVersionId, :jobStatus, :errorMessage, NULL, NULL
@@ -409,6 +440,26 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
                 .setParameter("jobStatus", status)
                 .setParameter("errorMessage", errorMessage)
                 .executeUpdate();
+    }
+
+    private void replaceDocumentTags(Long documentId, List<String> tags) {
+        entityManager.createNativeQuery("DELETE FROM document_tag WHERE document_id = :documentId")
+                .setParameter("documentId", documentId)
+                .executeUpdate();
+        if (tags == null || tags.isEmpty()) {
+            return;
+        }
+        Query insert = entityManager.createNativeQuery("""
+                INSERT INTO document_tag (document_id, tag_name, created_at)
+                VALUES (:documentId, :tagName, :createdAt)
+                """);
+        Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+        for (String tag : tags) {
+            insert.setParameter("documentId", documentId);
+            insert.setParameter("tagName", tag);
+            insert.setParameter("createdAt", now);
+            insert.executeUpdate();
+        }
     }
 
     private void bindQueryParams(Query query, DocumentSearchQuery request, Long organizationId, boolean isAdmin) {
@@ -423,6 +474,12 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
         }
         if (hasText(request.getIndexingStatus())) {
             query.setParameter("indexingStatus", request.getIndexingStatus());
+        }
+        if (hasText(request.getCategory())) {
+            query.setParameter("category", request.getCategory());
+        }
+        if (hasText(request.getEquipmentType())) {
+            query.setParameter("equipmentType", request.getEquipmentType());
         }
         if (request.getStartDate() != null) {
             query.setParameter("startDate", Timestamp.valueOf(request.getStartDate().atStartOfDay()));
@@ -450,6 +507,17 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
 
     private String toString(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private List<String> toTags(Object value) {
+        if (value == null) {
+            return List.of();
+        }
+        String raw = String.valueOf(value);
+        if (raw.isBlank()) {
+            return List.of();
+        }
+        return List.of(raw.split(","));
     }
 
     private LocalDateTime toDateTime(Object value) {

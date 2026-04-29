@@ -4,7 +4,7 @@ import { DocumentSummaryCards, DocumentTable } from '../features/document/ui'
 
 export function DocumentListPage() {
   const navigate = useNavigate()
-  const { data, summary, loading, error, reload } = useDocumentList()
+  const { query, setQuery, data, summary, loading, error, reload } = useDocumentList()
 
   const onDelete = async (documentId: number) => {
     if (!window.confirm('문서를 삭제하시겠습니까?')) return
@@ -23,6 +23,36 @@ export function DocumentListPage() {
       </div>
 
       <DocumentSummaryCards summary={summary} />
+      <div className="page-panel grid grid-cols-1 gap-3 md:grid-cols-4">
+        <input
+          className="control"
+          placeholder="제목/설명/태그 검색"
+          value={query.keyword ?? ''}
+          onChange={(e) => setQuery((prev) => ({ ...prev, keyword: e.target.value, page: 0 }))}
+        />
+        <select
+          className="control"
+          value={query.documentType ?? ''}
+          onChange={(e) => setQuery((prev) => ({ ...prev, documentType: e.target.value || undefined, page: 0 }))}
+        >
+          <option value="">전체 유형</option>
+          <option value="PDF">PDF</option>
+          <option value="DOCX">DOCX</option>
+          <option value="TXT">TXT</option>
+        </select>
+        <input
+          className="control"
+          placeholder="카테고리"
+          value={query.category ?? ''}
+          onChange={(e) => setQuery((prev) => ({ ...prev, category: e.target.value || undefined, page: 0 }))}
+        />
+        <input
+          className="control"
+          placeholder="설비 유형"
+          value={query.equipmentType ?? ''}
+          onChange={(e) => setQuery((prev) => ({ ...prev, equipmentType: e.target.value || undefined, page: 0 }))}
+        />
+      </div>
 
       <DocumentTable
         items={data?.content ?? []}
@@ -31,6 +61,27 @@ export function DocumentListPage() {
         onEdit={(id) => navigate(`/documents/${id}/edit`)}
         onDelete={onDelete}
       />
+      <div className="page-panel flex items-center justify-between">
+        <span className="text-sm text-slate-600">
+          페이지 {(data?.page ?? 0) + 1} / {Math.max(data?.totalPages ?? 1, 1)} (총 {data?.totalElements ?? 0}건)
+        </span>
+        <div className="flex gap-2">
+          <button
+            className="btn-secondary"
+            disabled={(data?.page ?? 0) <= 0 || loading}
+            onClick={() => setQuery((prev) => ({ ...prev, page: Math.max((prev.page ?? 0) - 1, 0) }))}
+          >
+            이전
+          </button>
+          <button
+            className="btn-secondary"
+            disabled={loading || (data ? data.page + 1 >= data.totalPages : true)}
+            onClick={() => setQuery((prev) => ({ ...prev, page: (prev.page ?? 0) + 1 }))}
+          >
+            다음
+          </button>
+        </div>
+      </div>
     </section>
   )
 }

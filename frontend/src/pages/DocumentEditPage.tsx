@@ -13,6 +13,10 @@ export function DocumentEditPage() {
   const documentId = Number(useParams().documentId)
   const { detail, loading, error, reload } = useDocumentDetail(documentId)
   const [title, setTitle] = useState('')
+  const [category, setCategory] = useState('')
+  const [equipmentType, setEquipmentType] = useState('')
+  const [description, setDescription] = useState('')
+  const [tags, setTags] = useState('')
   const [newFile, setNewFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -24,6 +28,10 @@ export function DocumentEditPage() {
     try {
       await submitDocumentMetadata(documentId, {
         title: title.trim() || detail.title,
+        category: category.trim(),
+        equipmentType: equipmentType.trim(),
+        description: description.trim(),
+        tags: tags.split(',').map((v) => v.trim()).filter((v) => v.length > 0),
       })
       if (newFile) {
         const form = new FormData()
@@ -48,18 +56,40 @@ export function DocumentEditPage() {
     <section className="space-y-4">
       <div className="page-panel">
         <h1 className="text-2xl font-semibold text-slate-900">문서 수정</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          저장 가능한 메타데이터는 문서명뿐입니다. 새 파일을 선택하면 버전이 추가됩니다.
-        </p>
+        <p className="mt-2 text-sm text-slate-600">문서 메타데이터를 수정하고 필요 시 새 파일 버전을 추가합니다.</p>
       </div>
       <div className="page-panel space-y-3">
         <p>현재 파일: {detail.latestVersion?.fileName ?? '-'}</p>
         <p>인덱싱 상태: {indexingStatusLabel(detail.latestVersion?.indexingStatus)}</p>
         <input
           className="control"
-          defaultValue={detail.title}
+          value={title || detail.title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="문서명"
+        />
+        <input
+          className="control"
+          value={category || detail.category || ''}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder="카테고리"
+        />
+        <input
+          className="control"
+          value={equipmentType || detail.equipmentType || ''}
+          onChange={(e) => setEquipmentType(e.target.value)}
+          placeholder="설비유형"
+        />
+        <textarea
+          className="control min-h-[120px]"
+          value={description || detail.description || ''}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="설명"
+        />
+        <input
+          className="control"
+          value={tags || detail.tags.join(', ')}
+          onChange={(e) => setTags(e.target.value)}
+          placeholder="태그(쉼표로 구분)"
         />
         <input type="file" accept=".pdf,.docx,.txt" onChange={(e) => setNewFile(e.target.files?.[0] ?? null)} />
         <div className="flex gap-2">

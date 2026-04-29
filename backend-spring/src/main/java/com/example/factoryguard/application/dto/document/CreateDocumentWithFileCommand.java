@@ -4,6 +4,8 @@ import lombok.Builder;
 import lombok.Getter;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @Getter
 @Builder
 public class CreateDocumentWithFileCommand {
@@ -15,5 +17,5 @@ public class CreateDocumentWithFileCommand {
     private final String category;
     private final String equipmentType;
     private final String description;
-    private final String tags;
+    private final List<String> tags;
 }

@@ -31,9 +31,12 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -80,6 +83,7 @@ public class DocumentCrudService implements DocumentCrudUseCase {
     @Transactional
     public DocumentCreateResult createDocument(CreateDocumentWithFileCommand command) {
         validateFile(command.getFile());
+        List<String> normalizedTags = normalizeTags(command.getTags());
         StoredFile storedFile = uploadAndPersist(command.getFile(), command.getUserId());
         DocumentCreateResult created = documentCrudPort.createDocument(
                 command.getOrganizationId(),
@@ -89,7 +93,7 @@ public class DocumentCrudService implements DocumentCrudUseCase {
                 command.getCategory(),
                 command.getEquipmentType(),
                 command.getDescription(),
-                command.getTags(),
+                normalizedTags,
                 storedFile.getFileId(),
                 String.valueOf(command.getUserId())
         );
@@ -107,6 +111,7 @@ public class DocumentCrudService implements DocumentCrudUseCase {
         boolean isAdmin = isAdmin(principal);
         Long organizationId = isAdmin ? null : securityUtils.requireOrganizationId();
         validateOrganizationAccess(command.getDocumentId(), organizationId, isAdmin);
+        List<String> normalizedTags = normalizeTags(command.getTags());
         return documentCrudPort.updateMetadata(
                 command.getDocumentId(),
                 organizationId,
@@ -115,7 +120,7 @@ public class DocumentCrudService implements DocumentCrudUseCase {
                 command.getCategory(),
                 command.getEquipmentType(),
                 command.getDescription(),
-                command.getTags()
+                normalizedTags
         );
     }
 
@@ -234,6 +239,33 @@ public class DocumentCrudService implements DocumentCrudUseCase {
             return "TXT";
         }
         return ext;
+    }
+
+    private List<String> normalizeTags(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return List.of();
+        }
+        Set<String> deduped = new LinkedHashSet<>();
+        for (String rawTag : tags) {
+            if (rawTag == null) {
+                continue;
+            }
+            String trimmed = rawTag.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (trimmed.length() > 50) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "태그는 50자를 초과할 수 없습니다.");
+            }
+            if (trimmed.contains("<") || trimmed.contains(">")) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "태그에 허용되지 않은 문자가 포함되어 있습니다.");
+            }
+            deduped.add(trimmed);
+        }
+        if (deduped.size() > 10) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "태그는 최대 10개까지 등록할 수 있습니다.");
+        }
+        return new ArrayList<>(deduped);
     }
 
     private String fileExt(String fileName) {

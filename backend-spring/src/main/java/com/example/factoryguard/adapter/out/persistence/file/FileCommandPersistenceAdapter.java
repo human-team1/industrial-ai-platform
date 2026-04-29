@@ -19,7 +19,7 @@ public class FileCommandPersistenceAdapter implements PersistUploadedFilePort {
     @Override
     public StoredFile save(StoredFile file) {
         Query query = entityManager.createNativeQuery("""
-                INSERT INTO `FILE` (
+                INSERT INTO file (
                     storage_type, bucket_name, object_key, file_path, file_name, file_ext,
                     mime_type, file_size, checksum, created_at, created_by
                 ) VALUES (

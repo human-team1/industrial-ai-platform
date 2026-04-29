@@ -50,10 +50,10 @@ export function DocumentTable({
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-[720px] w-full border-collapse text-left text-sm">
+        <table className="min-w-[980px] w-full border-collapse text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
-              {['문서명', '유형', '업로드일', '인덱싱 상태', '관리'].map((head) => (
+              {['문서명', '유형', '카테고리', '태그', '업로드일', '인덱싱 상태', '관리'].map((head) => (
                 <th key={head} className="border-b border-slate-200 px-4 py-3 font-semibold">{head}</th>
               ))}
             </tr>
@@ -63,6 +63,8 @@ export function DocumentTable({
               <tr key={item.documentId} className="border-b border-slate-100 last:border-0">
                 <td className="px-4 py-3">{item.title}</td>
                 <td className="px-4 py-3">{item.documentType}</td>
+                <td className="px-4 py-3">{item.category || '-'}</td>
+                <td className="px-4 py-3">{item.tags?.join(', ') || '-'}</td>
                 <td className="px-4 py-3">{fmt(item.createdAt)}</td>
                 <td className="px-4 py-3"><StatusBadge status={item.indexingStatus} /></td>
                 <td className="px-4 py-3 space-x-2">

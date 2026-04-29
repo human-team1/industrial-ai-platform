@@ -5,6 +5,7 @@ import {
   getDocumentDetail,
   getDocuments,
   getDocumentSummary,
+  type UpdateDocumentMetadataPayload,
   updateDocument,
   uploadDocumentVersion,
 } from '../api'
@@ -78,7 +79,7 @@ export async function submitNewDocument(formData: FormData) {
   return createDocument(formData)
 }
 
-export async function submitDocumentMetadata(documentId: number, body: Record<string, unknown>) {
+export async function submitDocumentMetadata(documentId: number, body: UpdateDocumentMetadataPayload) {
   return updateDocument(documentId, body)
 }
 

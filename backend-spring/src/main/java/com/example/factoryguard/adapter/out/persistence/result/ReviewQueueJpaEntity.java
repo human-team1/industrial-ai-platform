@@ -13,7 +13,7 @@ import javax.persistence.Table;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "REVIEW_QUEUE")
+@Table(name = "review_queue")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ReviewQueueJpaEntity {

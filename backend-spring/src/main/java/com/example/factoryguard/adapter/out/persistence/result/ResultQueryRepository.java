@@ -68,8 +68,8 @@ public class ResultQueryRepository {
     public Optional<Long> findOrganizationIdByResultId(Long resultId) {
         Query query = entityManager.createNativeQuery("""
                 SELECT ir.organization_id
-                FROM INSPECTION_RESULT r
-                JOIN INSPECTION_RUN ir ON r.inspection_id = ir.inspection_id
+                FROM inspection_result r
+                JOIN inspection_run ir ON r.inspection_id = ir.inspection_id
                 WHERE r.result_id = :resultId
                 """);
         query.setParameter("resultId", resultId);
@@ -109,10 +109,10 @@ public class ResultQueryRepository {
                     rq.queue_status,
                     rq.queued_reason,
                     ir.organization_id
-                FROM INSPECTION_RESULT r
-                JOIN INSPECTION_RUN ir ON r.inspection_id = ir.inspection_id
-                LEFT JOIN ANALYSIS_TARGET at ON ir.target_id = at.target_id
-                LEFT JOIN REVIEW_QUEUE rq ON r.result_id = rq.result_id
+                FROM inspection_result r
+                JOIN inspection_run ir ON r.inspection_id = ir.inspection_id
+                LEFT JOIN analysis_target at ON ir.target_id = at.target_id
+                LEFT JOIN review_queue rq ON r.result_id = rq.result_id
                 WHERE r.result_id = :resultId
                 """);
         query.setParameter("resultId", resultId);
@@ -178,10 +178,10 @@ public class ResultQueryRepository {
         if (count) {
             sql.append("""
                     SELECT COUNT(*)
-                    FROM INSPECTION_RESULT r
-                    JOIN INSPECTION_RUN ir ON r.inspection_id = ir.inspection_id
-                    LEFT JOIN ANALYSIS_TARGET at ON ir.target_id = at.target_id
-                    LEFT JOIN REVIEW_QUEUE rq ON r.result_id = rq.result_id
+                    FROM inspection_result r
+                    JOIN inspection_run ir ON r.inspection_id = ir.inspection_id
+                    LEFT JOIN analysis_target at ON ir.target_id = at.target_id
+                    LEFT JOIN review_queue rq ON r.result_id = rq.result_id
                     WHERE 1 = 1
                     """);
         } else {
@@ -204,10 +204,10 @@ public class ResultQueryRepository {
                         ir.started_at,
                         ir.completed_at,
                         r.created_at
-                    FROM INSPECTION_RESULT r
-                    JOIN INSPECTION_RUN ir ON r.inspection_id = ir.inspection_id
-                    LEFT JOIN ANALYSIS_TARGET at ON ir.target_id = at.target_id
-                    LEFT JOIN REVIEW_QUEUE rq ON r.result_id = rq.result_id
+                    FROM inspection_result r
+                    JOIN inspection_run ir ON r.inspection_id = ir.inspection_id
+                    LEFT JOIN analysis_target at ON ir.target_id = at.target_id
+                    LEFT JOIN review_queue rq ON r.result_id = rq.result_id
                     WHERE 1 = 1
                     """);
         }
@@ -323,7 +323,7 @@ public class ResultQueryRepository {
     private List<ResultArtifactResponse> findArtifacts(Long resultId) {
         Query query = entityManager.createNativeQuery("""
                 SELECT artifact_id, artifact_type, file_id
-                FROM RESULT_ARTIFACT
+                FROM result_artifact
                 WHERE result_id = :resultId
                 ORDER BY artifact_id
                 """);
@@ -342,7 +342,7 @@ public class ResultQueryRepository {
     private List<ResultImageResponse> findImages(Long resultId) {
         Query query = entityManager.createNativeQuery("""
                 SELECT image_id, file_id, image_role
-                FROM `IMAGE`
+                FROM image
                 WHERE result_id = :resultId
                 ORDER BY image_id
                 """);
@@ -366,7 +366,7 @@ public class ResultQueryRepository {
     private List<AnomalyRegionResponse> findRegions(Long imageId) {
         Query query = entityManager.createNativeQuery("""
                 SELECT region_id, label_code, bbox_x, bbox_y, bbox_w, bbox_h, score
-                FROM ANOMALY_REGION
+                FROM anomaly_region
                 WHERE image_id = :imageId
                 ORDER BY region_id
                 """);
@@ -389,7 +389,7 @@ public class ResultQueryRepository {
     private List<ResultEventLogResponse> findEventLogs(Long inspectionId) {
         Query query = entityManager.createNativeQuery("""
                 SELECT event_id, event_type, message, created_at
-                FROM INSPECTION_EVENT_LOG
+                FROM inspection_event_log
                 WHERE inspection_id = :inspectionId
                 ORDER BY created_at DESC, event_id DESC
                 """);
@@ -414,9 +414,9 @@ public class ResultQueryRepository {
                     r.score,
                     r.final_decision_code,
                     at.target_name
-                FROM INSPECTION_RESULT r
-                JOIN INSPECTION_RUN ir ON r.inspection_id = ir.inspection_id
-                LEFT JOIN ANALYSIS_TARGET at ON ir.target_id = at.target_id
+                FROM inspection_result r
+                JOIN inspection_run ir ON r.inspection_id = ir.inspection_id
+                LEFT JOIN analysis_target at ON ir.target_id = at.target_id
                 WHERE r.result_id <> :resultId
                   AND ir.organization_id = :organizationId
                 """);

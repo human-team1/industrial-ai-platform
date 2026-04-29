@@ -234,6 +234,13 @@ infra/mariadb/init/industrial-ai-platform.sql
 
 현재 `docker-compose.yml`은 MariaDB init SQL을 자동 마운트하지 않습니다. 따라서 최초 1회 수동 실행합니다.
 
+스키마 운영 원칙:
+
+- 공식 테이블명은 `lowercase snake_case` 기준입니다.
+- 로컬 프로필은 `ddl-auto=validate`를 사용하며 Hibernate 자동 DDL 생성/수정을 사용하지 않습니다.
+- DB 스키마 변경은 `infra/mariadb/init/industrial-ai-platform.sql`을 먼저 수정하고, Entity/JPA 매핑을 맞춥니다.
+- `ddl-auto=update`는 사용하지 않습니다.
+
 ```powershell
 cd infra
 Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw | docker exec -i industrial-mariadb sh -c 'mariadb -uindustrial_user -p"$MARIADB_PASSWORD" industrial_ai'
@@ -254,10 +261,28 @@ SELECT COUNT(*) AS table_count
 FROM information_schema.tables
 WHERE table_schema = 'industrial_ai';
 
-SHOW TABLES LIKE 'USERS';
-SHOW TABLES LIKE 'INSPECTION_RUN';
-SHOW TABLES LIKE 'DOCUMENT';
+SHOW TABLES LIKE 'users';
+SHOW TABLES LIKE 'inspection_run';
+SHOW TABLES LIKE 'document';
+SHOW TABLES LIKE 'document_tag';
 ```
+
+문서 메타데이터 스키마 변경(문서 CRUD):
+
+- `document` 컬럼 추가: `category`, `equipment_type`, `description`
+- `document_tag` 테이블 추가: 문서 태그(`document_id`, `tag_name`) 저장
+
+기존 로컬 DB를 그대로 쓰는 경우, 아래 둘 중 하나를 선택합니다.
+
+1) DB 전체 재초기화(권장):
+
+```powershell
+cd infra
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password -e "DROP DATABASE IF EXISTS industrial_ai; CREATE DATABASE industrial_ai DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw | docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai
+```
+
+2) 운영 중 데이터 유지가 필요하면 별도 ALTER TABLE/CREATE TABLE 스크립트로 동기화
 
 이미 테이블이 있으면 `Table already exists`가 날 수 있습니다. 완전히 다시 만들려면 MariaDB 볼륨을 삭제한 뒤 SQL을 다시 실행합니다.
 

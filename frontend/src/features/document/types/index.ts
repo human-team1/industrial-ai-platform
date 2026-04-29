@@ -4,9 +4,10 @@ export type DocumentListItem = {
   documentId: number
   title: string
   documentType: string
-  category: string
-  equipmentType: string
-  authorName: string
+  category?: string | null
+  equipmentType?: string | null
+  tags: string[]
+  authorName?: string | null
   indexingStatus: IndexingStatus
   versionNo: number
   createdAt?: string | null
@@ -53,8 +54,8 @@ export type DocumentDetail = {
   documentId: number
   title: string
   documentType: string
-  category: string
-  equipmentType: string
+  category?: string | null
+  equipmentType?: string | null
   description?: string | null
   tags: string[]
   ownerUserId: number
