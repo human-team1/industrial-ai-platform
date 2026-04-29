@@ -30,17 +30,17 @@ public class InspectionInputJpaEntity {
     @Column(name = "camera_id")
     private Long cameraId;
 
-    @Column(name = "stream_url", length = 1024)
+    @Column(name = "stream_url", columnDefinition = "TEXT")
     private String streamUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "source_type", nullable = false, length = 32)
+    @Column(name = "source_type", nullable = false, length = 20)
     private InputSourceType sourceType;
 
-    @Column(name = "source_name", length = 512)
+    @Column(name = "source_name", length = 255)
     private String sourceName;
 
-    @Column(name = "mime_type", length = 128)
+    @Column(name = "mime_type", length = 100)
     private String mimeType;
 
     @Column(name = "duration_sec")

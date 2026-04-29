@@ -28,7 +28,7 @@ public class InspectionEventLogJpaEntity {
     @Column(name = "event_type", nullable = false, length = 32)
     private InspectionEventType eventType;
 
-    @Column(name = "message", length = 2000)
+    @Column(name = "message", columnDefinition = "TEXT")
     private String message;
 
     @CreationTimestamp

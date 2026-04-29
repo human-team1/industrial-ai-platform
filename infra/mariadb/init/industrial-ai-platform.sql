@@ -207,6 +207,7 @@
   CREATE TABLE inspection_input (
     inspection_input_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     inspection_id BIGINT NOT NULL,
+    source_type VARCHAR(20) NOT NULL,
     file_id BIGINT,
     camera_id BIGINT,
     stream_url TEXT,
@@ -239,7 +240,7 @@
     result_status VARCHAR(20),
     threshold_source VARCHAR(20),
     threshold_id BIGINT,
-    threshold_version VARCHAR(50),
+    threshold_version INT,
     model_version_id BIGINT,
     failure_reason VARCHAR(255),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

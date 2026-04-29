@@ -33,7 +33,7 @@ public class InspectionRunJpaEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "target_id", nullable = false)
+    @Column(name = "target_id")
     private Long targetId;
 
     @Enumerated(EnumType.STRING)
@@ -53,7 +53,7 @@ public class InspectionRunJpaEntity {
     @Column(name = "run_status", nullable = false)
     private RunStatus runStatus;
 
-    @Column(name = "applied_threshold", nullable = false)
+    @Column(name = "applied_threshold", nullable = false, columnDefinition = "DECIMAL(5,4)")
     private double appliedThreshold;
 
     @Column(name = "idempotency_key", nullable = false)
