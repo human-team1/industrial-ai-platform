@@ -1,5 +1,6 @@
 package com.example.factoryguard.adapter.out.persistence.organization;
 
+import com.example.factoryguard.application.port.out.organization.FindOrganizationByIdPort;
 import com.example.factoryguard.application.port.out.organization.LoadActiveOrganizationsPort;
 import com.example.factoryguard.application.port.out.organization.LoadOrganizationByIdPort;
 import com.example.factoryguard.domain.organization.model.Organization;
@@ -14,7 +15,7 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class OrganizationPersistenceAdapter
-        implements LoadActiveOrganizationsPort, LoadOrganizationByIdPort {
+        implements LoadActiveOrganizationsPort, LoadOrganizationByIdPort, FindOrganizationByIdPort {
 
     private final OrganizationJpaRepository organizationJpaRepository;
 

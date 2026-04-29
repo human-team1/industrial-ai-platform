@@ -6,6 +6,7 @@ import { ChatbotPage } from '../pages/ChatbotPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { InspectionPage } from '../pages/InspectionPage'
 import { ResultPage } from '../pages/ResultPage'
+import { ResultDetailPage } from '../pages/ResultDetailPage'
 import { AdminSignupRequestsPage } from '../pages/AdminSignupRequestsPage'
 import { MyPage } from '../pages/MyPage'
 import { UserSettingsPage } from '../pages/UserSettingsPage'
@@ -32,6 +33,7 @@ export function AppRouter() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/inspections" element={<InspectionPage />} />
           <Route path="/results" element={<ResultPage />} />
+          <Route path="/results/:resultId" element={<ResultDetailPage />} />
           <Route path="/chatbot" element={<ChatbotPage />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/settings" element={<UserSettingsPage />} />
