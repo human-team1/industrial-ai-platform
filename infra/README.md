@@ -7,6 +7,8 @@
 - `industrial-ai-platform.sql` — `user_threshold_history.version INT` 컬럼 추가 (init 일관성)
 - `inspection_run`의 단독 `idempotency_key UNIQUE`를 제거하고 `(organization_id, user_id, idempotency_key)` 복합 UNIQUE `uk_inspection_run_org_user_idempotency`로 변경. 사용자/조직 간 Idempotency-Key 충돌 방지
 - `inspection_run.payload_fingerprint VARCHAR(64)` 컬럼 추가
+- `inspection_input.source_type VARCHAR(20) NOT NULL` 컬럼 추가 (검사 입력 출처 구분: 파일/카메라/스트림)
+- `inspection_result.threshold_version` 타입 `VARCHAR(50)` → `INT` 정정 (`user_threshold_history.version INT` 참조 정수 버전과 정합)
 
 ## 서비스
 
