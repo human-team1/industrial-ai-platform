@@ -152,7 +152,7 @@ public class ResultQueryService implements ListInspectionResultsUseCase, GetInsp
     }
 
     private boolean isAdmin(AuthenticatedPrincipal principal) {
-        return principal.role() != null && "ADMIN".equalsIgnoreCase(principal.role());
+        return principal.role() != null && "ROLE_SITE_ADMIN".equals(principal.role());
     }
 
     private String toUpper(String value) {
