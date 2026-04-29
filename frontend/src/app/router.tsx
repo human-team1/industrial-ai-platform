@@ -10,6 +10,9 @@ import { ResultDetailPage } from '../pages/ResultDetailPage'
 import { AdminSignupRequestsPage } from '../pages/AdminSignupRequestsPage'
 import { MyPage } from '../pages/MyPage'
 import { UserSettingsPage } from '../pages/UserSettingsPage'
+import { DocumentListPage } from '../pages/DocumentListPage'
+import { DocumentNewPage } from '../pages/DocumentNewPage'
+import { DocumentEditPage } from '../pages/DocumentEditPage'
 import { AppLayout } from '../shared/ui/layout/AppLayout'
 import { GuestRoute, ProtectedRoute } from '../shared/ui/route/ProtectedRoute'
 
@@ -34,6 +37,9 @@ export function AppRouter() {
           <Route path="/inspections" element={<InspectionPage />} />
           <Route path="/results" element={<ResultPage />} />
           <Route path="/results/:resultId" element={<ResultDetailPage />} />
+          <Route path="/documents" element={<DocumentListPage />} />
+          <Route path="/documents/new" element={<DocumentNewPage />} />
+          <Route path="/documents/:documentId/edit" element={<DocumentEditPage />} />
           <Route path="/chatbot" element={<ChatbotPage />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/settings" element={<UserSettingsPage />} />
