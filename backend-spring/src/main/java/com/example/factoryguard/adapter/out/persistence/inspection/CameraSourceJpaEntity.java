@@ -31,7 +31,7 @@ public class CameraSourceJpaEntity {
     @Column(name = "camera_name", nullable = false, length = 256)
     private String cameraName;
 
-    @Column(name = "stream_url", nullable = false, length = 1024)
+    @Column(name = "stream_url", nullable = false, columnDefinition = "TEXT")
     private String streamUrl;
 
     @Enumerated(EnumType.STRING)
