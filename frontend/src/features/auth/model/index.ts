@@ -71,6 +71,12 @@ export function useAuthState(): AuthState {
           // ACCOUNT_REJECTED — 로그아웃 없이 거절 페이지로
           setMemoryToken(null)
           navigate('/rejected')
+        } else if (errorCode === 'AUTH-408') {
+          // ACCOUNT_INACTIVE — 토큰/사용자 정보 정리 후 비활성 안내 화면으로
+          setMemoryToken(null)
+          localStorage.removeItem(USER_KEY)
+          setUser(null)
+          navigate('/auth?inactive=1')
         } else {
           // 세션 만료, 탈취 등 → 완전 로그아웃
           setMemoryToken(null)

@@ -36,7 +36,11 @@ public class GoogleLoginService implements GoogleLoginUseCase {
         Optional<User> userOpt = findUserByGoogleSubPort.findByGoogleSub(tokenInfo.getSub());
 
         if (userOpt.isEmpty()) {
-            String signupToken = jwtTokenProvider.generateSignupToken(tokenInfo.getSub());
+            String signupToken = jwtTokenProvider.generateSignupToken(
+                    tokenInfo.getSub(),
+                    tokenInfo.getEmail(),
+                    tokenInfo.getName(),
+                    tokenInfo.getPicture());
             return GoogleLoginResult.ofNew(tokenInfo, signupToken);
         }
 

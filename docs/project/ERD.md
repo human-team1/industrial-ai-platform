@@ -1,6 +1,4 @@
 
----
-
 # ✅ 1. ORGANIZATION / USER
 
 | Table | Columns | Description |
@@ -12,6 +10,7 @@
 | USER_SETTING | user_setting_id (PK), user_id (FK), notification_enabled, default_dashboard_range, default_camera_id, created_at, updated_at | 사용자 설정 |
 | USER_THRESHOLD | threshold_id (PK), user_id (FK), anomaly_threshold, low_confidence_threshold, min_allowed, max_allowed, apply_scope, is_active, created_at, updated_at | 개인 임계값 |
 | USER_THRESHOLD_HISTORY | threshold_history_id (PK), threshold_id (FK), old_anomaly_threshold, new_anomaly_threshold, change_reason, changed_by (FK), changed_at | 임계값 변경 이력 |
+| ORGANIZATION_PUBLIC  |  id, name | ACTIVE 상태의 조직만 외부/회원가입 화면에 제공하는 공개 조직 목록 View |
 
 ---
 
@@ -45,8 +44,9 @@
 
 | Table | Columns | Description |
 | --- | --- | --- |
-| DOCUMENT | document_id (PK), organization_id (FK), owner_user_id (FK), title, document_type, current_status, created_at, updated_at, deleted_at | 문서 |
-| DOCUMENT_VERSION | document_version_id (PK), document_id (FK), version_no, file_id, file_hash, indexing_status, indexed_chunk_count, index_error_message, indexed_at, created_at | 문서 버전 |
+| DOCUMENT | document_id (PK), organization_id (FK), owner_user_id (FK), title, document_type, category, equipment_type, description, current_status, created_at, updated_at, deleted_at | 문서 기본 정보 및 문서 메타데이터 |
+| DOCUMENT_TAG | document_tag_id (PK), document_id (FK), tag_name, created_at | 문서별 태그. DOCUMENT 1건에 여러 태그를 연결 |
+| DOCUMENT_VERSION | document_version_id (PK), document_id (FK), version_no, file_id (FK), file_hash, indexing_status, indexed_chunk_count, index_error_message, indexed_at, created_at | 문서 파일 버전 및 인덱싱 상태 |
 | DOCUMENT_INDEX_JOB | job_id (PK), document_version_id (FK), job_status, error_message, started_at, completed_at | 인덱싱 작업 |
 | CHUNK | chunk_id (PK), document_version_id (FK), sequence_no, content, created_at | 문서 청크 |
 | VECTOR_INDEX | vector_id (PK), chunk_id (FK), embedding_model, vector_ref, created_at | 벡터 데이터 |

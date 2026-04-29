@@ -1,5 +1,5 @@
-export type AuthStatus = 'NEW' | 'PENDING' | 'REJECTED' | 'ACTIVE'
-export type AuthRole = 'USER' | 'ADMIN'
+export type AuthStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'INACTIVE'
+export type AuthRole = 'ROLE_SITE_ADMIN' | 'ROLE_COMPANY_ADMIN' | 'ROLE_COMPANY_WORKER'
 
 export type AuthUser = {
   userId: number
@@ -14,7 +14,7 @@ export type AuthUser = {
 }
 
 export type GoogleLoginResponse = {
-  userStatus: AuthStatus
+  userStatus: AuthStatus | 'NEW'
   // ACTIVE일 때만 존재
   accessToken?: string
   // refreshToken은 HttpOnly Cookie로 전달 — 프론트 접근 불가
@@ -37,7 +37,7 @@ export type NewUserInfo = {
   picture?: string
 }
 
-// GET /auth/me 응답 — 인증 검증 + 컨텍스트 획득용
+// GET /auth/me 응답 — 인증 검증 + 컨텍스트 획득용 (가벼운 헬스체크)
 export type AuthMeResponse = {
   userId: number
   name: string
@@ -55,6 +55,8 @@ export type UserMeResponse = {
   phone?: string
   role: AuthRole
   organizationId?: number
+  organizationName?: string
   status: AuthStatus
+  lastLoginAt?: string
   createdAt: string
 }

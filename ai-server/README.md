@@ -1,15 +1,15 @@
 # AI Server
 
-FastAPI 기반 AI 서버입니다. 이상 탐지 추론, 문서 업로드 및 인덱싱, RAG 질의응답의 최소 실행 골격을 제공합니다.
+FastAPI 기반 AI/RAG 서버입니다. 비전 이상 탐지, 문서 인덱싱, RAG 검색, LLM 응답 정리 기능을 담당하는 내부 서비스입니다.
 
-## 기술 스택
+## 현재 스택
 
 - Python 3.10.6
 - FastAPI 0.115.5
 - Pydantic 2.9.2
-- LangChain 0.3.7
-- LangChain Community 0.3.5
+- Uvicorn 0.32.0
 - ChromaDB 0.5.15
+- LangChain 0.3.7
 - Redis 5.2.0
 - MinIO 7.2.10
 - pypdf 5.1.0
@@ -18,17 +18,36 @@ FastAPI 기반 AI 서버입니다. 이상 탐지 추론, 문서 업로드 및 �
 - pillow 11.0.0
 - opencv-python-headless 4.10.0.84
 
-`sentence-transformers`, `langchain-openai`, `openai`, `torch`, `transformers`, `ultralytics` 같은 모델/공급자 패키지는 모델 확정 후 추가합니다.
+## 구조 원칙
 
-## 환경변수
+```text
+api/             FastAPI router, 요청/응답
+application/     usecase, 처리 흐름
+domain/          모델/포트/규칙
+infrastructure/  MinIO, ChromaDB, Redis, 모델/RAG 구현체
+container/       DI 조립
+config/          환경 설정
+```
 
-PowerShell:
+Router에서 구현체를 직접 생성하지 않고 container를 통해 연결합니다.
+
+## 환경 변수
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
-실제 비밀값은 커밋하지 않습니다.
+주요 값:
+
+| 변수 | 설명 |
+| --- | --- |
+| `APP_PORT` | FastAPI 포트, 기본 `8001` |
+| `CHROMA_HOST`, `CHROMA_PORT` | ChromaDB 접속 정보 |
+| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` | MinIO 접속 정보 |
+| `REDIS_HOST`, `REDIS_PORT` | Redis 접속 정보 |
+| `MODEL_NAME` | 비전 모델 이름 |
+| `EMBEDDING_MODEL_NAME` | 임베딩 모델 이름 |
+| `LLM_MODEL_NAME` | LLM 모델 이름 |
 
 ## 설치
 
@@ -38,7 +57,7 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-PowerShell 실행 정책 때문에 activate가 실패하면 다음 명령을 실행한 뒤 PowerShell을 새로 엽니다.
+PowerShell 실행 정책 때문에 activate가 실패하면:
 
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
@@ -51,18 +70,25 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
 
 확인:
+
 - `http://localhost:8001/docs`
 - `http://localhost:8001/ai/v1/health`
 
-## API
+## 주요 API
 
 - `GET /ai/v1/health`
 - `POST /ai/v1/inference/anomaly`
 - `POST /ai/v1/documents/index`
 - `POST /ai/v1/rag/query`
 
-## 테스트
+## 검증
 
 ```powershell
 pytest
+ruff check .
+black --check .
 ```
+
+## 커밋 제외
+
+`.env`, `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`는 커밋하지 않습니다.

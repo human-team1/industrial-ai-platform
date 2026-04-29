@@ -1,12 +1,14 @@
 package com.example.factoryguard.adapter.in.web.signuprequest;
 
 import com.example.factoryguard.adapter.in.web.signuprequest.dto.ApproveSignupBody;
+import com.example.factoryguard.adapter.in.web.signuprequest.dto.PublicOrganizationResponse;
 import com.example.factoryguard.adapter.in.web.signuprequest.dto.RejectSignupRequestBody;
 import com.example.factoryguard.adapter.in.web.signuprequest.dto.SignupRequestBody;
 import com.example.factoryguard.application.dto.auth.SignupRequestCommand;
 import com.example.factoryguard.application.dto.auth.SignupRequestResult;
 import com.example.factoryguard.application.dto.signup.SignupRequestSummary;
 import com.example.factoryguard.application.port.in.auth.SignupRequestUseCase;
+import com.example.factoryguard.application.port.in.organization.GetPublicOrganizationsUseCase;
 import com.example.factoryguard.application.port.in.signup.ApproveSignupUseCase;
 import com.example.factoryguard.application.port.in.signup.GetSignupRequestsUseCase;
 import com.example.factoryguard.application.port.in.signup.RejectSignupUseCase;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/signup-requests")
@@ -32,6 +35,7 @@ public class SignupRequestController {
     private final GetSignupRequestsUseCase getSignupRequestsUseCase;
     private final ApproveSignupUseCase approveSignupUseCase;
     private final RejectSignupUseCase rejectSignupUseCase;
+    private final GetPublicOrganizationsUseCase getPublicOrganizationsUseCase;
     private final SecurityUtils securityUtils;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -44,8 +48,14 @@ public class SignupRequestController {
         }
 
         String googleSub;
+        String email;
+        String name;
+        String picture;
         try {
             googleSub = jwtTokenProvider.extractSignupGoogleSub(body.getSignupToken());
+            email = jwtTokenProvider.extractSignupEmail(body.getSignupToken());
+            name = jwtTokenProvider.extractSignupName(body.getSignupToken());
+            picture = jwtTokenProvider.extractSignupPicture(body.getSignupToken());
         } catch (JwtException e) {
             throw new BusinessException(ErrorCode.INVALID_SIGNUP_TOKEN);
         }
@@ -53,13 +63,23 @@ public class SignupRequestController {
         SignupRequestResult result = signupRequestUseCase.execute(
                 SignupRequestCommand.builder()
                         .googleSub(googleSub)
-                        .email(body.getEmail())
-                        .name(body.getName())
-                        .picture(body.getPicture())
+                        .email(email)
+                        .name(name)
+                        .picture(picture)
+                        .phone(body.getPhone())
+                        .organizationId(body.getOrganizationId())
                         .build()
         );
 
         return ResponseEntity.ok(ApiResponse.success(result, "가입 신청이 완료되었습니다. 관리자 승인 후 이용 가능합니다."));
+    }
+
+    @GetMapping("/organizations/public")
+    public ResponseEntity<ApiResponse<List<PublicOrganizationResponse>>> getPublicOrganizations() {
+        List<PublicOrganizationResponse> data = getPublicOrganizationsUseCase.execute().stream()
+                .map(PublicOrganizationResponse::from)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success(data, "공개 조직 목록을 조회했습니다."));
     }
 
     @GetMapping

@@ -7,7 +7,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -49,10 +56,15 @@ public class AnomalyRegionJpaEntity {
     private LocalDateTime createdAt;
 
     @Builder
-    public AnomalyRegionJpaEntity(Long imageId, AnomalyRegionLabel labelCode,
-                                  BigDecimal bboxX, BigDecimal bboxY,
-                                  BigDecimal bboxW, BigDecimal bboxH,
-                                  BigDecimal score) {
+    public AnomalyRegionJpaEntity(
+            Long imageId,
+            AnomalyRegionLabel labelCode,
+            BigDecimal bboxX,
+            BigDecimal bboxY,
+            BigDecimal bboxW,
+            BigDecimal bboxH,
+            BigDecimal score
+    ) {
         this.imageId = imageId;
         this.labelCode = labelCode;
         this.bboxX = bboxX;

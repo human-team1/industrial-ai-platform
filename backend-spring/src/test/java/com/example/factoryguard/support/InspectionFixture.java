@@ -22,7 +22,7 @@ public class InspectionFixture {
 
     public Long createOrganization(String name) {
         jdbcTemplate.update(
-                "INSERT INTO ORGANIZATION (organization_name, status) VALUES (?, ?)",
+                "INSERT INTO organization (organization_name, status) VALUES (?, ?)",
                 name, "ACTIVE"
         );
         return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
@@ -34,7 +34,7 @@ public class InspectionFixture {
                 .email("user-" + UUID.randomUUID() + "@test.local")
                 .name("Test User")
                 .status(UserStatus.ACTIVE)
-                .role(UserRole.USER)
+                .role(UserRole.ROLE_COMPANY_WORKER)
                 .build());
     }
 

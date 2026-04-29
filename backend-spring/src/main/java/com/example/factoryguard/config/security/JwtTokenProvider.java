@@ -52,14 +52,17 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    /** Google OAuth 검증 후 신규 유저에게 발급하는 단기 토큰. googleSub만 포함 (10분 유효). */
-    public String generateSignupToken(String googleSub) {
+    /** Google OAuth 검증 후 신규 유저에게 발급하는 단기 토큰. googleSub/email/name/picture 포함 (10분 유효). */
+    public String generateSignupToken(String googleSub, String email, String name, String picture) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + SIGNUP_TOKEN_EXPIRE_MINUTES * 60 * 1000L);
 
         return Jwts.builder()
                 .setSubject(googleSub)
                 .claim("type", SIGNUP_TOKEN_TYPE)
+                .claim("email", email)
+                .claim("name", name)
+                .claim("picture", picture)
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(signingKey(), SignatureAlgorithm.HS256)
@@ -70,11 +73,27 @@ public class JwtTokenProvider {
      * signupToken에서 googleSub 추출. type 클레임이 "SIGNUP"이 아니면 JwtException을 던진다.
      */
     public String extractSignupGoogleSub(String token) {
+        return extractSignupClaim(token, Claims::getSubject);
+    }
+
+    public String extractSignupEmail(String token) {
+        return extractSignupClaim(token, c -> c.get("email", String.class));
+    }
+
+    public String extractSignupName(String token) {
+        return extractSignupClaim(token, c -> c.get("name", String.class));
+    }
+
+    public String extractSignupPicture(String token) {
+        return extractSignupClaim(token, c -> c.get("picture", String.class));
+    }
+
+    private <T> T extractSignupClaim(String token, java.util.function.Function<Claims, T> resolver) {
         Claims claims = extractAllClaims(token);
         if (!SIGNUP_TOKEN_TYPE.equals(claims.get("type", String.class))) {
             throw new JwtException("Not a signup token");
         }
-        return claims.getSubject();
+        return resolver.apply(claims);
     }
 
     public boolean validateToken(String token) {
