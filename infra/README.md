@@ -1,6 +1,12 @@
 # Infra
 
-industrial-ai-platform.sql — USER_THRESHOLD_HISTORY.version INT 컬럼 추가 (init 일관성)
+- industrial-ai-platform.sql — USER_THRESHOLD_HISTORY.version INT 컬럼 추가 (init 일관성)
+
+- inspection_run의 단독 idempotency_key UNIQUE를 제거하고
+  (organization_id, user_id, idempotency_key) 복합 UNIQUE
+  uk_inspection_run_org_user_idempotency로 변경. 사용자/조직 간
+  Idempotency-Key 충돌 방지
+- payload_fingerprint(VARCHAR 64) 컬럼 추가
 
 로컬 개발 인프라 전용 Docker Compose입니다. 전체 개발환경 설치 절차는 루트 [README.md](../README.md)를 참고하세요.
 
