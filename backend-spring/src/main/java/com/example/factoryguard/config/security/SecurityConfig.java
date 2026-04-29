@@ -30,18 +30,19 @@ public class SecurityConfig {
                 .authenticationEntryPoint(authenticationEntryPoint)
                 .accessDeniedHandler(accessDeniedHandler))
             .authorizeHttpRequests(auth -> auth
-                .antMatchers(
-                    "/api/v1/health",
-                    "/api/v1/auth/google",
-                    "/api/v1/auth/refresh",
-                    "/actuator/health"
-                ).permitAll()
-                .antMatchers(HttpMethod.POST,  "/api/v1/signup-requests").permitAll()
-                .antMatchers(HttpMethod.GET,   "/api/v1/signup-requests").hasRole("ADMIN")
-                .antMatchers(HttpMethod.PATCH, "/api/v1/signup-requests/*/approve").hasRole("ADMIN")
-                .antMatchers(HttpMethod.PATCH, "/api/v1/signup-requests/*/reject").hasRole("ADMIN")
-                .antMatchers("/api/v1/admin/**", "/api/v1/operations/**").hasRole("ADMIN")
-                .anyRequest().authenticated())
+    .antMatchers(
+        "/api/v1/health",
+        "/api/v1/auth/google",
+        "/api/v1/auth/refresh",
+        "/actuator/health"
+    ).permitAll()
+    .antMatchers(HttpMethod.POST, "/api/v1/signup-requests").permitAll()
+    .antMatchers(HttpMethod.GET, "/api/v1/signup-requests").hasRole("ADMIN")
+    .antMatchers(HttpMethod.PATCH, "/api/v1/signup-requests/*/approve").hasRole("ADMIN")
+    .antMatchers(HttpMethod.PATCH, "/api/v1/signup-requests/*/reject").hasRole("ADMIN")
+    .antMatchers("/api/v1/admin/**", "/api/v1/operations/**").hasRole("ADMIN")
+    .antMatchers("/api/v1/documents/**").authenticated() // ✅ 추가 (로그인한 사용자만)
+    .anyRequest().authenticated())
             .httpBasic(basic -> basic.disable())
             .formLogin(form -> form.disable())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
