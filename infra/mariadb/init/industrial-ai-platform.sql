@@ -313,12 +313,24 @@
     owner_user_id BIGINT NOT NULL,
     title VARCHAR(255) NOT NULL,
     document_type VARCHAR(50),
+    category VARCHAR(50),
+    equipment_type VARCHAR(100),
+    description TEXT,
     current_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP NULL,
     CONSTRAINT fk_document_organization FOREIGN KEY (organization_id) REFERENCES ORGANIZATION(organization_id),
     CONSTRAINT fk_document_owner FOREIGN KEY (owner_user_id) REFERENCES USERS(user_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+  CREATE TABLE DOCUMENT_TAG (
+    document_tag_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    document_id BIGINT NOT NULL,
+    tag_name VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_document_tag_document FOREIGN KEY (document_id) REFERENCES DOCUMENT(document_id),
+    UNIQUE KEY uk_document_tag (document_id, tag_name)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
   CREATE TABLE DOCUMENT_VERSION (
@@ -512,3 +524,6 @@
   CREATE INDEX idx_document_org_owner ON DOCUMENT(organization_id, owner_user_id);
   CREATE INDEX idx_notification_user_read ON NOTIFICATION(user_id, is_read);
   CREATE INDEX idx_chat_conversation_user ON CHAT_CONVERSATION(user_id);
+  CREATE INDEX idx_document_category ON DOCUMENT(category);
+  CREATE INDEX idx_document_equipment_type ON DOCUMENT(equipment_type);
+  CREATE INDEX idx_document_tag_name ON DOCUMENT_TAG(tag_name);
