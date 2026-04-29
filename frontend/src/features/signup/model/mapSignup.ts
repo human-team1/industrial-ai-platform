@@ -1,17 +1,15 @@
-import type { NewUserInfo } from '../../../entities/auth'
+import type { SignupFormData, SignupRequestPayload } from '../types'
 
-type SignupRequestPayload = {
-  signupToken: string
-  email: string
-  name: string
-  picture?: string
-}
-
-export function mapToSignupPayload(userInfo: NewUserInfo): SignupRequestPayload {
+export function mapToSignupPayload(
+  signupToken: string,
+  form: SignupFormData,
+): SignupRequestPayload {
+  if (form.organizationId === null) {
+    throw new Error('organizationId is required')
+  }
   return {
-    signupToken: userInfo.signupToken,
-    email: userInfo.email,
-    name: userInfo.name,
-    picture: userInfo.picture,
+    signupToken,
+    phone: form.phone.replace(/\D/g, ''),
+    organizationId: form.organizationId,
   }
 }

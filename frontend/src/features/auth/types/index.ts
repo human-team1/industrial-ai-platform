@@ -45,19 +45,3 @@ export type AuthMeResponse = {
   status: AuthStatus
   organizationId?: number
 }
-
-<<<<<<< Updated upstream
-// GET /users/me 응답 — 전체 프로필용
-export type UserMeResponse = {
-  userId: number
-  email: string
-  name: string
-  picture?: string
-  phone?: string
-  role: AuthRole
-  organizationId?: number
-  status: AuthStatus
-  createdAt: string
-}
-=======
->>>>>>> Stashed changes

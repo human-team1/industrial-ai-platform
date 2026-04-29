@@ -1,10 +1,17 @@
 export type SignupFormData = {
   name: string
-  countryCode: string
   phone: string
-  organization: string
-  department: string
-  title: string
-  role: string
+  organizationId: number | null
   consent: boolean
+}
+
+export type SignupRequestPayload = {
+  signupToken: string
+  phone: string
+  organizationId: number
+}
+
+export type SignupRequestResponse = {
+  userId: number
+  status: 'PENDING' | 'REJECTED' | string
 }
