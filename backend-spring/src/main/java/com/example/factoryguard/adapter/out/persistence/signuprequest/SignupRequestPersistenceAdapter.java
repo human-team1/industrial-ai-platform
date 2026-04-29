@@ -25,9 +25,10 @@ public class SignupRequestPersistenceAdapter
     private final UserJpaRepository userJpaRepository;
 
     @Override
-    public void saveSignupRequest(Long userId) {
+    public void saveSignupRequest(Long userId, Long organizationId) {
         signupRequestJpaRepository.save(SignupRequestJpaEntity.builder()
                 .userId(userId)
+                .organizationId(organizationId)
                 .build());
     }
 

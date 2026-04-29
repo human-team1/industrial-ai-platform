@@ -11,4 +11,6 @@ public class SignupRequestCommand {
     private final String email;
     private final String name;
     private final String picture;
+    private final String phone;
+    private final Long organizationId;
 }
