@@ -40,7 +40,7 @@ export function AppRouter() {
         </Route>
 
         {/* ADMIN 전용 — USER 접근 시 /dashboard로 리다이렉트 */}
-        <Route element={<ProtectedRoute requiredRole="ADMIN" />}>
+        <Route element={<ProtectedRoute requiredRole="ROLE_SITE_ADMIN" />}>
           <Route element={<AppLayout />}>
             <Route path="/admin/signup-requests" element={<AdminSignupRequestsPage />} />
           </Route>
