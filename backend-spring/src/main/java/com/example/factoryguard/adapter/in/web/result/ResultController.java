@@ -33,8 +33,10 @@ public class ResultController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
             LocalDateTime to,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String equipmentName,
             @RequestParam(required = false) String productName,
+            @RequestParam(required = false) String runType,
             @RequestParam(required = false) String decision,
             @RequestParam(required = false) String resultStatus,
             @RequestParam(defaultValue = "0") int page,
@@ -43,8 +45,10 @@ public class ResultController {
         ListInspectionResultsQuery query = new ListInspectionResultsQuery(
                 from,
                 to,
+                keyword,
                 equipmentName,
                 productName,
+                runType,
                 decision,
                 resultStatus,
                 page,

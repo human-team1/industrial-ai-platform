@@ -2,6 +2,14 @@ export type ResultDecision = 'NORMAL' | 'DEFECT' | 'RETEST'
 
 export type ResultStatus = 'SUCCESS' | 'FAILED' | 'REVIEW_REQUIRED' | 'CORRECTED'
 
+export type ResultListSummary = {
+  totalCount: number
+  normalCount: number
+  defectCount: number
+  retestCount: number
+  avgScore?: number | null
+}
+
 export type ResultSummary = {
   resultId: number
   inspectionId: number
@@ -16,6 +24,7 @@ export type ResultSummary = {
   decisionCode?: ResultDecision | string | null
   finalDecisionCode?: ResultDecision | string | null
   resultStatus?: ResultStatus | string | null
+  location?: string | null
   reviewRequired?: boolean | null
   startedAt?: string | null
   completedAt?: string | null
@@ -23,10 +32,12 @@ export type ResultSummary = {
 }
 
 export type ResultListQuery = {
+  keyword?: string
   from?: string
   to?: string
   equipmentName?: string
   productName?: string
+  runType?: string
   decision?: ResultDecision | ''
   resultStatus?: ResultStatus | ''
   page?: number
@@ -39,6 +50,7 @@ export type ResultPageResponse = {
   size: number
   totalElements: number
   totalPages: number
+  summary?: ResultListSummary | null
 }
 
 export type ResultTarget = {

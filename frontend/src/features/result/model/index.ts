@@ -4,10 +4,12 @@ import { fetchResultDetail, fetchResults } from '../api'
 import type { ResultDetail, ResultListQuery, ResultPageResponse } from '../types'
 
 const DEFAULT_FILTERS: ResultListQuery = {
+  keyword: '',
   from: '',
   to: '',
   equipmentName: '',
   productName: '',
+  runType: '',
   decision: '',
   resultStatus: '',
 }

@@ -9,6 +9,7 @@ import com.example.factoryguard.application.dto.result.ResultDetailResponse;
 import com.example.factoryguard.application.dto.result.ResultEventLogResponse;
 import com.example.factoryguard.application.dto.result.ResultImageResponse;
 import com.example.factoryguard.application.dto.result.ResultInspectionResponse;
+import com.example.factoryguard.application.dto.result.ResultListSummaryResponse;
 import com.example.factoryguard.application.dto.result.ResultPageResponse;
 import com.example.factoryguard.application.dto.result.ResultSummaryResponse;
 import com.example.factoryguard.application.dto.result.ResultTargetResponse;
@@ -52,6 +53,7 @@ public class ResultQueryRepository {
         bindParameters(countQuery, countSql.parameters());
         long totalElements = toLong(countQuery.getSingleResult());
         int totalPages = query.getSize() == 0 ? 0 : (int) Math.ceil((double) totalElements / query.getSize());
+        ResultListSummaryResponse summary = findSummary(query, organizationId);
 
         return ResultPageResponse.builder()
                 .content(content)
@@ -59,6 +61,7 @@ public class ResultQueryRepository {
                 .size(query.getSize())
                 .totalElements(totalElements)
                 .totalPages(totalPages)
+                .summary(summary)
                 .build();
     }
 
@@ -230,6 +233,27 @@ public class ResultQueryRepository {
             sql.append(" AND at.product_name LIKE :productName");
             parameters.put("productName", "%" + query.getProductName().trim() + "%");
         }
+        if (hasText(query.getKeyword())) {
+            sql.append("""
+                     AND (
+                        at.equipment_name LIKE :keyword
+                        OR at.target_name LIKE :keyword
+                        OR at.product_name LIKE :keyword
+                        OR ir.run_type LIKE :keyword
+                        OR ir.input_type LIKE :keyword
+                     )
+                    """);
+            parameters.put("keyword", "%" + query.getKeyword().trim() + "%");
+        }
+        if (hasText(query.getRunType())) {
+            String runType = query.getRunType().trim().toUpperCase(Locale.ROOT);
+            if ("UPLOAD".equals(runType)) {
+                sql.append(" AND ir.run_type IN ('UPLOAD', 'IMAGE_UPLOAD', 'VIDEO_UPLOAD')");
+            } else {
+                sql.append(" AND ir.run_type = :runType");
+                parameters.put("runType", runType);
+            }
+        }
         if (hasText(query.getDecision())) {
             String decision = query.getDecision().trim().toUpperCase(Locale.ROOT);
             if ("RETEST".equals(decision)) {
@@ -248,6 +272,30 @@ public class ResultQueryRepository {
         }
 
         return new SqlParts(sql.toString(), parameters);
+    }
+
+    private ResultListSummaryResponse findSummary(ListInspectionResultsQuery query, Long organizationId) {
+        SqlParts base = buildListSql(query, organizationId, true);
+        String fromClause = base.value().substring(base.value().indexOf("FROM"));
+        String summarySql = """
+                SELECT
+                    COUNT(*) AS total_count,
+                    SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'NORMAL' THEN 1 ELSE 0 END) AS normal_count,
+                    SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'DEFECT' THEN 1 ELSE 0 END) AS defect_count,
+                    SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) IN ('RETEST', 'RECHECK', 'REINSPECTION') THEN 1 ELSE 0 END) AS retest_count,
+                    AVG(r.score) AS avg_score
+                """ + fromClause.replaceFirst("SELECT COUNT\\(\\*\\)\\s+", "");
+
+        Query summaryQuery = entityManager.createNativeQuery(summarySql);
+        bindParameters(summaryQuery, base.parameters());
+        Object[] row = (Object[]) summaryQuery.getSingleResult();
+        return ResultListSummaryResponse.builder()
+                .totalCount(toLong(row[0]))
+                .normalCount(toLongObject(row[1]) == null ? 0 : toLong(row[1]))
+                .defectCount(toLongObject(row[2]) == null ? 0 : toLong(row[2]))
+                .retestCount(toLongObject(row[3]) == null ? 0 : toLong(row[3]))
+                .avgScore(toBigDecimal(row[4]))
+                .build();
     }
 
     private ResultSummaryResponse toSummary(Object[] row) {

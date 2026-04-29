@@ -14,4 +14,5 @@ public class ResultPageResponse {
     private final int size;
     private final long totalElements;
     private final int totalPages;
+    private final ResultListSummaryResponse summary;
 }
