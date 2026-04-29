@@ -224,7 +224,12 @@ public class DocumentCrudService implements DocumentCrudUseCase {
         }
         String expected = switch (ext) {
             case "pdf" -> "application/pdf";
-            case "txt" -> "text/plain";
+            case "md" -> {
+                if ("text/plain".equalsIgnoreCase(mimeType)) {
+                    yield "text/plain";
+                }
+                yield "text/markdown";
+            }
             case "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
             default -> null;
         };

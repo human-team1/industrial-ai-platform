@@ -46,5 +46,6 @@ temp/
 # local document CRUD smoke / bootrun logs (do not commit)
 tmp-doc-smoke/
 tmp-doc-test/
+bootrun-*.txt
 bootrun-error.txt
 bootrun-error-err.txt

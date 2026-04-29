@@ -1,24 +1,35 @@
 # Infra
 
-로컬 개발 인프라 전용 Docker Compose입니다. 전체 개발환경 설치 절차는 루트 [README.md](../README.md)를 참고하세요.
+로컬 개발 인프라 Docker Compose입니다. 전체 실행 순서는 루트 [README.md](../README.md)를 기준으로 합니다.
 
 ## 서비스
 
-| 서비스 | 포트 | 역할 |
-| --- | --- | --- |
-| MariaDB 10.6.21 | `3307:3306` | 서비스 데이터, 메타데이터 |
-| Redis 7.x | `6379:6379` | 캐시, 세션, 작업 상태 |
-| MinIO | `9000:9000`, `9001:9001` | 원본 파일, 산출물 저장 |
-| Chroma | `8000:8000` | 벡터 인덱스, 유사도 검색 |
+| 서비스 | 이미지 | 포트 | 역할 |
+| --- | --- | --- | --- |
+| MariaDB | `mariadb:10.6.21` | `3307:3306` | 서비스 메타데이터, 이력, 사용자/권한, 문서 메타데이터 |
+| Redis | `redis:7` | `6379:6379` | 캐시, 세션, 작업 상태 |
+| MinIO | `minio/minio:latest` | `9000`, `9001` | 원본 파일, 시각화 산출물, 보고서, 모델 파일 |
+| ChromaDB | `chromadb/chroma:0.5.15` | `8000:8000` | 문서 벡터 인덱스 |
 
-## 실행
-
-PowerShell:
+## 환경 변수
 
 ```powershell
 Copy-Item .env.example .env
+```
+
+실제 비밀번호는 `.env`에만 작성하고 커밋하지 않습니다.
+
+## 실행
+
+```powershell
 docker compose --env-file .env up -d
 docker ps
+```
+
+특정 서비스만 실행:
+
+```powershell
+docker compose --env-file .env up -d mariadb
 ```
 
 ## 중지
@@ -27,10 +38,44 @@ docker ps
 docker compose down
 ```
 
-볼륨까지 삭제해야 할 때만 사용:
+볼륨까지 삭제:
 
 ```powershell
 docker compose down -v
 ```
 
-Docker Desktop이 실행 중이어야 합니다. 실제 비밀값은 `.env`에만 작성하고 커밋하지 않습니다.
+주의: `down -v`는 MariaDB, Redis, MinIO, ChromaDB의 로컬 데이터를 모두 삭제합니다.
+
+## 헬스 확인
+
+```powershell
+docker compose ps
+docker logs industrial-mariadb
+docker logs industrial-redis
+docker logs industrial-minio
+docker logs industrial-chroma
+```
+
+MinIO 콘솔:
+
+- URL: `http://localhost:9001`
+- ID: `MINIO_ROOT_USER`
+- Password: `MINIO_ROOT_PASSWORD`
+
+## MariaDB 초기화
+
+Compose는 init SQL을 자동 마운트하지 않습니다. 최초 1회 수동 실행합니다.
+
+```powershell
+Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw |
+  docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai
+```
+
+샘플 조직:
+
+```powershell
+Get-Content .\mariadb\seed\seed-sample-organizations.sql -Raw |
+  docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai
+```
+
+자세한 절차는 [mariadb/README.md](mariadb/README.md)와 [docs/db/mariadb-schema-init.md](../docs/db/mariadb-schema-init.md)를 참고하세요.

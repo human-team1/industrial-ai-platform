@@ -1,193 +1,60 @@
-# industrial-ai-platform
+# Industrial AI Platform
 
-AI 기반 설비 점검 보조 시스템입니다. 로컬 개발은 아래 순서로 실행합니다.
+AI 기반 설비 점검 보조 시스템입니다. 비전 이상 탐지 결과, RAG 문서 검색, LLM 설명, 검사 이력/통계를 결합해 현장 작업자가 설비 상태를 빠르게 판단하도록 돕는 것을 목표로 합니다.
 
-- Infra: MariaDB, Redis, MinIO, ChromaDB
-- Backend: Spring Boot API
-- AI Server: FastAPI
-- Frontend: React + Vite
+## 현재 구성
 
-## 1. 필수 설치 파일
+| 영역 | 스택 / 역할 |
+| --- | --- |
+| Frontend | React 18, Vite 5, TypeScript, Tailwind CSS |
+| Backend | Spring Boot 2.7.18, JDK 17, Spring Security, Spring Data JPA |
+| AI Server | Python 3.10.6, FastAPI 0.115, Pydantic 2.x |
+| DB / Infra | MariaDB 10.6, Redis 7, MinIO, ChromaDB, Docker Compose |
 
-아래 프로그램을 먼저 설치합니다.
+> 프로젝트 표준 목표는 Spring Boot 3.x이지만, 현재 코드베이스는 Spring Boot 2.7.18 기준으로 동작합니다. 업그레이드는 별도 작업으로 분리합니다.
 
-| 항목 | 권장 버전 | 용도 |
-| --- | --- | --- |
-| Git | 최신 안정 버전 | 저장소 clone / branch 관리 |
-| Docker Desktop | Docker 24.x 이상 | MariaDB, Redis, MinIO, ChromaDB 실행 |
-| JDK | 17 | Spring Boot 실행 |
-| Python | 3.10.6 | FastAPI AI 서버 실행 |
-| Node.js | 20.x | Frontend 실행 |
-| DBeaver | 최신 안정 버전 | MariaDB 접속 / ERD 확인 |
-
-다운로드:
-
-- Git: https://git-scm.com/download/win
-- Docker Desktop: https://www.docker.com/products/docker-desktop/
-- JDK 17: https://adoptium.net/temurin/releases/?version=17
-- Python 3.10.6: https://www.python.org/downloads/release/python-3106/
-- Node.js: https://nodejs.org/
-- DBeaver: https://dbeaver.io/download/
-
-설치 확인:
-
-```powershell
-git --version
-docker --version
-docker compose version
-java -version
-javac -version
-python --version
-pip --version
-node -v
-npm -v
-```
-
-## 2. 프로젝트 받기
-
-```powershell
-git clone <REPOSITORY_URL>
-cd industrial-ai-platform
-```
-
-프로젝트 구조:
+## 디렉터리
 
 ```text
-industrial-ai-platform/
-  infra/            # MariaDB, Redis, MinIO, ChromaDB Docker Compose
-  backend-spring/   # Spring Boot API 서버
-  ai-server/        # FastAPI AI/RAG 서버
-  frontend/         # React + Vite 클라이언트
-  docs/             # 프로젝트 문서
+ai-server/        FastAPI AI/RAG 서버
+backend-spring/   Spring Boot 메인 API 서버
+frontend/         React 웹 클라이언트
+infra/            MariaDB, Redis, MinIO, ChromaDB Docker Compose
+docs/             권한, DB, 설계/운영 문서
 ```
 
-## 3. 환경 파일 생성
+## 사전 준비
 
-루트에서 아래 명령을 실행합니다.
+- JDK 17
+- Node.js 20.x 권장
+- Python 3.10.6
+- Docker Desktop 또는 Docker Engine 24.x 이상
+- DBeaver 또는 MariaDB 접속 도구
+
+## 1. 환경 변수 준비
+
+민감정보는 실제 `.env`에만 작성하고 Git에 커밋하지 않습니다.
 
 ```powershell
 Copy-Item infra\.env.example infra\.env
 Copy-Item backend-spring\.env.example backend-spring\.env
-Copy-Item ai-server\.env.example ai-server\.env
 Copy-Item frontend\.env.example frontend\.env
+Copy-Item ai-server\.env.example ai-server\.env
 ```
 
-주의:
+로컬 기본 포트:
 
-- `.env` 파일은 실제 비밀번호/토큰이 들어갈 수 있으므로 커밋하지 않습니다.
-- 기본 로컬 실행은 `.env.example` 값 그대로 복사해도 동작하도록 맞춰져 있습니다.
-- 비밀번호를 바꾸면 `infra/.env`, `backend-spring/.env`, `ai-server/.env`의 MinIO/DB 값도 같이 맞춥니다.
+| 서비스 | URL / Port |
+| --- | --- |
+| Frontend | `http://localhost:5173` |
+| Spring API | `http://localhost:8080/api/v1` |
+| FastAPI | `http://localhost:8001/ai/v1` |
+| MariaDB | `localhost:3307` |
+| Redis | `localhost:6379` |
+| MinIO | `http://localhost:9001` |
+| ChromaDB | `http://localhost:8000` |
 
-## 4. env 값 예시
-
-### infra/.env
-
-```env
-MARIADB_ROOT_PASSWORD=change_me_root_password
-MARIADB_DATABASE=industrial_ai
-MARIADB_USER=industrial_user
-MARIADB_PASSWORD=change_me_user_password
-
-REDIS_HOST=redis
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=change_me_minio_password
-MINIO_ENDPOINT=http://minio:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=change_me_minio_password
-MINIO_BUCKET_DOCUMENTS=documents
-MINIO_BUCKET_INSPECTION_ARTIFACTS=inspection-artifacts
-MINIO_BUCKET_REPORTS=reports
-MINIO_BUCKET_MODELS=models
-
-CHROMA_HOST=chromadb
-CHROMA_PORT=8000
-CHROMA_COLLECTION_DOCUMENTS=industrial_document_chunks
-```
-
-### backend-spring/.env
-
-```env
-APP_NAME=factory-guard-api
-APP_ENV=local
-APP_PORT=8080
-
-DB_HOST=localhost
-DB_PORT=3307
-DB_NAME=industrial_ai
-DB_USER=industrial_user
-DB_PASSWORD=change_me_user_password
-
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-MINIO_ENDPOINT=http://localhost:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=change_me_minio_password
-MINIO_BUCKET_DOCUMENTS=documents
-MINIO_BUCKET_INSPECTION_ARTIFACTS=inspection-artifacts
-MINIO_BUCKET_REPORTS=reports
-MINIO_BUCKET_MODELS=models
-MINIO_SECURE=false
-MINIO_AUTO_CREATE_BUCKETS=true
-
-CHROMA_HOST=localhost
-CHROMA_PORT=8000
-CHROMA_COLLECTION_DOCUMENTS=industrial_document_chunks
-AI_SERVER_BASE_URL=http://localhost:8001
-
-JWT_SECRET=change_me_jwt_secret
-JWT_EXPIRE_MINUTES=60
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-```
-
-### ai-server/.env
-
-```env
-APP_NAME=industrial-ai-server
-APP_ENV=local
-APP_PORT=8001
-
-CHROMA_HOST=localhost
-CHROMA_PORT=8000
-CHROMA_COLLECTION_DOCUMENTS=industrial_document_chunks
-
-MINIO_ENDPOINT=http://localhost:9000
-MINIO_ACCESS_KEY=minioadmin
-MINIO_SECRET_KEY=change_me_minio_password
-MINIO_BUCKET_DOCUMENTS=documents
-MINIO_BUCKET_INSPECTION_ARTIFACTS=inspection-artifacts
-MINIO_BUCKET_REPORTS=reports
-MINIO_BUCKET_MODELS=models
-MINIO_SECURE=false
-
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_PASSWORD=
-
-MODEL_NAME=anomaly-baseline
-EMBEDDING_MODEL_NAME=
-LLM_MODEL_NAME=
-LOG_LEVEL=INFO
-TZ=Asia/Seoul
-```
-
-### frontend/.env
-
-```env
-VITE_APP_NAME=Industrial AI Platform
-VITE_API_BASE_URL=http://localhost:8080/api/v1
-VITE_AI_API_BASE_URL=http://localhost:8001/ai/v1
-VITE_GOOGLE_CLIENT_ID=
-```
-
-## 5. Infra 실행
-
-Docker Desktop을 먼저 실행한 뒤 진행합니다.
+## 2. 인프라 실행
 
 ```powershell
 cd infra
@@ -195,117 +62,41 @@ docker compose --env-file .env up -d
 docker ps
 ```
 
-기본 포트:
-
-| 서비스 | URL / Port |
-| --- | --- |
-| MariaDB | `localhost:3307` |
-| Redis | `localhost:6379` |
-| MinIO API | `http://localhost:9000` |
-| MinIO Console | `http://localhost:9001` |
-| ChromaDB | `http://localhost:8000` |
-
-MinIO Console 로그인:
-
-- ID: `infra/.env`의 `MINIO_ROOT_USER`
-- PW: `infra/.env`의 `MINIO_ROOT_PASSWORD`
-
-Infra 중지:
+중지:
 
 ```powershell
 cd infra
 docker compose down
 ```
 
-로컬 데이터를 모두 삭제하고 다시 시작해야 할 때만 사용합니다.
+볼륨까지 삭제하면 로컬 DB/스토리지 데이터가 삭제됩니다.
 
 ```powershell
 cd infra
 docker compose down -v
 ```
 
-## 6. MariaDB 테이블 생성
+## 3. MariaDB 스키마 초기화
 
-테이블 생성 SQL 파일:
-
-```text
-infra/mariadb/init/industrial-ai-platform.sql
-```
-
-현재 `docker-compose.yml`은 MariaDB init SQL을 자동 마운트하지 않습니다. 따라서 최초 1회 수동 실행합니다.
-
-스키마 운영 원칙:
-
-- 공식 테이블명은 `lowercase snake_case` 기준입니다.
-- 로컬 프로필은 `ddl-auto=validate`를 사용하며 Hibernate 자동 DDL 생성/수정을 사용하지 않습니다.
-- DB 스키마 변경은 `infra/mariadb/init/industrial-ai-platform.sql`을 먼저 수정하고, Entity/JPA 매핑을 맞춥니다.
-- `ddl-auto=update`는 사용하지 않습니다.
+현재 `infra/docker-compose.yml`은 init SQL을 자동 마운트하지 않습니다. 최초 1회 또는 재초기화 시 SQL을 수동 실행합니다.
 
 ```powershell
 cd infra
-Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw | docker exec -i industrial-mariadb sh -c 'mariadb -uindustrial_user -p"$MARIADB_PASSWORD" industrial_ai'
+Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw |
+  docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai
 ```
 
-테이블 생성 확인:
-
-```powershell
-docker exec -it industrial-mariadb mariadb -uindustrial_user -p industrial_ai
-```
-
-MariaDB 접속 후:
-
-```sql
-SHOW TABLES;
-
-SELECT COUNT(*) AS table_count
-FROM information_schema.tables
-WHERE table_schema = 'industrial_ai';
-
-SHOW TABLES LIKE 'users';
-SHOW TABLES LIKE 'inspection_run';
-SHOW TABLES LIKE 'document';
-SHOW TABLES LIKE 'document_tag';
-```
-
-문서 메타데이터 스키마 변경(문서 CRUD):
-
-- `document` 컬럼 추가: `category`, `equipment_type`, `description`
-- `document_tag` 테이블 추가: 문서 태그(`document_id`, `tag_name`) 저장
-
-기존 로컬 DB를 그대로 쓰는 경우, 아래 둘 중 하나를 선택합니다.
-
-1) DB 전체 재초기화(권장):
+가입 화면의 공개 조직 목록을 보려면 샘플 조직도 넣습니다.
 
 ```powershell
 cd infra
-docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password -e "DROP DATABASE IF EXISTS industrial_ai; CREATE DATABASE industrial_ai DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw | docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai
+Get-Content .\mariadb\seed\seed-sample-organizations.sql -Raw |
+  docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai
 ```
 
-2) 운영 중 데이터 유지가 필요하면 별도 ALTER TABLE/CREATE TABLE 스크립트로 동기화
+자세한 절차는 [docs/db/mariadb-schema-init.md](docs/db/mariadb-schema-init.md)를 참고하세요.
 
-이미 테이블이 있으면 `Table already exists`가 날 수 있습니다. 완전히 다시 만들려면 MariaDB 볼륨을 삭제한 뒤 SQL을 다시 실행합니다.
-
-```powershell
-cd infra
-docker compose down
-docker volume rm infra_mariadb_data
-docker compose --env-file .env up -d mariadb
-Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw | docker exec -i industrial-mariadb sh -c 'mariadb -uindustrial_user -p"$MARIADB_PASSWORD" industrial_ai'
-```
-
-주의: `docker volume rm infra_mariadb_data`는 로컬 MariaDB 데이터를 삭제합니다.
-
-## 7. Backend 실행
-
-패키지 다운로드/컴파일:
-
-```powershell
-cd backend-spring
-.\gradlew.bat compileJava
-```
-
-실행:
+## 4. Backend 실행
 
 ```powershell
 cd backend-spring
@@ -315,77 +106,23 @@ cd backend-spring
 검증:
 
 ```powershell
-cd backend-spring
+.\gradlew.bat compileJava
 .\gradlew.bat test
 ```
 
-확인 URL:
+주요 엔드포인트:
 
-- `http://localhost:8080/actuator/health`
-- `http://localhost:8080/api/v1/health`
+- `GET /api/v1/health`
+- `GET /api/v1/health/infra`
+- `POST /api/v1/auth/google`
+- `GET /api/v1/documents`
+- `POST /api/v1/documents`
 
-참고:
-
-- Spring Boot는 기본값으로 `application.yml`과 `application-local.yml`을 사용합니다.
-- 기본 로컬 값은 `.env.example`과 맞춰져 있습니다.
-- IDE에서 `.env`를 직접 주입하려면 EnvFile 플러그인 또는 Run Configuration 환경변수 설정을 사용합니다.
-
-## 8. AI Server 실행
-
-가상환경 생성:
-
-```powershell
-cd ai-server
-python -m venv .venv
-```
-
-가상환경 활성화:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-PowerShell 실행 정책 때문에 활성화가 막히면 1회 실행합니다.
-
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
-패키지 설치:
-
-```powershell
-pip install -r requirements.txt
-```
-
-실행:
-
-```powershell
-uvicorn main:app --reload --host 0.0.0.0 --port 8001
-```
-
-검증:
-
-```powershell
-pytest
-```
-
-확인 URL:
-
-- `http://localhost:8001/docs`
-- `http://localhost:8001/ai/v1/health`
-
-## 9. Frontend 실행
-
-패키지 설치:
+## 5. Frontend 실행
 
 ```powershell
 cd frontend
 npm install
-```
-
-실행:
-
-```powershell
 npm run dev
 ```
 
@@ -396,185 +133,78 @@ npm run build
 npm run lint
 ```
 
-확인 URL:
+현재 문서 관리 화면은 다음 라우트를 사용합니다.
 
-- `http://localhost:5173`
+- `/documents`
+- `/documents/new`
+- `/documents/:documentId/edit`
 
-## 10. 전체 실행 순서 요약
+등록/수정은 같은 `DocumentFormPage`와 `DocumentForm`을 재사용합니다.
 
-PowerShell 창을 서비스별로 나누어 실행하는 것을 권장합니다.
-
-### 1번 터미널: Infra
-
-```powershell
-cd infra
-docker compose --env-file .env up -d
-```
-
-### 2번 터미널: Backend
-
-```powershell
-cd backend-spring
-.\gradlew.bat bootRun --args="--spring.profiles.active=local"
-```
-
-### 3번 터미널: AI Server
+## 6. AI Server 실행
 
 ```powershell
 cd ai-server
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
 
-### 4번 터미널: Frontend
+확인:
 
-```powershell
-cd frontend
-npm run dev
-```
+- `http://localhost:8001/docs`
+- `http://localhost:8001/ai/v1/health`
 
-## 11. DBeaver 접속 정보
+## 7. 인증/권한 기준
 
-| 항목 | 값 |
-| --- | --- |
-| DBMS | MariaDB |
-| Host | `localhost` |
-| Port | `3307` |
-| Database | `industrial_ai` |
-| Username | `industrial_user` |
-| Password | `infra/.env`의 `MARIADB_PASSWORD` |
+권한 기준은 [docs/auth/api-authority-matrix.md](docs/auth/api-authority-matrix.md)를 단일 기준으로 봅니다.
 
-DBeaver에서 ERD 확인:
+현재 주요 Role:
 
-1. MariaDB 연결 생성
-2. `industrial_ai` 데이터베이스 선택
-3. `Tables` 우클릭
-4. `View Diagram` 선택
+- `ROLE_SITE_ADMIN`
+- `ROLE_COMPANY_ADMIN`
+- `ROLE_COMPANY_WORKER`
 
-## 12. 최초 관리자 계정 만들기
+가입 요청은 기본적으로 `PENDING` 상태와 `ROLE_COMPANY_WORKER` 역할로 생성되고, 사이트 관리자가 승인/거절합니다.
 
-현재 로컬 개발 환경에는 관리자 seed 계정이 자동 생성되지 않습니다.
+## 8. 문서/RAG 운영 기준
 
-Google 로그인 후 가입 승인 대기 화면이 뜨면, 해당 이메일을 관리자 권한으로 승격합니다.
+문서 업로드 MVP 기준:
 
-프로젝트 루트에서 실행:
+- 허용 확장자: `pdf`, `docx`, `md`
+- 업로드 위치: MinIO `documents` 버킷
+- 메타데이터: MariaDB `document`, `document_version`, `document_tag`
+- 인덱싱 상태: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`
+- 벡터/청크: `chunk`, `vector_index`, ChromaDB
 
-```powershell
-.\infra\scripts\promote-admin.ps1 -Email "bonggyulim0728@gmail.com"
-```
+문서 등록/수정 UI는 기존 파일 정보, 인덱싱 상태, 미리보기 영역을 표시합니다. 현재 백엔드가 텍스트 스니펫 API를 제공하지 않으므로 미리보기는 `GET /api/v1/files/{fileId}/preview` 기반으로 새 탭에서 확인합니다.
 
-조직명을 직접 지정하려면:
+## 9. 자주 나는 문제
 
-```powershell
-.\infra\scripts\promote-admin.ps1 -Email "본인구글이메일@example.com" -OrganizationName "Factory Guard Admin"
-```
+### Spring 실행 시 테이블이 없다고 나옴
 
-처리 내용:
+`application-local.yml`은 `spring.jpa.hibernate.ddl-auto=validate`입니다. Hibernate가 테이블을 만들지 않으므로 MariaDB init SQL을 먼저 실행해야 합니다.
 
-- `ORGANIZATION`에 관리자 조직이 없으면 생성
-- `USERS.status`를 `ACTIVE`로 변경
-- `USERS.role`을 `ROLE_SITE_ADMIN`으로 변경
-- `USERS.organization_id`를 관리자 조직으로 연결
-- `SIGNUP_REQUEST.request_status`를 `APPROVED`로 변경
+### 가입 페이지 조직 목록이 비어 있음
 
-승격 후 브라우저에서 로그아웃한 뒤 다시 로그인합니다.
-
-수동으로 확인하려면:
-
-```powershell
-docker exec -it industrial-mariadb mariadb -uindustrial_user -p industrial_ai
-```
-
-```sql
-SELECT user_id, email, status, role, organization_id
-FROM USERS
-WHERE email = '본인구글이메일@example.com';
-```
-
-## 13. 자주 나는 문제
-
-### Docker daemon 연결 실패
-
-Docker Desktop이 실행 중인지 확인합니다.
-
-```powershell
-docker ps
-```
-
-### MariaDB 접속은 되는데 테이블이 없음
-
-초기 SQL을 실행하지 않은 상태입니다.
+샘플 조직 seed를 실행했는지 확인합니다.
 
 ```powershell
 cd infra
-Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw | docker exec -i industrial-mariadb sh -c 'mariadb -uindustrial_user -p"$MARIADB_PASSWORD" industrial_ai'
+Get-Content .\mariadb\seed\seed-sample-organizations.sql -Raw |
+  docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai
 ```
 
-### Table already exists
+### 파일 업로드가 실패함
 
-이미 테이블이 생성된 상태입니다. 로컬 데이터를 지워도 되는 경우에만 MariaDB 볼륨을 삭제합니다.
+프론트와 백엔드 모두 `pdf`, `docx`, `md` 기준입니다. 브라우저가 `.md` 파일을 `text/plain`으로 보낼 수 있어 백엔드는 `text/markdown`, `text/plain`을 모두 허용합니다.
+
+### 로컬 로그가 Git에 잡힘
+
+`bootrun-*.txt`, `*.log`, `.env`, `dist`, `node_modules`, `.venv`, `build`는 커밋하지 않습니다. 커밋 전 확인:
 
 ```powershell
-cd infra
-docker compose down
-docker volume rm infra_mariadb_data
+git status --short --ignored
+git diff --check
 ```
-
-### Backend DB 로그인 실패
-
-`infra/.env`와 `backend-spring/.env`의 DB 값이 같은지 확인합니다.
-
-```text
-MARIADB_DATABASE=industrial_ai
-MARIADB_USER=industrial_user
-MARIADB_PASSWORD=change_me_user_password
-
-DB_NAME=industrial_ai
-DB_USER=industrial_user
-DB_PASSWORD=change_me_user_password
-```
-
-### 3307 포트 충돌
-
-```powershell
-netstat -ano | findstr :3307
-```
-
-충돌 프로세스를 종료하거나 `infra/docker-compose.yml`의 포트 매핑을 조정합니다.
-
-### npm / java / python 명령 인식 실패
-
-설치 후 새 PowerShell을 열고 다시 확인합니다.
-
-```powershell
-node -v
-java -version
-python --version
-```
-
-## 14. 제출 전 기본 검증
-
-```powershell
-cd backend-spring
-.\gradlew.bat compileJava
-```
-
-```powershell
-cd frontend
-npm run build
-```
-
-```powershell
-cd ai-server
-.\.venv\Scripts\Activate.ps1
-pytest
-```
-
-커밋 전 확인:
-
-```powershell
-git status
-git diff
-```
-
-`.env`, 비밀번호, API Key, 토큰은 커밋하지 않습니다.

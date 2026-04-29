@@ -12,10 +12,11 @@ import java.util.List;
 public class DocumentUploadProperties {
 
     private long maxSizeBytes = 50L * 1024L * 1024L;
-    private List<String> allowedExtensions = List.of("pdf", "docx", "txt");
+    private List<String> allowedExtensions = List.of("pdf", "docx", "md");
     private List<String> allowedMimeTypes = List.of(
             "application/pdf",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "text/markdown",
             "text/plain"
     );
     private String objectPrefix = "documents";
