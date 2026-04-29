@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { fetchResultDetail, fetchResults } from '../api'
 import type { ResultDetail, ResultListQuery, ResultPageResponse } from '../types'
 
+const RESULT_PAGE_SIZE = 20
+
 const DEFAULT_FILTERS: ResultListQuery = {
   keyword: '',
   from: '',
@@ -25,7 +27,7 @@ export function useResultList() {
   const [request, setRequest] = useState<ResultListRequest>({
     filters: DEFAULT_FILTERS,
     page: 0,
-    size: 20,
+    size: RESULT_PAGE_SIZE,
   })
   const [data, setData] = useState<ResultPageResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -38,7 +40,7 @@ export function useResultList() {
       const result = await fetchResults({
         ...nextRequest.filters,
         page: nextRequest.page,
-        size: nextRequest.size,
+        size: RESULT_PAGE_SIZE,
       })
       setData(result)
     } catch (err) {
@@ -53,16 +55,17 @@ export function useResultList() {
   }, [load, request])
 
   const search = useCallback(() => {
-    setRequest((prev) => ({ ...prev, filters, page: 0 }))
+    setRequest((prev) => ({ ...prev, filters, page: 0, size: RESULT_PAGE_SIZE }))
   }, [filters])
 
   const reset = useCallback(() => {
     setFilters(DEFAULT_FILTERS)
-    setRequest((prev) => ({ ...prev, filters: DEFAULT_FILTERS, page: 0 }))
+    setRequest((prev) => ({ ...prev, filters: DEFAULT_FILTERS, page: 0, size: RESULT_PAGE_SIZE }))
   }, [])
 
   const changePage = useCallback((page: number) => {
-    setRequest((prev) => ({ ...prev, page }))
+    const nextPage = Number.isFinite(page) ? Math.max(0, Math.floor(page)) : 0
+    setRequest((prev) => ({ ...prev, page: nextPage, size: RESULT_PAGE_SIZE }))
   }, [])
 
   const retry = useCallback(() => {
@@ -79,7 +82,7 @@ export function useResultList() {
     setFilters,
     data,
     page: request.page,
-    size: request.size,
+    size: RESULT_PAGE_SIZE,
     loading,
     error,
     empty,

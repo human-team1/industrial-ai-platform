@@ -180,40 +180,23 @@ export function ResultPagination({ page, totalPages, totalElements, onPageChange
   totalElements: number
   onPageChange: (page: number) => void
 }) {
-  const lastPage = Math.max(0, totalPages - 1)
+  const normalizedTotalPages = Math.max(0, totalPages)
+  const lastPage = Math.max(0, normalizedTotalPages - 1)
+  const currentPage = normalizedTotalPages === 0 ? 0 : Math.min(Math.max(0, page), lastPage)
+  const canGoPrevious = normalizedTotalPages > 1 && currentPage > 0
+  const canGoNext = normalizedTotalPages > 1 && currentPage < lastPage
+
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <span>전체 {totalElements.toLocaleString()}건</span>
       <div className="flex items-center gap-2">
-        <button type="button" onClick={() => onPageChange(0)} disabled={page <= 0} className="btn-secondary">처음</button>
-        <button type="button" onClick={() => onPageChange(Math.max(0, page - 1))} disabled={page <= 0} className="btn-secondary">이전</button>
-        <span className="min-w-20 text-center">{totalPages === 0 ? 0 : page + 1} / {totalPages}</span>
-        <button type="button" onClick={() => onPageChange(Math.min(lastPage, page + 1))} disabled={page >= lastPage} className="btn-secondary">다음</button>
-        <button type="button" onClick={() => onPageChange(lastPage)} disabled={page >= lastPage} className="btn-secondary">마지막</button>
+        <button type="button" onClick={() => onPageChange(0)} disabled={!canGoPrevious} className="btn-secondary">처음</button>
+        <button type="button" onClick={() => onPageChange(currentPage - 1)} disabled={!canGoPrevious} className="btn-secondary">이전</button>
+        <span className="min-w-20 text-center">{normalizedTotalPages === 0 ? 0 : currentPage + 1} / {normalizedTotalPages}</span>
+        <button type="button" onClick={() => onPageChange(currentPage + 1)} disabled={!canGoNext} className="btn-secondary">다음</button>
+        <button type="button" onClick={() => onPageChange(lastPage)} disabled={!canGoNext} className="btn-secondary">마지막</button>
       </div>
     </div>
-  )
-}
-
-export function SystemStatusCard() {
-  return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-base font-semibold text-slate-950">시스템 상태</h2>
-      <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-5">
-        {[
-          ['시스템상태', '정상운영'],
-          ['모델서버', '정상'],
-          ['스트리밍서버', '정상'],
-          ['스토리지', '정상'],
-          ['최근 업데이트', formatDateMinute(new Date().toISOString())],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold text-slate-500">{label}</p>
-            <p className="mt-1 font-semibold text-slate-900">{value}</p>
-          </div>
-        ))}
-      </div>
-    </section>
   )
 }
 

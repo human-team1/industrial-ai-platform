@@ -6,7 +6,6 @@ import {
   ResultListTable,
   ResultPagination,
   ResultSummaryCards,
-  SystemStatusCard,
   buildEquipmentOptions,
   buildListSummary,
 } from '../features/result/ui'
@@ -70,8 +69,6 @@ export function ResultPage() {
           onPageChange={changePage}
         />
       ) : null}
-
-      <SystemStatusCard />
     </section>
   )
 }
