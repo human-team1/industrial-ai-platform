@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "ANOMALY_REGION")
+@Table(name = "anomaly_region")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AnomalyRegionJpaEntity {

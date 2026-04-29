@@ -28,6 +28,12 @@ management:
         include: health,info
 
 app:
+  document:
+    upload:
+      max-size-bytes: ${DOCUMENT_UPLOAD_MAX_SIZE_BYTES:52428800}
+      allowed-extensions: ${DOCUMENT_UPLOAD_ALLOWED_EXTENSIONS:pdf,docx,md}
+      allowed-mime-types: ${DOCUMENT_UPLOAD_ALLOWED_MIME_TYPES:application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,text/plain}
+      object-prefix: ${DOCUMENT_UPLOAD_OBJECT_PREFIX:documents}
   ai-server:
     base-url: ${AI_SERVER_BASE_URL:http://localhost:8001}
   chroma:

@@ -13,7 +13,7 @@ import javax.persistence.Table;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "RESULT_ARTIFACT")
+@Table(name = "result_artifact")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ResultArtifactJpaEntity {

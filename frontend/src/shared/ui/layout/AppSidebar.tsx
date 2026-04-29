@@ -113,6 +113,7 @@ const navItems: NavItem[] = [
   { label: '실시간 탐지', icon: <IconRadar />, to: '/inspections' },
   { label: '탐지 업로드', icon: <IconUpload />, to: null },
   { label: '탐지 이력', icon: <IconHistory />, to: '/results' },
+  { label: '문서 관리', icon: <IconReport />, to: '/documents' },
   { label: '설비 관리', icon: <IconEquipment />, to: null },
   { label: '모델 관리', icon: <IconModel />, to: null },
   { label: '알림 관리', icon: <IconBell />, to: null },

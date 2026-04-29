@@ -1,72 +1,109 @@
 # Backend Spring
 
-Spring Boot API 서버 전용 프로젝트입니다. SSR, JSP, WAR 구조를 사용하지 않고 persistence는 Spring Data JPA를 사용합니다.
+Spring Boot 기반 메인 도메인 API 서버입니다. 인증/권한, 검사/결과 이력, 문서 메타데이터, 파일 미리보기, FastAPI 연동 오케스트레이션을 담당합니다.
 
-## 기술 스택
+## 현재 스택
 
 - Java 17
 - Spring Boot 2.7.18
 - Gradle Wrapper 7.6.4
+- Spring Security
 - Spring Data JPA
 - MariaDB Java Client 2.7.5
-- Spring Security
-- OAuth2 Client
 - Redis
-- JJWT 0.11.5
 - MinIO Java Client 8.5.12
+- JJWT 0.11.5
 
-## 환경변수
+## 구조
 
-PowerShell:
+```text
+src/main/java/com/example/factoryguard
+  common/        공통 응답, 예외, 유틸
+  config/        security, web, persistence, client, document 설정
+  domain/        도메인 모델/VO
+  application/   port, service, dto
+  adapter/       web, persistence, fastapi, minio, redis adapter
+```
+
+Controller는 `adapter/in/web`, JPA/외부 연동은 `adapter/out/*`, 유스케이스는 `application/service`에 둡니다.
+
+## 환경 변수
 
 ```powershell
 Copy-Item .env.example .env
 ```
 
 주요 값:
-- DB 접속 정보
-- Redis 접속 정보
-- MinIO endpoint/key/bucket
-- Chroma host/port
-- AI server base URL
-- JWT secret/expire
-- Google OAuth client 값
 
-실제 비밀값은 커밋하지 않습니다.
+| 변수 | 설명 |
+| --- | --- |
+| `APP_PORT` | Spring 서버 포트, 기본 `8080` |
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | MariaDB 접속 정보 |
+| `REDIS_HOST`, `REDIS_PORT` | Redis 접속 정보 |
+| `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` | MinIO 접속 정보 |
+| `CHROMA_HOST`, `CHROMA_PORT` | ChromaDB 접속 정보 |
+| `AI_SERVER_BASE_URL` | FastAPI 서버 주소 |
+| `JWT_SECRET`, `JWT_EXPIRE_MINUTES` | JWT 설정 |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth 설정 |
+| `DOCUMENT_UPLOAD_ALLOWED_EXTENSIONS` | 문서 업로드 확장자, 기본 `pdf,docx,md` |
+
+실제 비밀값은 `.env`에만 작성하고 커밋하지 않습니다.
 
 ## 실행
+
+먼저 루트 README 또는 `docs/db/mariadb-schema-init.md`에 따라 MariaDB 스키마를 초기화합니다.
 
 ```powershell
 .\gradlew.bat bootRun --args="--spring.profiles.active=local"
 ```
 
-## 테스트
+## 검증
 
 ```powershell
+.\gradlew.bat compileJava
 .\gradlew.bat test
 ```
 
-## API 규칙
+## API 응답 규칙
 
-- API prefix는 `/api/v1`입니다.
-- 성공 응답은 `ApiResponse` 구조를 사용합니다.
-- 실패 응답은 Problem Details 스타일 JSON을 사용합니다.
+- API prefix: `/api/v1`
+- 일반 성공 응답: `{ "success": true, "data": ..., "message": "..." }`
+- 에러 응답: RFC 9457 Problem Details 형식
+- 헬스체크, 파일 preview/download, 204 응답은 예외 가능
 
-## 주요 엔드포인트
+## 현재 구현된 주요 엔드포인트
 
-- `GET /api/v1/health`
-- `GET /api/v1/inspections/status`
-- `GET /actuator/health`
+| Method | Path | 설명 |
+| --- | --- | --- |
+| GET | `/api/v1/health` | 기본 헬스체크 |
+| GET | `/api/v1/health/infra` | MariaDB/Redis/MinIO/Chroma 확인 |
+| POST | `/api/v1/auth/google` | Google 로그인 |
+| POST | `/api/v1/auth/refresh` | Access Token 갱신 |
+| POST | `/api/v1/auth/logout` | 로그아웃 |
+| GET | `/api/v1/auth/me` | 현재 인증 정보 |
+| POST | `/api/v1/signup-requests` | 가입 신청 |
+| GET | `/api/v1/signup-requests/organizations/public` | 가입용 공개 조직 목록 |
+| GET | `/api/v1/organizations/public` | 공개 조직 목록 |
+| GET | `/api/v1/documents` | 문서 목록 |
+| POST | `/api/v1/documents` | 문서 등록 |
+| GET | `/api/v1/documents/{documentId}` | 문서 상세 |
+| PATCH | `/api/v1/documents/{documentId}` | 문서 메타데이터 수정 |
+| POST | `/api/v1/documents/{documentId}/versions` | 문서 파일 새 버전 등록 |
+| DELETE | `/api/v1/documents/{documentId}` | 문서 삭제 |
+| GET | `/api/v1/files/{fileId}/preview` | 파일 미리보기 |
 
-## 패키지 구조
+권한 기준은 `docs/auth/api-authority-matrix.md`를 따릅니다.
 
-```text
-com.example.factoryguard
-  common/       # 공통 응답, 예외, 유틸
-  config/       # security, persistence, web, client
-  domain/       # 도메인 모델
-  application/  # port, service, dto
-  adapter/      # web, persistence, fastapi, minio, redis adapter
-```
+## 문서 업로드 계약
 
-JPA Entity와 Spring Data Repository는 `adapter/out/persistence` 하위에 둡니다.
+- 확장자: `pdf`, `docx`, `md`
+- MIME: `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `text/markdown`, `text/plain`
+- 최대 크기: 기본 50MB
+- 새 문서 등록은 multipart form-data
+- 메타데이터 수정은 JSON `PATCH`
+- 파일 교체는 `/documents/{documentId}/versions`에 새 버전으로 등록
+
+## 주의
+
+- 현재 local profile은 `ddl-auto=validate`입니다. 테이블 자동 생성이 아니라 init SQL 실행이 필요합니다.
+- `bootrun-*.txt`, `.env`, `build/`, `.gradle/`은 커밋하지 않습니다.

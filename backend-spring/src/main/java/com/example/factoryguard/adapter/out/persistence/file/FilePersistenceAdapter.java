@@ -24,7 +24,7 @@ public class FilePersistenceAdapter implements LoadFilePort {
         Query query = entityManager.createNativeQuery("""
                 SELECT file_id, storage_type, bucket_name, object_key, file_path, file_name,
                        file_ext, mime_type, file_size, checksum, created_at, created_by
-                FROM `FILE`
+                FROM file
                 WHERE file_id = :fileId
                 """);
         query.setParameter("fileId", fileId);

@@ -13,7 +13,7 @@ import javax.persistence.Table;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "IMAGE")
+@Table(name = "image")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ImageJpaEntity {
