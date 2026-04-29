@@ -11,18 +11,21 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "signup_requests")
+@Table(name = "signup_request")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SignupRequestJpaEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "request_id")
+    @Column(name = "signup_request_id")
     private Long requestId;
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    @Column(name = "organization_id")
+    private Long organizationId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "request_status", nullable = false)
@@ -42,8 +45,9 @@ public class SignupRequestJpaEntity {
     private LocalDateTime processedAt;
 
     @Builder
-    public SignupRequestJpaEntity(Long userId) {
+    public SignupRequestJpaEntity(Long userId, Long organizationId) {
         this.userId = userId;
+        this.organizationId = organizationId;
         this.requestStatus = SignupRequestStatus.PENDING;
     }
 

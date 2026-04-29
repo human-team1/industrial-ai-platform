@@ -37,6 +37,7 @@ public class SecurityConfig {
                     "/actuator/health"
                 ).permitAll()
                 .antMatchers(HttpMethod.POST,  "/api/v1/signup-requests").permitAll()
+                .antMatchers(HttpMethod.GET,   "/api/v1/signup-requests/organizations/public").permitAll()
                 .antMatchers(HttpMethod.GET,   "/api/v1/signup-requests").hasRole("ADMIN")
                 .antMatchers(HttpMethod.PATCH, "/api/v1/signup-requests/*/approve").hasRole("ADMIN")
                 .antMatchers(HttpMethod.PATCH, "/api/v1/signup-requests/*/reject").hasRole("ADMIN")

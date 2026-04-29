@@ -26,6 +26,12 @@ export const refreshAxios = axios.create({
   withCredentials: true,
 })
 
+// 공개 엔드포인트 전용 인스턴스 — 인증 헤더/리다이렉트 인터셉터 없음
+export const publicAxios = axios.create({
+  baseURL: BASE_URL,
+  timeout: 10_000,
+})
+
 // Request: 메모리의 accessToken을 Authorization 헤더에 자동 첨부
 apiClient.interceptors.request.use((config) => {
   const token = getMemoryToken()
