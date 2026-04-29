@@ -26,3 +26,38 @@ a {
   background: #ffffff;
   padding: 24px;
 }
+
+.control {
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  padding: 0 12px;
+  font-size: 14px;
+  background: #ffffff;
+}
+
+.btn-primary {
+  height: 36px;
+  border-radius: 6px;
+  background: #0f172a;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.45;
+}
+
+.btn-secondary {
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}

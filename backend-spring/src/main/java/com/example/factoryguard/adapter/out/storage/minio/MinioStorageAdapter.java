@@ -2,6 +2,7 @@ package com.example.factoryguard.adapter.out.storage.minio;
 
 import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -84,6 +85,17 @@ public class MinioStorageAdapter {
                     .build());
         } catch (Exception exception) {
             throw new IllegalStateException("MinIO presigned URL creation failed: " + bucketName + "/" + objectKey, exception);
+        }
+    }
+
+    public byte[] download(String bucketName, String objectKey) {
+        try (InputStream stream = minioClient.getObject(GetObjectArgs.builder()
+                .bucket(bucketName)
+                .object(objectKey)
+                .build())) {
+            return stream.readAllBytes();
+        } catch (Exception exception) {
+            throw new IllegalStateException("MinIO download failed: " + bucketName + "/" + objectKey, exception);
         }
     }
 
