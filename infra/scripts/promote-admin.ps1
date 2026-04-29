@@ -37,14 +37,14 @@ SET @organization_id = (
 UPDATE USERS
 SET
     status = 'ACTIVE',
-    role = 'ADMIN',
+    role = 'ROLE_SITE_ADMIN',
     organization_id = @organization_id
 WHERE email = @admin_email;
 
 UPDATE users
 SET
     status = 'ACTIVE',
-    role = 'ADMIN',
+    role = 'ROLE_SITE_ADMIN',
     organization_id = @organization_id
 WHERE email = @admin_email;
 
