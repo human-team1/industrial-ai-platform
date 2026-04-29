@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
     INTERNAL_ERROR("COMMON-500", HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected server error"),
     INVALID_REQUEST("COMMON-400", HttpStatus.BAD_REQUEST, "Invalid request"),
+    VALIDATION_FAILED("VALIDATION-422", HttpStatus.UNPROCESSABLE_ENTITY, "유효성 검증에 실패했습니다."),
     RESOURCE_NOT_FOUND("COMMON-404", HttpStatus.NOT_FOUND, "Resource not found"),
     UNAUTHORIZED("AUTH-401", HttpStatus.UNAUTHORIZED, "Authentication required"),
     INVALID_GOOGLE_TOKEN("AUTH-402", HttpStatus.UNAUTHORIZED, "Invalid Google ID token"),

@@ -1,7 +1,12 @@
 package com.example.factoryguard.common.exception;
 
-import java.time.OffsetDateTime;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ProblemDetailsResponse {
 
     private final String type;
@@ -9,10 +14,17 @@ public class ProblemDetailsResponse {
     private final int status;
     private final String detail;
     private final String instance;
+    @JsonProperty("errorCode")
     private final String code;
     private final OffsetDateTime timestamp;
+    private final List<ValidationFieldError> errors;
 
     public ProblemDetailsResponse(String type, String title, int status, String detail, String instance, String code) {
+        this(type, title, status, detail, instance, code, null);
+    }
+
+    public ProblemDetailsResponse(String type, String title, int status, String detail, String instance, String code,
+                                  List<ValidationFieldError> errors) {
         this.type = type;
         this.title = title;
         this.status = status;
@@ -20,6 +32,7 @@ public class ProblemDetailsResponse {
         this.instance = instance;
         this.code = code;
         this.timestamp = OffsetDateTime.now();
+        this.errors = errors;
     }
 
     public String getType() {
@@ -48,5 +61,9 @@ public class ProblemDetailsResponse {
 
     public OffsetDateTime getTimestamp() {
         return timestamp;
+    }
+
+    public List<ValidationFieldError> getErrors() {
+        return errors;
     }
 }
