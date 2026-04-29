@@ -1,6 +1,6 @@
 package com.example.factoryguard.adapter.out.persistence.organization;
 
-import com.example.factoryguard.domain.organization.model.OrganizationStatus;
+import com.example.factoryguard.domain.organization.vo.OrganizationStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
