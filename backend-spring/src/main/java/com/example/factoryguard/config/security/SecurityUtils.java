@@ -32,4 +32,29 @@ public class SecurityUtils {
         }
         return orgId;
     }
+
+    public boolean isSiteAdmin() {
+        AuthenticatedPrincipal principal = getCurrentPrincipal();
+        return "ROLE_SITE_ADMIN".equals(principal.role());
+    }
+
+    public void assertSameOrganization(Long targetOrganizationId) {
+        if (isSiteAdmin()) {
+            return;
+        }
+        Long current = getCurrentPrincipal().organizationId();
+        if (current == null || targetOrganizationId == null || !current.equals(targetOrganizationId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+    }
+
+    public void assertSameOrganization(Long targetOrganizationId, String message) {
+        if (isSiteAdmin()) {
+            return;
+        }
+        Long current = getCurrentPrincipal().organizationId();
+        if (current == null || targetOrganizationId == null || !current.equals(targetOrganizationId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, message);
+        }
+    }
 }
