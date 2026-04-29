@@ -473,7 +473,7 @@ Google 로그인 후 가입 승인 대기 화면이 뜨면, 해당 이메일을 
 
 - `ORGANIZATION`에 관리자 조직이 없으면 생성
 - `USERS.status`를 `ACTIVE`로 변경
-- `USERS.role`을 `ADMIN`으로 변경
+- `USERS.role`을 `ROLE_SITE_ADMIN`으로 변경
 - `USERS.organization_id`를 관리자 조직으로 연결
 - `SIGNUP_REQUEST.request_status`를 `APPROVED`로 변경
 

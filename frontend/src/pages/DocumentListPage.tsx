@@ -14,43 +14,48 @@ export function DocumentListPage() {
 
   return (
     <section className="space-y-5">
-      <div className="page-panel flex items-start justify-between">
+      <div className="page-panel flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">문서 관리</h1>
-          <p className="mt-2 text-sm text-slate-600">문서 목록 조회, 등록, 수정, 삭제를 관리합니다.</p>
+          <p className="mt-2 text-sm text-slate-600">
+            RAG 문서 목록, 인덱싱 상태, 등록/수정/삭제를 관리합니다.
+          </p>
         </div>
-        <button className="btn-primary" onClick={() => navigate('/documents/new')}>문서 등록</button>
+        <button className="btn-primary" onClick={() => navigate('/documents/new')}>
+          문서 등록
+        </button>
       </div>
 
       <DocumentSummaryCards summary={summary} />
+
       <div className="page-panel grid grid-cols-1 gap-3 md:grid-cols-4">
         <input
           className="control"
           placeholder="제목/설명/태그 검색"
           value={query.keyword ?? ''}
-          onChange={(e) => setQuery((prev) => ({ ...prev, keyword: e.target.value, page: 0 }))}
+          onChange={(event) => setQuery((prev) => ({ ...prev, keyword: event.target.value, page: 0 }))}
         />
         <select
           className="control"
           value={query.documentType ?? ''}
-          onChange={(e) => setQuery((prev) => ({ ...prev, documentType: e.target.value || undefined, page: 0 }))}
+          onChange={(event) => setQuery((prev) => ({ ...prev, documentType: event.target.value || undefined, page: 0 }))}
         >
           <option value="">전체 유형</option>
           <option value="PDF">PDF</option>
           <option value="DOCX">DOCX</option>
-          <option value="TXT">TXT</option>
+          <option value="MD">MD</option>
         </select>
         <input
           className="control"
           placeholder="카테고리"
           value={query.category ?? ''}
-          onChange={(e) => setQuery((prev) => ({ ...prev, category: e.target.value || undefined, page: 0 }))}
+          onChange={(event) => setQuery((prev) => ({ ...prev, category: event.target.value || undefined, page: 0 }))}
         />
         <input
           className="control"
           placeholder="설비 유형"
           value={query.equipmentType ?? ''}
-          onChange={(e) => setQuery((prev) => ({ ...prev, equipmentType: e.target.value || undefined, page: 0 }))}
+          onChange={(event) => setQuery((prev) => ({ ...prev, equipmentType: event.target.value || undefined, page: 0 }))}
         />
       </div>
 
@@ -61,6 +66,7 @@ export function DocumentListPage() {
         onEdit={(id) => navigate(`/documents/${id}/edit`)}
         onDelete={onDelete}
       />
+
       <div className="page-panel flex items-center justify-between">
         <span className="text-sm text-slate-600">
           페이지 {(data?.page ?? 0) + 1} / {Math.max(data?.totalPages ?? 1, 1)} (총 {data?.totalElements ?? 0}건)

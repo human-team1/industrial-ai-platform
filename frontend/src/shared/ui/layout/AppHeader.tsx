@@ -49,7 +49,8 @@ export function AppHeader({
   picture?: string
   onLogout?: () => void
 }) {
-  const roleLabel = userRole === 'ADMIN' ? '관리자' : '사용자'
+  const roleLabel =
+    userRole === 'ROLE_SITE_ADMIN' || userRole === 'ROLE_COMPANY_ADMIN' ? '관리자' : '사용자'
 
   return (
     <header

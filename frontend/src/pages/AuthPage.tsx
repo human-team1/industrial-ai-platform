@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { GoogleLoginButton } from '../features/auth/ui/GoogleLoginButton'
+import { NoticeBanner } from '../shared/ui/feedback/NoticeBanner'
 
 const footerLinks = [
   { label: '이용약관', href: '#' },       // TODO: 이용약관 페이지 내용 추가
@@ -7,8 +10,30 @@ const footerLinks = [
 ]
 
 export function AuthPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const inactive = searchParams.get('inactive') === '1'
+  const [showInactive, setShowInactive] = useState(false)
+
+  useEffect(() => {
+    if (inactive) {
+      setShowInactive(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('inactive')
+      setSearchParams(next, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inactive])
+
   return (
     <div className="min-h-screen flex flex-col">
+      {showInactive && (
+        <NoticeBanner
+          message="비활성화된 계정입니다. 관리자에게 문의하세요."
+          variant="warning"
+          autoCloseMs={6000}
+          onClose={() => setShowInactive(false)}
+        />
+      )}
       {/* 상단 헤더 */}
       <header
         aria-label="산업 이상 탐지 시스템 상단 헤더"

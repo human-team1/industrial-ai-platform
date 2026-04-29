@@ -10,7 +10,6 @@ import com.example.factoryguard.application.port.in.result.ListInspectionResults
 import com.example.factoryguard.application.port.out.result.ResultQueryPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
-import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,8 +34,7 @@ public class ResultQueryService implements ListInspectionResultsUseCase, GetInsp
     @Override
     public ResultPageResponse execute(ListInspectionResultsQuery query) {
         validateQuery(query);
-        AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
-        Long organizationId = isAdmin(principal) ? null : securityUtils.requireOrganizationId();
+        Long organizationId = securityUtils.isSiteAdmin() ? null : securityUtils.requireOrganizationId();
         return resultQueryPort.findPage(query, organizationId);
     }
 
@@ -49,10 +47,7 @@ public class ResultQueryService implements ListInspectionResultsUseCase, GetInsp
         Long resultOrganizationId = resultQueryPort.findOrganizationIdByResultId(resultId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "검사 결과를 찾을 수 없습니다."));
 
-        AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
-        if (!isAdmin(principal) && !resultOrganizationId.equals(securityUtils.requireOrganizationId())) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "조회 권한이 없는 검사 결과입니다.");
-        }
+        securityUtils.assertSameOrganization(resultOrganizationId, "조회 권한이 없는 검사 결과입니다.");
 
         ResultDetailResponse detail = resultQueryPort.findDetail(resultId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "검사 결과를 찾을 수 없습니다."));
@@ -149,10 +144,6 @@ public class ResultQueryService implements ListInspectionResultsUseCase, GetInsp
         if (query.getResultStatus() != null && !ALLOWED_RESULT_STATUSES.contains(toUpper(query.getResultStatus()))) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "허용되지 않은 결과 상태입니다.");
         }
-    }
-
-    private boolean isAdmin(AuthenticatedPrincipal principal) {
-        return principal.role() != null && "ADMIN".equalsIgnoreCase(principal.role());
     }
 
     private String toUpper(String value) {

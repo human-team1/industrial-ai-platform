@@ -1,5 +1,5 @@
-export type AuthStatus = 'NEW' | 'PENDING' | 'REJECTED' | 'ACTIVE'
-export type AuthRole = 'USER' | 'ADMIN'
+export type AuthStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'INACTIVE'
+export type AuthRole = 'ROLE_SITE_ADMIN' | 'ROLE_COMPANY_ADMIN' | 'ROLE_COMPANY_WORKER'
 
 export type AuthUser = {
   userId: number
@@ -14,7 +14,7 @@ export type AuthUser = {
 }
 
 export type GoogleLoginResponse = {
-  userStatus: AuthStatus
+  userStatus: AuthStatus | 'NEW'
   // ACTIVE일 때만 존재
   accessToken?: string
   // refreshToken은 HttpOnly Cookie로 전달 — 프론트 접근 불가

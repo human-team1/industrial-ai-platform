@@ -1,6 +1,7 @@
 package com.example.factoryguard.domain.user.model;
 
 public enum UserRole {
-    USER,
-    ADMIN
+    ROLE_SITE_ADMIN,
+    ROLE_COMPANY_ADMIN,
+    ROLE_COMPANY_WORKER
 }
