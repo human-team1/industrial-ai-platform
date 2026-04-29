@@ -14,6 +14,7 @@ public enum ErrorCode {
     PENDING_APPROVAL("AUTH-405", HttpStatus.FORBIDDEN, "가입 승인 대기 중입니다."),
     ACCOUNT_REJECTED("AUTH-406", HttpStatus.FORBIDDEN, "가입이 거절된 계정입니다."),
     SESSION_INVALID("AUTH-407", HttpStatus.UNAUTHORIZED, "세션이 유효하지 않습니다."),
+    ACCOUNT_INACTIVE("AUTH-408", HttpStatus.FORBIDDEN, "비활성화된 계정입니다."),
     FORBIDDEN("COMMON-403", HttpStatus.FORBIDDEN, "Access denied"),
     ORGANIZATION_NOT_FOUND("ORG-404", HttpStatus.NOT_FOUND, "조직을 찾을 수 없습니다."),
     ORGANIZATION_INACTIVE("ORG-422", HttpStatus.UNPROCESSABLE_ENTITY, "비활성화된 조직입니다."),

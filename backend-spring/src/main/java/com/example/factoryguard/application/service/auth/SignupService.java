@@ -50,7 +50,7 @@ public class SignupService implements SignupRequestUseCase {
                             .phone(command.getPhone())
                             .organizationId(command.getOrganizationId())
                             .status(UserStatus.PENDING)
-                            .role(UserRole.USER)
+                            .role(UserRole.ROLE_COMPANY_WORKER)
                             .build();
                     User saved = saveUserPort.save(newUser);
                     saveSignupRequestPort.saveSignupRequest(saved.getUserId(), command.getOrganizationId());

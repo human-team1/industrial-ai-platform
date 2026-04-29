@@ -1,4 +1,6 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../../features/auth/model'
+import type { AuthRole } from '../../../features/auth/types'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -103,6 +105,7 @@ type NavItem = {
   label: string
   icon: React.ReactNode
   to: string | null
+  roles?: AuthRole[]
 }
 
 const navItems: NavItem[] = [
@@ -115,7 +118,8 @@ const navItems: NavItem[] = [
   { label: '알림 관리', icon: <IconBell />, to: null },
   { label: '보고서', icon: <IconReport />, to: null },
   { label: '설정', icon: <IconSettings />, to: '/settings' },
-  { label: '시스템 관리', icon: <IconSettings />, to: null },
+  { label: '가입 신청 관리', icon: <IconSettings />, to: '/admin/signup-requests', roles: ['ROLE_SITE_ADMIN'] },
+  { label: '시스템 관리', icon: <IconSettings />, to: null, roles: ['ROLE_SITE_ADMIN'] },
   // TODO: 시스템 상태 추가 해야함
 ]
 
@@ -130,6 +134,11 @@ export function AppSidebar({
   onCollapse: () => void
   onExpand: () => void
 }) {
+  const { user } = useAuth()
+  const visibleNavItems = navItems.filter(
+    (item) => !item.roles || (user && item.roles.includes(user.role)),
+  )
+
   if (isCollapsed) {
     return (
       <div className="fixed bottom-6 left-6 z-50">
@@ -160,7 +169,7 @@ export function AppSidebar({
 
       <nav aria-label="주요 메뉴" className="flex-1">
         <ul className="m-0 p-0 list-none">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <li key={item.label}>
               {item.to ? (
                 <NavLink

@@ -30,7 +30,7 @@ public class GetAuthMeService implements GetAuthMeUseCase {
             case ACTIVE -> AuthMeResult.from(user);
             case PENDING -> throw new BusinessException(ErrorCode.PENDING_APPROVAL);
             case REJECTED -> throw new BusinessException(ErrorCode.ACCOUNT_REJECTED);
-            default -> throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            case INACTIVE -> throw new BusinessException(ErrorCode.ACCOUNT_INACTIVE);
         };
     }
 
