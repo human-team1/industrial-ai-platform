@@ -84,51 +84,19 @@ public class InspectionPersistenceAdapter implements
 
     @Override
     public InspectionResult save(InspectionResult result) {
-        InspectionResultJpaEntity saved = inspectionResultJpaRepository.save(
-                InspectionResultJpaEntity.builder()
-                        .inspectionId(result.getInspectionId())
-                        .score(result.getScore())
-                        .confidence(result.getConfidence())
-                        .decisionCode(result.getDecisionCode())
-                        .finalDecisionCode(result.getFinalDecisionCode())
-                        .resultStatus(result.getResultStatus())
-                        .thresholdSource(result.getThresholdSource())
-                        .thresholdId(result.getThresholdId())
-                        .thresholdVersion(result.getThresholdVersion())
-                        .modelVersionId(result.getModelVersionId())
-                        .failureReason(result.getFailureReason())
-                        .build()
-        );
-        return toDomain(saved);
+        InspectionResultJpaEntity saved = inspectionResultJpaRepository.save(mapper.toEntity(result));
+        return mapper.toDomain(saved);
     }
 
     @Override
     public Optional<InspectionResult> findResultById(Long resultId) {
-        return inspectionResultJpaRepository.findById(resultId).map(this::toDomain);
+        return inspectionResultJpaRepository.findById(resultId).map(mapper::toDomain);
     }
 
     @Override
     public List<InspectionResult> findAllByInspectionId(Long inspectionId) {
         return inspectionResultJpaRepository.findAllByInspectionIdOrderByCreatedAtAsc(inspectionId).stream()
-                .map(this::toDomain)
+                .map(mapper::toDomain)
                 .toList();
-    }
-
-    private InspectionResult toDomain(InspectionResultJpaEntity e) {
-        return InspectionResult.builder()
-                .resultId(e.getResultId())
-                .inspectionId(e.getInspectionId())
-                .score(e.getScore())
-                .confidence(e.getConfidence())
-                .decisionCode(e.getDecisionCode())
-                .finalDecisionCode(e.getFinalDecisionCode())
-                .resultStatus(e.getResultStatus())
-                .thresholdSource(e.getThresholdSource())
-                .thresholdId(e.getThresholdId())
-                .thresholdVersion(e.getThresholdVersion())
-                .modelVersionId(e.getModelVersionId())
-                .failureReason(e.getFailureReason())
-                .createdAt(e.getCreatedAt())
-                .build();
     }
 }
