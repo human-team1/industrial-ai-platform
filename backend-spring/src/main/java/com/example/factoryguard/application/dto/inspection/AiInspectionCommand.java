@@ -5,10 +5,9 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class AiRealtimeInspectionRequest {
+public class AiInspectionCommand {
 
-    private final Long cameraId;
-    private final String streamUrl;
+    private final String fileUrl;
     private final double anomalyThreshold;
     private final double lowConfidenceThreshold;
 }

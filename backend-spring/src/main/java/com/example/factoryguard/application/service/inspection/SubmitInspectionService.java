@@ -132,9 +132,9 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
             eventLogger.log(runId, InspectionEventType.PROCESS_STARTED, "processing started");
 
             eventLogger.log(runId, InspectionEventType.AI_CALLED, "ai called");
-            AiInspectionResponse aiResponse;
+            AiInspectionResult aiResponse;
             try {
-                aiResponse = callAiInspectionPort.call(new AiInspectionRequest(
+                aiResponse = callAiInspectionPort.call(new AiInspectionCommand(
                         command.getFileUrl(),
                         resolved.getAnomalyThreshold(),
                         resolved.getLowConfidenceThreshold()

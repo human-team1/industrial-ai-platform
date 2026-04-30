@@ -1,7 +1,7 @@
 package com.example.factoryguard.application.service.inspection;
 
-import com.example.factoryguard.application.dto.inspection.AiInspectionResponse;
-import com.example.factoryguard.application.dto.inspection.AiRealtimeInspectionRequest;
+import com.example.factoryguard.application.dto.inspection.AiInspectionResult;
+import com.example.factoryguard.application.dto.inspection.AiRealtimeInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.dto.inspection.SubmitRealtimeInspectionCommand;
@@ -111,9 +111,9 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
             eventLogger.log(runId, InspectionEventType.PROCESS_STARTED, "processing started");
 
             eventLogger.log(runId, InspectionEventType.AI_CALLED, "realtime ai called");
-            AiInspectionResponse aiResponse;
+            AiInspectionResult aiResponse;
             try {
-                aiResponse = callAiInspectionPort.callRealtime(new AiRealtimeInspectionRequest(
+                aiResponse = callAiInspectionPort.callRealtime(new AiRealtimeInspectionCommand(
                         camera.getCameraId(),
                         camera.getStreamUrl(),
                         resolved.getAnomalyThreshold(),
