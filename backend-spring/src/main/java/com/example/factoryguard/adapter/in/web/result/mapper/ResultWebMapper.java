@@ -17,6 +17,7 @@ public class ResultWebMapper {
             String runType,
             String decision,
             String resultStatus,
+            Long targetId,
             int page,
             int size
     ) {
@@ -29,6 +30,7 @@ public class ResultWebMapper {
                 runType,
                 decision,
                 resultStatus,
+                targetId,
                 page,
                 size
         );

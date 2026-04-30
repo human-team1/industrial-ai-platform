@@ -254,14 +254,14 @@ public class ResultQueryRepository {
                 parameters.put("runType", runType);
             }
         }
+        if (query.getTargetId() != null) {
+            sql.append(" AND ir.target_id = :targetId");
+            parameters.put("targetId", query.getTargetId());
+        }
         if (hasText(query.getDecision())) {
             String decision = query.getDecision().trim().toUpperCase(Locale.ROOT);
-            if ("RETEST".equals(decision)) {
-                sql.append(" AND r.final_decision_code IN ('RETEST', 'RECHECK', 'REINSPECTION')");
-            } else {
-                sql.append(" AND r.final_decision_code = :decision");
-                parameters.put("decision", decision);
-            }
+            sql.append(" AND COALESCE(r.final_decision_code, r.decision_code) = :decision");
+            parameters.put("decision", decision);
         }
         if (hasText(query.getResultStatus())) {
             sql.append(" AND r.result_status = :resultStatus");
@@ -282,7 +282,7 @@ public class ResultQueryRepository {
                     COUNT(*) AS total_count,
                     SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'NORMAL' THEN 1 ELSE 0 END) AS normal_count,
                     SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'DEFECT' THEN 1 ELSE 0 END) AS defect_count,
-                    SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) IN ('RETEST', 'RECHECK', 'REINSPECTION') THEN 1 ELSE 0 END) AS retest_count,
+                    SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'RECHECK' THEN 1 ELSE 0 END) AS retest_count,
                     AVG(r.score) AS avg_score
                 """ + fromClause.replaceFirst("SELECT COUNT\\(\\*\\)\\s+", "");
 
@@ -459,12 +459,6 @@ public class ResultQueryRepository {
     }
 
     private String toApiDecision(String decision) {
-        if (decision == null) {
-            return null;
-        }
-        if ("RECHECK".equals(decision) || "REINSPECTION".equals(decision)) {
-            return "RETEST";
-        }
         return decision;
     }
 
