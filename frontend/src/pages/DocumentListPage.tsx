@@ -1,15 +1,21 @@
 import { useNavigate } from 'react-router-dom'
 import { removeDocument, useDocumentList } from '../features/document/model'
 import { DocumentSummaryCards, DocumentTable } from '../features/document/ui'
+import { PaginationBar } from '../shared/ui/pagination/PaginationBar'
 
 export function DocumentListPage() {
   const navigate = useNavigate()
-  const { query, setQuery, data, summary, loading, error, reload } = useDocumentList()
+  const { draft, setDraft, data, summary, loading, error, search, resetFilters, setPage, reload } =
+    useDocumentList()
 
   const onDelete = async (documentId: number) => {
     if (!window.confirm('문서를 삭제하시겠습니까?')) return
-    await removeDocument(documentId)
-    await reload()
+    try {
+      await removeDocument(documentId)
+      await reload()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : '삭제에 실패했습니다.')
+    }
   }
 
   return (
@@ -21,73 +27,106 @@ export function DocumentListPage() {
             RAG 문서 목록, 인덱싱 상태, 등록/수정/삭제를 관리합니다.
           </p>
         </div>
-        <button className="btn-primary" onClick={() => navigate('/documents/new')}>
+        <button type="button" className="btn-primary" onClick={() => navigate('/documents/new')}>
           문서 등록
         </button>
       </div>
 
-      <DocumentSummaryCards summary={summary} />
+      <DocumentSummaryCards summary={summary} loading={loading && !summary} />
 
-      <div className="page-panel grid grid-cols-1 gap-3 md:grid-cols-4">
-        <input
-          className="control"
-          placeholder="제목/설명/태그 검색"
-          value={query.keyword ?? ''}
-          onChange={(event) => setQuery((prev) => ({ ...prev, keyword: event.target.value, page: 0 }))}
-        />
-        <select
-          className="control"
-          value={query.documentType ?? ''}
-          onChange={(event) => setQuery((prev) => ({ ...prev, documentType: event.target.value || undefined, page: 0 }))}
-        >
-          <option value="">전체 유형</option>
-          <option value="PDF">PDF</option>
-          <option value="DOCX">DOCX</option>
-          <option value="MD">MD</option>
-        </select>
-        <input
-          className="control"
-          placeholder="카테고리"
-          value={query.category ?? ''}
-          onChange={(event) => setQuery((prev) => ({ ...prev, category: event.target.value || undefined, page: 0 }))}
-        />
-        <input
-          className="control"
-          placeholder="설비 유형"
-          value={query.equipmentType ?? ''}
-          onChange={(event) => setQuery((prev) => ({ ...prev, equipmentType: event.target.value || undefined, page: 0 }))}
-        />
-      </div>
+      <section className="page-panel space-y-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <input
+            className="control"
+            placeholder="제목/설명/태그 검색"
+            value={draft.keyword ?? ''}
+            onChange={(event) => setDraft((prev) => ({ ...prev, keyword: event.target.value }))}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') search()
+            }}
+          />
+          <select
+            className="control"
+            value={draft.documentType ?? ''}
+            onChange={(event) =>
+              setDraft((prev) => ({ ...prev, documentType: event.target.value || undefined }))
+            }
+          >
+            <option value="">전체 유형</option>
+            <option value="PDF">PDF</option>
+            <option value="DOCX">DOCX</option>
+            <option value="MD">MD</option>
+          </select>
+          <input
+            className="control"
+            placeholder="카테고리"
+            value={draft.category ?? ''}
+            onChange={(event) => setDraft((prev) => ({ ...prev, category: event.target.value }))}
+          />
+          <input
+            className="control"
+            placeholder="설비 유형"
+            value={draft.equipmentType ?? ''}
+            onChange={(event) => setDraft((prev) => ({ ...prev, equipmentType: event.target.value }))}
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <select
+            className="control"
+            value={draft.indexingStatus ?? ''}
+            onChange={(event) =>
+              setDraft((prev) => ({ ...prev, indexingStatus: event.target.value || undefined }))
+            }
+          >
+            <option value="">전체 반영 상태</option>
+            <option value="PENDING">대기</option>
+            <option value="PROCESSING">처리중</option>
+            <option value="COMPLETED">반영완료</option>
+            <option value="FAILED">반영실패</option>
+          </select>
+          <input
+            className="control"
+            type="date"
+            value={draft.startDate ?? ''}
+            onChange={(event) => setDraft((prev) => ({ ...prev, startDate: event.target.value }))}
+          />
+          <input
+            className="control"
+            type="date"
+            value={draft.endDate ?? ''}
+            onChange={(event) => setDraft((prev) => ({ ...prev, endDate: event.target.value }))}
+          />
+          <div className="flex items-end gap-2">
+            <button type="button" className="btn-secondary w-full whitespace-nowrap" disabled={loading} onClick={resetFilters}>
+              필터 초기화
+            </button>
+            <button type="button" className="btn-primary w-full whitespace-nowrap" disabled={loading} onClick={search}>
+              검색
+            </button>
+          </div>
+        </div>
+      </section>
 
       <DocumentTable
         items={data?.content ?? []}
         loading={loading}
         error={error}
+        onView={(id) => navigate(`/documents/${id}/edit`)}
         onEdit={(id) => navigate(`/documents/${id}/edit`)}
         onDelete={onDelete}
+        onRegister={() => navigate('/documents/new')}
+        onRetry={() => void reload()}
       />
 
-      <div className="page-panel flex items-center justify-between">
-        <span className="text-sm text-slate-600">
-          페이지 {(data?.page ?? 0) + 1} / {Math.max(data?.totalPages ?? 1, 1)} (총 {data?.totalElements ?? 0}건)
-        </span>
-        <div className="flex gap-2">
-          <button
-            className="btn-secondary"
-            disabled={(data?.page ?? 0) <= 0 || loading}
-            onClick={() => setQuery((prev) => ({ ...prev, page: Math.max((prev.page ?? 0) - 1, 0) }))}
-          >
-            이전
-          </button>
-          <button
-            className="btn-secondary"
-            disabled={loading || (data ? data.page + 1 >= data.totalPages : true)}
-            onClick={() => setQuery((prev) => ({ ...prev, page: (prev.page ?? 0) + 1 }))}
-          >
-            다음
-          </button>
-        </div>
-      </div>
+      {data ? (
+        <PaginationBar
+          page={data.page}
+          totalPages={data.totalPages}
+          totalElements={data.totalElements}
+          loading={loading}
+          onPageChange={setPage}
+        />
+      ) : null}
     </section>
   )
 }

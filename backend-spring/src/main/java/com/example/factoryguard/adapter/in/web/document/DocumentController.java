@@ -1,6 +1,7 @@
 package com.example.factoryguard.adapter.in.web.document;
 
 import com.example.factoryguard.adapter.in.web.document.dto.UpdateDocumentMetadataBody;
+import com.example.factoryguard.adapter.in.web.document.mapper.DocumentWebMapper;
 import com.example.factoryguard.application.dto.document.CreateDocumentVersionCommand;
 import com.example.factoryguard.application.dto.document.CreateDocumentWithFileCommand;
 import com.example.factoryguard.application.dto.document.DocumentCreateResult;
@@ -31,9 +32,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
 import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1/documents")
 @RequiredArgsConstructor
@@ -41,6 +39,7 @@ public class DocumentController {
 
     private final DocumentCrudUseCase documentCrudUseCase;
     private final SecurityUtils securityUtils;
+    private final DocumentWebMapper documentWebMapper;
 
     @GetMapping
     public ResponseEntity<ApiResponse<DocumentListPageResult>> listDocuments(
@@ -55,18 +54,18 @@ public class DocumentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        DocumentSearchQuery query = DocumentSearchQuery.builder()
-                .keyword(keyword)
-                .documentType(documentType)
-                .indexingStatus(indexingStatus)
-                .category(category)
-                .equipmentType(equipmentType)
-                .author(author)
-                .startDate(startDate)
-                .endDate(endDate)
-                .page(page)
-                .size(size)
-                .build();
+        DocumentSearchQuery query = documentWebMapper.toSearchQuery(
+                keyword,
+                documentType,
+                indexingStatus,
+                category,
+                equipmentType,
+                author,
+                startDate,
+                endDate,
+                page,
+                size
+        );
         return ResponseEntity.ok(ApiResponse.success(documentCrudUseCase.listDocuments(query), "문서 목록을 조회했습니다."));
     }
 
@@ -90,16 +89,16 @@ public class DocumentController {
             @RequestPart(value = "tags", required = false) String tags
     ) {
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
-        DocumentCreateResult result = documentCrudUseCase.createDocument(CreateDocumentWithFileCommand.builder()
-                .userId(principal.userId())
-                .organizationId(principal.organizationId())
-                .file(file)
-                .title(title)
-                .category(category)
-                .equipmentType(equipmentType)
-                .description(description)
-                .tags(parseCsvTags(tags))
-                .build());
+        CreateDocumentWithFileCommand command = documentWebMapper.toCreateDocumentCommand(
+                principal,
+                file,
+                title,
+                category,
+                equipmentType,
+                description,
+                tags
+        );
+        DocumentCreateResult result = documentCrudUseCase.createDocument(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(result, "문서를 등록했습니다."));
     }
 
@@ -109,16 +108,8 @@ public class DocumentController {
             @RequestBody @Valid UpdateDocumentMetadataBody body
     ) {
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
-        DocumentDetailResult result = documentCrudUseCase.updateMetadata(UpdateDocumentMetadataCommand.builder()
-                .userId(principal.userId())
-                .organizationId(principal.organizationId())
-                .documentId(documentId)
-                .title(body.getTitle())
-                .category(body.getCategory())
-                .equipmentType(body.getEquipmentType())
-                .description(body.getDescription())
-                .tags(body.getTags())
-                .build());
+        UpdateDocumentMetadataCommand command = documentWebMapper.toUpdateMetadataCommand(principal, documentId, body);
+        DocumentDetailResult result = documentCrudUseCase.updateMetadata(command);
         return ResponseEntity.ok(ApiResponse.success(result, "문서 메타데이터를 수정했습니다."));
     }
 
@@ -129,13 +120,13 @@ public class DocumentController {
             @RequestPart(value = "changeReason", required = false) String changeReason
     ) {
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
-        DocumentCreateResult result = documentCrudUseCase.createVersion(CreateDocumentVersionCommand.builder()
-                .userId(principal.userId())
-                .organizationId(principal.organizationId())
-                .documentId(documentId)
-                .file(file)
-                .changeReason(changeReason)
-                .build());
+        CreateDocumentVersionCommand command = documentWebMapper.toCreateVersionCommand(
+                principal,
+                documentId,
+                file,
+                changeReason
+        );
+        DocumentCreateResult result = documentCrudUseCase.createVersion(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(result, "문서 버전을 추가했습니다."));
     }
 
@@ -145,13 +136,4 @@ public class DocumentController {
         return ResponseEntity.noContent().build();
     }
 
-    private List<String> parseCsvTags(String tags) {
-        if (tags == null || tags.isBlank()) {
-            return List.of();
-        }
-        return Arrays.stream(tags.split(","))
-                .map(String::trim)
-                .filter(value -> !value.isBlank())
-                .toList();
-    }
 }

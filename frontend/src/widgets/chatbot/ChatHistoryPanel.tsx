@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useChatHistory } from '../../features/chatbot/model'
 import { ChatConversationList, ChatDetailPanel } from '../../features/chatbot/ui'
+import { PaginationBar } from '../../shared/ui/pagination/PaginationBar'
 
 export function ChatHistoryPanel() {
   const navigate = useNavigate()
@@ -75,29 +76,15 @@ export function ChatHistoryPanel() {
             onSelect={history.selectConversation}
             onDelete={deleteConversation}
           />
-          <div className="page-panel flex items-center justify-between">
-            <span className="text-sm text-slate-600">
-              페이지 {(page?.page ?? 0) + 1} / {Math.max(page?.totalPages ?? 1, 1)} (총 {page?.totalElements ?? 0}건)
-            </span>
-            <div className="flex gap-2">
-              <button
-                className="btn-secondary"
-                disabled={(page?.page ?? 0) <= 0 || history.loading}
-                onClick={() => history.setQuery((prev) => ({ ...prev, page: Math.max(prev.page - 1, 0) }))}
-                type="button"
-              >
-                이전
-              </button>
-              <button
-                className="btn-secondary"
-                disabled={history.loading || (page ? page.page + 1 >= page.totalPages : true)}
-                onClick={() => history.setQuery((prev) => ({ ...prev, page: prev.page + 1 }))}
-                type="button"
-              >
-                다음
-              </button>
-            </div>
-          </div>
+          {page ? (
+            <PaginationBar
+              page={page.page}
+              totalPages={page.totalPages}
+              totalElements={page.totalElements}
+              loading={history.loading}
+              onPageChange={(next) => history.setQuery((prev) => ({ ...prev, page: next }))}
+            />
+          ) : null}
         </div>
         <div className="space-y-3">
           {history.selected ? (

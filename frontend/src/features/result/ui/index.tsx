@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { apiClient } from '../../../shared/api/client'
+import {
+  formatDateMinute,
+  labelDecision,
+  labelRunType,
+  mapResultListRow,
+} from '../model/mapper'
 import type {
   AnomalyRegion,
   RelatedResult,
@@ -17,14 +23,6 @@ import type {
   ResultTarget,
 } from '../types'
 
-const decisionLabels: Record<string, string> = {
-  NORMAL: '정상',
-  DEFECT: '이상',
-  RETEST: '재검사',
-  RECHECK: '재검사',
-  REINSPECTION: '재검사',
-}
-
 const eventLabels: Record<string, string> = {
   INSPECTION_STARTED: '탐지 시작',
   IMAGE_CAPTURED: '이미지 수집',
@@ -41,14 +39,12 @@ const priorityLabels: Record<string, string> = {
 export function ResultListFilter({
   filters,
   loading,
-  equipmentOptions,
   onChange,
   onSearch,
   onReset,
 }: {
   filters: ResultListQuery
   loading: boolean
-  equipmentOptions: string[]
   onChange: (filters: ResultListQuery) => void
   onSearch: () => void
   onReset: () => void
@@ -72,11 +68,13 @@ export function ResultListFilter({
           </div>
         </Field>
 
-        <Field label="설비">
-          <select value={filters.equipmentName ?? ''} onChange={(event) => onChange({ ...filters, equipmentName: event.target.value })} className="control">
-            <option value="">전체 설비</option>
-            {equipmentOptions.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
+        <Field label="설비명">
+          <input
+            value={filters.equipmentName ?? ''}
+            onChange={(event) => onChange({ ...filters, equipmentName: event.target.value })}
+            placeholder="설비명 (부분 일치)"
+            className="control"
+          />
         </Field>
 
         <Field label="검사 유형">
@@ -105,14 +103,50 @@ export function ResultListFilter({
   )
 }
 
-export function ResultSummaryCards({ summary }: { summary: ResultListSummary }) {
-  const total = summary.totalCount || 0
+export function ResultSummaryCards({
+  summary,
+  loading,
+}: {
+  summary: ResultListSummary | null
+  loading?: boolean
+}) {
+  if (loading) {
+    return (
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[1, 2, 3, 4].map((key) => (
+          <article key={key} className="animate-pulse rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 h-9 w-9 rounded bg-slate-100" />
+            <div className="h-4 w-24 rounded bg-slate-100" />
+            <div className="mt-3 h-8 w-32 rounded bg-slate-100" />
+          </article>
+        ))}
+      </section>
+    )
+  }
+
+  if (!summary) {
+    return (
+      <section className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <p className="font-medium text-slate-900">집계 정보를 불러올 수 없습니다.</p>
+        <p className="mt-1 text-slate-600">
+          `GET /results` 응답에 `summary`가 없거나 아직 제공되지 않습니다. 수치로 0을 표시하지 않습니다.
+        </p>
+      </section>
+    )
+  }
+
+  const total = Number(summary.totalCount) || 0
+  const avg =
+    summary.avgScore === null || summary.avgScore === undefined
+      ? '-'
+      : Number(summary.avgScore as string | number).toFixed(2)
+
   return (
     <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
       <SummaryCard label="전체 결과" value={`${total.toLocaleString()}건`} tone="slate" />
-      <SummaryCard label="정상" value={`${summary.normalCount.toLocaleString()}건`} sub={ratio(summary.normalCount, total)} tone="green" />
-      <SummaryCard label="이상" value={`${summary.defectCount.toLocaleString()}건`} sub={ratio(summary.defectCount, total)} tone="red" />
-      <SummaryCard label="평균이상점수" value={summary.avgScore == null ? '-' : Number(summary.avgScore).toFixed(2)} tone="orange" />
+      <SummaryCard label="정상" value={`${Number(summary.normalCount).toLocaleString()}건`} sub={ratio(Number(summary.normalCount), total)} tone="green" />
+      <SummaryCard label="이상" value={`${Number(summary.defectCount).toLocaleString()}건`} sub={ratio(Number(summary.defectCount), total)} tone="red" />
+      <SummaryCard label="평균 이상 점수" value={avg} tone="orange" />
     </section>
   )
 }
@@ -143,6 +177,7 @@ export function ResultListTable({
   error,
   empty,
   onRetry,
+  onResetFilters,
   onDetail,
 }: {
   data: ResultPageResponse | null
@@ -150,19 +185,28 @@ export function ResultListTable({
   error: string | null
   empty: boolean
   onRetry: () => void
+  onResetFilters: () => void
   onDetail: (resultId: number) => void
 }) {
   if (loading) return <StateBox title="검사 결과를 불러오는 중입니다." />
   if (error) return <StateBox title={error} actionLabel="재시도" onAction={onRetry} />
-  if (empty) return <StateBox title="조회된 검사 결과가 없습니다." />
+  if (empty) {
+    return (
+      <StateBox
+        title="조회된 검사 결과가 없습니다."
+        actionLabel="필터 초기화"
+        onAction={onResetFilters}
+      />
+    )
+  }
 
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-[980px] w-full border-collapse text-left text-sm">
+        <table className="min-w-[1100px] w-full border-collapse text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-slate-500">
             <tr>
-              {['검사시간', '설비명', '검사유형', '결과', '이상점수', '위치', '상세'].map((head) => (
+              {['결과 ID', '검사 ID', '검사시간', '설비/대상', '검사유형', '판정', '이상점수', '상태', '상세'].map((head) => (
                 <th key={head} className="border-b border-slate-200 px-4 py-3 font-semibold">{head}</th>
               ))}
             </tr>
@@ -171,32 +215,6 @@ export function ResultListTable({
         </table>
       </div>
     </section>
-  )
-}
-
-export function ResultPagination({ page, totalPages, totalElements, onPageChange }: {
-  page: number
-  totalPages: number
-  totalElements: number
-  onPageChange: (page: number) => void
-}) {
-  const normalizedTotalPages = Math.max(0, totalPages)
-  const lastPage = Math.max(0, normalizedTotalPages - 1)
-  const currentPage = normalizedTotalPages === 0 ? 0 : Math.min(Math.max(0, page), lastPage)
-  const canGoPrevious = normalizedTotalPages > 1 && currentPage > 0
-  const canGoNext = normalizedTotalPages > 1 && currentPage < lastPage
-
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-      <span>전체 {totalElements.toLocaleString()}건</span>
-      <div className="flex items-center gap-2">
-        <button type="button" onClick={() => onPageChange(0)} disabled={!canGoPrevious} className="btn-secondary">처음</button>
-        <button type="button" onClick={() => onPageChange(currentPage - 1)} disabled={!canGoPrevious} className="btn-secondary">이전</button>
-        <span className="min-w-20 text-center">{normalizedTotalPages === 0 ? 0 : currentPage + 1} / {normalizedTotalPages}</span>
-        <button type="button" onClick={() => onPageChange(currentPage + 1)} disabled={!canGoNext} className="btn-secondary">다음</button>
-        <button type="button" onClick={() => onPageChange(lastPage)} disabled={!canGoNext} className="btn-secondary">마지막</button>
-      </div>
-    </div>
   )
 }
 
@@ -347,17 +365,32 @@ export function RelatedResultsCard({ relatedResults, onDetail }: {
 }
 
 function ResultRow({ item, onDetail }: { item: ResultSummary; onDetail: (resultId: number) => void }) {
-  const decision = item.finalDecisionCode ?? item.decisionCode
+  const mapped = mapResultListRow(item)
+
   return (
-    <tr className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-      <td className="px-4 py-3">{formatDateMinute(item.startedAt ?? item.createdAt)}</td>
-      <td className="px-4 py-3">{display(item.equipmentName)}</td>
-      <td className="px-4 py-3">{labelRunType(item.runType)}</td>
-      <td className="px-4 py-3"><DecisionBadge value={decision} /></td>
-      <td className="px-4 py-3"><ScoreBar value={item.score} decision={decision} /></td>
-      <td className="px-4 py-3">{display(item.location ?? item.targetName)}</td>
+    <tr
+      className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-slate-50"
+      onClick={() => onDetail(item.resultId)}
+    >
+      <td className="px-4 py-3 font-mono text-xs text-slate-700">{mapped.resultId}</td>
+      <td className="px-4 py-3 font-mono text-xs text-slate-700">{mapped.inspectionId}</td>
+      <td className="px-4 py-3">{mapped.inspectedAt}</td>
+      <td className="px-4 py-3">{display(mapped.targetLine)}</td>
+      <td className="px-4 py-3">{mapped.runTypeLabel}</td>
+      <td className="px-4 py-3"><DecisionBadge value={mapped.decision} /></td>
+      <td className="px-4 py-3"><ScoreBar value={mapped.score} decision={mapped.decision} /></td>
+      <td className="px-4 py-3 text-xs text-slate-600">{mapped.statusLabel}</td>
       <td className="px-4 py-3 text-right">
-        <button type="button" onClick={() => onDetail(item.resultId)} className="btn-secondary">상세</button>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onDetail(item.resultId)
+          }}
+          className="btn-secondary"
+        >
+          상세
+        </button>
       </td>
     </tr>
   )
@@ -454,30 +487,16 @@ function InfoGrid({ items }: { items: Array<[string, ReactNode]> }) {
 }
 
 function StateBox({ title, actionLabel, onAction }: { title: string; actionLabel?: string; onAction?: () => void }) {
-  return <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white p-6 text-center text-sm text-slate-600 shadow-sm"><p>{title}</p>{actionLabel && onAction ? <button type="button" onClick={onAction} className="btn-primary">{actionLabel}</button> : null}</div>
-}
-
-export function buildListSummary(data: ResultPageResponse | null): ResultListSummary {
-  if (data?.summary) return data.summary
-  const content = data?.content ?? []
-  const normalCount = content.filter((item) => (item.finalDecisionCode ?? item.decisionCode) === 'NORMAL').length
-  const defectCount = content.filter((item) => (item.finalDecisionCode ?? item.decisionCode) === 'DEFECT').length
-  const retestCount = content.filter((item) => ['RETEST', 'RECHECK', 'REINSPECTION'].includes(String(item.finalDecisionCode ?? item.decisionCode))).length
-  const scored = content.filter((item) => item.score != null)
-  const avgScore = scored.length > 0 ? scored.reduce((sum, item) => sum + Number(item.score), 0) / scored.length : null
-  return {
-    totalCount: data?.totalElements ?? content.length,
-    normalCount,
-    defectCount,
-    retestCount,
-    avgScore,
-  }
-}
-
-export function buildEquipmentOptions(data: ResultPageResponse | null) {
-  const fallback = ['프레스 #1', '모터#3', '펌프#2', '컨베이어 #1']
-  const names = Array.from(new Set((data?.content ?? []).map((item) => item.equipmentName).filter(Boolean))) as string[]
-  return names.length > 0 ? names : fallback
+  return (
+    <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white p-6 text-center text-sm text-slate-600 shadow-sm">
+      <p>{title}</p>
+      {actionLabel && onAction ? (
+        <button type="button" onClick={onAction} className="btn-primary">
+          {actionLabel}
+        </button>
+      ) : null}
+    </div>
+  )
 }
 
 function display(value: ReactNode) {
@@ -498,33 +517,9 @@ function formatScore(value?: number | null) {
   return Number(value).toFixed(2)
 }
 
-function formatDateMinute(value?: string | null) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-  const yyyy = date.getFullYear()
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  const dd = String(date.getDate()).padStart(2, '0')
-  const hh = String(date.getHours()).padStart(2, '0')
-  const mi = String(date.getMinutes()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd} ${hh}:${mi}`
-}
-
 function formatShortDate(value?: string | null) {
   if (!value) return ''
   return value.slice(0, 10)
-}
-
-function labelDecision(value?: string | null) {
-  if (!value) return '-'
-  return decisionLabels[value] ?? value
-}
-
-function labelRunType(value?: string | null) {
-  if (!value) return '-'
-  if (value === 'REALTIME') return '실시간 탐지'
-  if (['UPLOAD', 'IMAGE_UPLOAD', 'VIDEO_UPLOAD'].includes(value)) return '업로드 탐지'
-  return value
 }
 
 function progressColor(value?: string | null) {
