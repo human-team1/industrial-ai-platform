@@ -22,6 +22,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -103,7 +104,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                     .sourceType("UPLOAD")
                     .sourceId(command.getOriginalFileName())
                     .runStatus(RunStatus.PENDING)
-                    .appliedThreshold(resolved.getAnomalyThreshold())
+                    .appliedThreshold(BigDecimal.valueOf(resolved.getAnomalyThreshold()))
                     .idempotencyKey(idempotencyKey)
                     .payloadFingerprint(fingerprint)
                     .startedAt(LocalDateTime.now())

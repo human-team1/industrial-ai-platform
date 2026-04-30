@@ -3,6 +3,7 @@ package com.example.factoryguard.domain.inspection.model;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -18,7 +19,7 @@ public class InspectionRun {
     private final String sourceType;
     private final String sourceId;
     private final RunStatus runStatus;
-    private final double appliedThreshold;
+    private final BigDecimal appliedThreshold;
     private final String idempotencyKey;
     private final String payloadFingerprint;
     private final String errorCode;
