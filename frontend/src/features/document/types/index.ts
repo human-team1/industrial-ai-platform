@@ -1,5 +1,9 @@
 export type IndexingStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
 
+/**
+ * TODO: 목록 API에 인덱싱 실패 사유(`indexErrorMessage` 등) 필드가 생기면 테이블에서 바로 표시한다.
+ * 현재는 `GET /documents` 목록 DTO에 해당 필드가 없어 상세/수정 화면에서만 확인 가능하다.
+ */
 export type DocumentListItem = {
   documentId: number
   title: string
@@ -73,6 +77,15 @@ export type DocumentSearchParams = {
   category?: string
   equipmentType?: string
   author?: string
+  startDate?: string
+  endDate?: string
   page?: number
   size?: number
+}
+
+/** POST /documents 응답 */
+export type DocumentCreateResult = {
+  documentId: number
+  documentVersionId?: number
+  indexingStatus?: string
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   askChat,
   createChatConversation,
@@ -7,6 +7,8 @@ import {
   getChatConversations,
   getChatMessages,
 } from '../api'
+import { chatSendFailureMessage } from '../lib/chatSendErrors'
+import type { ChatSendStatus } from './sendStatus'
 import type {
   ChatConversationDetail,
   ChatConversationPage,
@@ -15,7 +17,13 @@ import type {
   DocumentScope,
 } from '../types'
 
-const DEFAULT_HISTORY_QUERY: ChatHistoryQuery = { page: 0, size: 10 }
+const DEFAULT_HISTORY_QUERY: ChatHistoryQuery = { page: 0, size: 20 }
+
+type RetrySnapshot = {
+  pendingTempMessageId: number
+  conversationId: number | null
+  text: string
+}
 
 export function useChatbot(initialConversationId?: number | null) {
   const [conversationId, setConversationId] = useState<number | null>(initialConversationId ?? null)
@@ -23,7 +31,9 @@ export function useChatbot(initialConversationId?: number | null) {
   const [loading, setLoading] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sendStatus, setSendStatus] = useState<ChatSendStatus>('idle')
   const [documentScope, setDocumentScope] = useState<DocumentScope>('ALL')
+  const retryRef = useRef<RetrySnapshot | null>(null)
 
   const loadConversation = useCallback(async (targetId: number) => {
     try {
@@ -46,26 +56,25 @@ export function useChatbot(initialConversationId?: number | null) {
     }
   }, [initialConversationId, loadConversation])
 
-  const sendQuestion = useCallback(
-    async (question: string) => {
-      const trimmed = question.trim()
-      if (!trimmed || loading) return
-
-      const tempUser: ChatMessage = {
-        messageId: Date.now() * -1,
-        role: 'USER',
-        messageText: trimmed,
-        messageStatus: 'SUCCESS',
-        createdAt: new Date().toISOString(),
-        sources: [],
-      }
-      setMessages((prev) => [...prev, tempUser])
-
+  const runAsk = useCallback(
+    async (
+      trimmed: string,
+      tempId: number,
+      existingUserBubble: boolean,
+      overrideConversationId?: number | null,
+    ) => {
+      let cid: number | null =
+        overrideConversationId !== undefined ? overrideConversationId : conversationId
       try {
         setLoading(true)
+        setSendStatus('pending')
         setError(null)
-        const targetConversationId = conversationId ?? (await createChatConversation(trimmed)).conversationId
-        const result = await askChat(targetConversationId, {
+        if (cid == null) {
+          const created = await createChatConversation(trimmed)
+          cid = created.conversationId
+          setConversationId(cid)
+        }
+        const result = await askChat(cid, {
           messageText: trimmed,
           context: {
             documentScope,
@@ -75,47 +84,82 @@ export function useChatbot(initialConversationId?: number | null) {
         })
         setConversationId(result.conversationId)
         setMessages((prev) => [
-          ...prev.filter((message) => message.messageId !== tempUser.messageId),
+          ...prev.filter((m) => m.messageId !== tempId),
           result.userMessage,
           result.assistantMessage,
         ])
+        setSendStatus('success')
+        retryRef.current = null
+        queueMicrotask(() => setSendStatus('idle'))
       } catch (err) {
-        setError(err instanceof Error ? err.message : '챗봇 답변 생성에 실패했습니다.')
-        setMessages((prev) => [
-          ...prev.filter((message) => message.messageId !== tempUser.messageId),
-          tempUser,
-          {
-            messageId: Date.now() * -1 - 1,
-            role: 'ASSISTANT',
-            messageText: '답변을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-            messageStatus: 'FAILED',
-            answerStatus: 'LLM_FAILED',
+        setSendStatus('failed')
+        setError(chatSendFailureMessage(err))
+        if (!existingUserBubble) {
+          const tempUser: ChatMessage = {
+            messageId: tempId,
+            role: 'USER',
+            messageText: trimmed,
+            messageStatus: 'SUCCESS',
             createdAt: new Date().toISOString(),
             sources: [],
-          },
-        ])
+          }
+          setMessages((prev) => [...prev.filter((m) => m.messageId !== tempId), tempUser])
+        }
+        retryRef.current = { pendingTempMessageId: tempId, conversationId: cid, text: trimmed }
       } finally {
         setLoading(false)
       }
     },
-    [conversationId, documentScope, loading],
+    [conversationId, documentScope],
   )
 
+  const sendQuestion = useCallback(
+    async (question: string) => {
+      const trimmed = question.trim()
+      if (!trimmed || loading || sendStatus === 'pending') return
+
+      const tempId = -Math.abs(Date.now())
+      setMessages((prev) => [
+        ...prev,
+        {
+          messageId: tempId,
+          role: 'USER',
+          messageText: trimmed,
+          messageStatus: 'SUCCESS',
+          createdAt: new Date().toISOString(),
+          sources: [],
+        },
+      ])
+      await runAsk(trimmed, tempId, false)
+    },
+    [loading, runAsk, sendStatus],
+  )
+
+  const retryLastQuestion = useCallback(async () => {
+    const snap = retryRef.current
+    if (!snap || loading || sendStatus === 'pending') return
+    await runAsk(snap.text, snap.pendingTempMessageId, true, snap.conversationId)
+  }, [loading, runAsk, sendStatus])
+
   const startNew = useCallback(() => {
+    retryRef.current = null
     setConversationId(null)
     setMessages([])
     setError(null)
+    setSendStatus('idle')
   }, [])
 
   return {
     conversationId,
     messages,
     loading,
+    sendStatus,
     detailLoading,
     error,
     documentScope,
     setDocumentScope,
     sendQuestion,
+    retryLastQuestion,
     loadConversation,
     startNew,
   }
@@ -128,21 +172,30 @@ export function useChatHistory() {
   const [loading, setLoading] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const requestGeneration = useRef(0)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
+    const gen = ++requestGeneration.current
     try {
       setLoading(true)
       setError(null)
-      setData(await getChatConversations(query))
+      const page = await getChatConversations(query, signal)
+      if (gen !== requestGeneration.current || signal?.aborted) return
+      setData(page)
     } catch (err) {
+      if (signal?.aborted) return
       setError(err instanceof Error ? err.message : '챗봇 이력을 불러오지 못했습니다.')
     } finally {
-      setLoading(false)
+      if (gen === requestGeneration.current) {
+        setLoading(false)
+      }
     }
   }, [query])
 
   useEffect(() => {
-    void load()
+    const controller = new AbortController()
+    void load(controller.signal)
+    return () => controller.abort()
   }, [load])
 
   const selectConversation = useCallback(async (targetConversationId: number) => {
@@ -161,14 +214,23 @@ export function useChatHistory() {
 
   const removeConversation = useCallback(
     async (targetConversationId: number) => {
-      await deleteChatConversation(targetConversationId)
-      if (selected?.conversationId === targetConversationId) {
-        setSelected(null)
+      try {
+        await deleteChatConversation(targetConversationId)
+        if (selected?.conversationId === targetConversationId) {
+          setSelected(null)
+        }
+        await load()
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : '대화를 삭제하지 못했습니다.')
       }
-      await load()
     },
     [load, selected?.conversationId],
   )
+
+  const reload = useCallback(() => {
+    const controller = new AbortController()
+    return load(controller.signal)
+  }, [load])
 
   const isSearchResultEmpty = useMemo(
     () => Boolean((query.keyword || query.from || query.to) && data && data.content.length === 0),
@@ -183,7 +245,7 @@ export function useChatHistory() {
     loading,
     detailLoading,
     error,
-    reload: load,
+    reload,
     selectConversation,
     removeConversation,
     isSearchResultEmpty,

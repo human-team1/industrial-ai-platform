@@ -50,6 +50,7 @@ export type ResultPageResponse = {
   size: number
   totalElements: number
   totalPages: number
+  /** 목록과 동일 필터 기준 전역 집계(백엔드 `ResultPageResponse.summary`) */
   summary?: ResultListSummary | null
 }
 

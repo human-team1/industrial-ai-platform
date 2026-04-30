@@ -1,3 +1,4 @@
+import { AxiosError } from 'axios'
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { postGoogleLogin, postLogout, postRefreshToken, getAuthMe } from '../api'
@@ -59,10 +60,10 @@ export function useAuthState(): AuthState {
         localStorage.setItem(USER_KEY, JSON.stringify(updated))
         setUser(updated)
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (cancelled) return
-        const errorCode: string | undefined =
-          (err as any)?.response?.data?.code ?? (err as any)?.response?.data?.errorCode
+        const data = err instanceof AxiosError ? (err.response?.data as { code?: string; errorCode?: string }) : undefined
+        const errorCode: string | undefined = data?.code ?? data?.errorCode
         if (errorCode === 'AUTH-405') {
           // PENDING_APPROVAL — 로그아웃 없이 안내 페이지로
           setMemoryToken(null)
@@ -91,7 +92,7 @@ export function useAuthState(): AuthState {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [navigate])
 
   const setAuth = useCallback((token: string, authUser: AuthUser) => {
     setMemoryToken(token)
