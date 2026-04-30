@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface GetResultImagesUseCase {
 
-    List<ResultImageResult> execute(Long resultId);
+    List<ResultImageResult> getImages(Long resultId);
 }

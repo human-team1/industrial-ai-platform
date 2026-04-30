@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface GetAnomalyRegionsUseCase {
 
-    List<AnomalyRegionResult> execute(Long imageId);
+    List<AnomalyRegionResult> getRegions(Long resultId);
 }

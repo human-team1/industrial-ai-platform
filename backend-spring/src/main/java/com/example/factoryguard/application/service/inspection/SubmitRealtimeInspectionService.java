@@ -1,7 +1,7 @@
 package com.example.factoryguard.application.service.inspection;
 
-import com.example.factoryguard.application.dto.inspection.AiInspectionResponse;
-import com.example.factoryguard.application.dto.inspection.AiRealtimeInspectionRequest;
+import com.example.factoryguard.application.dto.inspection.AiInspectionResult;
+import com.example.factoryguard.application.dto.inspection.AiRealtimeInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.dto.inspection.SubmitRealtimeInspectionCommand;
@@ -29,13 +29,14 @@ import com.example.factoryguard.domain.inspection.model.RunType;
 import com.example.factoryguard.domain.review.model.ReviewQueue;
 import com.example.factoryguard.domain.review.vo.ReviewQueueStatus;
 import com.example.factoryguard.domain.user.model.User;
-import com.example.factoryguard.adapter.out.fastapi.client.AiInvalidRequestException;
-import com.example.factoryguard.adapter.out.fastapi.client.AiServerException;
+import com.example.factoryguard.application.exception.ai.AiInvalidRequestException;
+import com.example.factoryguard.application.exception.ai.AiServerException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
@@ -67,12 +68,17 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
     public SubmitInspectionResult execute(SubmitRealtimeInspectionCommand command) {
         validateSession(command.getUserId(), command.getSessionId());
         User user = validateUserStatus(command.getUserId());
+        if (command.getCameraId() == null) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
         ResolvedThreshold resolved = resolveInspectionThresholdService.resolve(
                 command.getUserId(), command.getThresholdId());
-        AnalysisTarget target = loadAnalysisTargetPort.findById(command.getTargetId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.TARGET_NOT_FOUND));
-        if (!target.getOrganizationId().equals(user.getOrganizationId())) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
+        if (command.getTargetId() != null) {
+            AnalysisTarget target = loadAnalysisTargetPort.findById(command.getTargetId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.TARGET_NOT_FOUND));
+            if (!target.getOrganizationId().equals(user.getOrganizationId())) {
+                throw new BusinessException(ErrorCode.FORBIDDEN);
+            }
         }
         CameraSource camera = loadCameraSourcePort.findById(command.getCameraId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.CAMERA_NOT_FOUND));
@@ -88,8 +94,8 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
                 .inputType("CAMERA")
                 .sourceType("CAMERA")
                 .sourceId(String.valueOf(camera.getCameraId()))
-                .runStatus(RunStatus.PENDING)
-                .appliedThreshold(resolved.getAnomalyThreshold())
+                .runStatus(RunStatus.PROCESSING)
+                .appliedThreshold(BigDecimal.valueOf(resolved.getAnomalyThreshold()))
                 .idempotencyKey(UUID.randomUUID().toString())
                 .startedAt(LocalDateTime.now())
                 .build());
@@ -104,88 +110,10 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
                     .sourceName(camera.getCameraName())
                     .build());
 
-            eventLogger.log(runId, InspectionEventType.UPLOAD_RECEIVED, "camera=" + camera.getCameraId());
+            eventLogger.log(runId, InspectionEventType.REALTIME_STARTED, "실시간 탐지가 시작되었습니다.");
             eventLogger.log(runId, InspectionEventType.INPUT_SAVED, "camera input persisted");
 
-            runRecorder.transitTo(runId, RunStatus.PROCESSING);
-            eventLogger.log(runId, InspectionEventType.PROCESS_STARTED, "processing started");
-
-            eventLogger.log(runId, InspectionEventType.AI_CALLED, "realtime ai called");
-            AiInspectionResponse aiResponse;
-            try {
-                aiResponse = callAiInspectionPort.callRealtime(new AiRealtimeInspectionRequest(
-                        camera.getCameraId(),
-                        camera.getStreamUrl(),
-                        resolved.getAnomalyThreshold(),
-                        resolved.getLowConfidenceThreshold()
-                ));
-            } catch (TimeoutException aiEx) {
-                String detail = "AI_TIMEOUT: " + safeMessage(aiEx);
-                saveFailedResult(runId, resolved, detail);
-                eventLogger.logFailure(runId, InspectionEventType.AI_TIMEOUT, detail);
-                runRecorder.markFailed(runId, ErrorCode.AI_TIMEOUT.name());
-                eventLogger.logFailure(runId, InspectionEventType.FAILED, "ai timeout");
-                throw new BusinessException(ErrorCode.AI_TIMEOUT);
-            } catch (AiInvalidRequestException aiEx) {
-                String detail = "AI_REQUEST_INVALID: " + safeMessage(aiEx);
-                saveFailedResult(runId, resolved, detail);
-                eventLogger.logFailure(runId, InspectionEventType.AI_FAILED, detail);
-                runRecorder.markFailed(runId, ErrorCode.AI_REQUEST_INVALID.name());
-                eventLogger.logFailure(runId, InspectionEventType.FAILED, "ai 4xx");
-                throw new BusinessException(ErrorCode.AI_REQUEST_INVALID);
-            } catch (AiServerException aiEx) {
-                String detail = "AI_SERVER_ERROR: " + safeMessage(aiEx);
-                saveFailedResult(runId, resolved, detail);
-                eventLogger.logFailure(runId, InspectionEventType.AI_FAILED, detail);
-                runRecorder.markFailed(runId, ErrorCode.AI_SERVER_ERROR.name());
-                eventLogger.logFailure(runId, InspectionEventType.FAILED, "ai failed");
-                throw new BusinessException(ErrorCode.AI_SERVER_ERROR);
-            }
-
-            DecisionCalculator.DecisionResult decision = DecisionCalculator.decide(
-                    aiResponse.getScore(),
-                    aiResponse.getConfidence(),
-                    resolved.getAnomalyThreshold(),
-                    resolved.getLowConfidenceThreshold(),
-                    decisionProperties.getBoundaryMargin()
-            );
-
-            String resultStatus = decision.decisionCode() == DecisionCode.RECHECK
-                    ? RESULT_STATUS_REVIEW_REQUIRED
-                    : RESULT_STATUS_SUCCESS;
-
-            InspectionResult result = saveInspectionResultPort.save(InspectionResult.builder()
-                    .inspectionId(runId)
-                    .score(aiResponse.getScore())
-                    .confidence(aiResponse.getConfidence())
-                    .decisionCode(decision.decisionCode())
-                    .finalDecisionCode(decision.decisionCode())
-                    .resultStatus(resultStatus)
-                    .thresholdSource(resolved.getSource().name())
-                    .thresholdId(resolved.getThresholdId())
-                    .thresholdVersion(resolved.getThresholdVersion())
-                    .modelVersionId(aiResponse.getModelVersionId())
-                    .build());
-            eventLogger.log(runId, InspectionEventType.RESULT_SAVED, "result saved");
-
-            boolean reviewQueued = false;
-            if (decision.decisionCode() == DecisionCode.RECHECK) {
-                saveReviewQueuePort.save(ReviewQueue.builder()
-                        .resultId(result.getResultId())
-                        .queueStatus(ReviewQueueStatus.WAITING)
-                        .queuedReason(decision.queuedReason())
-                        .build());
-                reviewQueued = true;
-            }
-
-            runRecorder.transitTo(runId, RunStatus.COMPLETED);
-            eventLogger.log(runId, InspectionEventType.COMPLETED, "completed");
-
-            return SubmitInspectionResult.of(
-                    run.toBuilder().runStatus(RunStatus.COMPLETED).build(),
-                    result,
-                    reviewQueued
-            );
+            return SubmitInspectionResult.accepted(run, false);
 
         } catch (BusinessException be) {
             throw be;

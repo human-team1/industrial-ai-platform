@@ -6,6 +6,7 @@ import { ChatbotPage } from '../pages/ChatbotPage'
 import { ChatbotHistoryPage } from '../pages/ChatbotHistoryPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { InspectionPage } from '../pages/InspectionPage'
+import { UploadInspectionPage } from '../pages/UploadInspectionPage'
 import { ResultPage } from '../pages/ResultPage'
 import { ResultDetailPage } from '../pages/ResultDetailPage'
 import { AdminSignupRequestsPage } from '../pages/AdminSignupRequestsPage'
@@ -38,6 +39,7 @@ export function AppRouter() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/inspections" element={<InspectionPage />} />
+            <Route path="/inspections/upload" element={<UploadInspectionPage />} />
             <Route path="/results" element={<ResultPage />} />
             <Route path="/results/:resultId" element={<ResultDetailPage />} />
             <Route path="/documents" element={<DocumentListPage />} />

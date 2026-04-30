@@ -23,7 +23,7 @@ public class StopInspectionService implements StopInspectionUseCase {
     private final InspectionEventLogger eventLogger;
 
     @Override
-    public void execute(Long userId, Long organizationId, Long inspectionId) {
+    public InspectionRun execute(Long userId, Long organizationId, Long inspectionId) {
         InspectionRun run = loadInspectionRunPort.findRunById(inspectionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INSPECTION_NOT_FOUND));
         if (!run.getOrganizationId().equals(organizationId)) {
@@ -35,7 +35,9 @@ public class StopInspectionService implements StopInspectionUseCase {
         }
         try {
             runRecorder.transitTo(inspectionId, RunStatus.STOPPED);
-            eventLogger.log(inspectionId, InspectionEventType.STOPPED, "stopped by user " + userId);
+            eventLogger.log(inspectionId, InspectionEventType.REALTIME_STOPPED, "실시간 탐지가 중지되었습니다.");
+            return loadInspectionRunPort.findRunById(inspectionId)
+                    .orElse(run.toBuilder().runStatus(RunStatus.STOPPED).build());
         } catch (BusinessException be) {
             throw be;
         } catch (Exception e) {

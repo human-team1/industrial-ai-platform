@@ -1,5 +1,7 @@
 package com.example.factoryguard.adapter.out.fastapi.client;
 
+import com.example.factoryguard.application.exception.ai.AiInvalidRequestException;
+import com.example.factoryguard.application.exception.ai.AiServerException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.web.client.ResponseErrorHandler;

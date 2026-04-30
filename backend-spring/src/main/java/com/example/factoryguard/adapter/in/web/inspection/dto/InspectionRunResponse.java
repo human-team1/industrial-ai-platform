@@ -3,6 +3,7 @@ package com.example.factoryguard.adapter.in.web.inspection.dto;
 import com.example.factoryguard.domain.inspection.model.RunStatus;
 import com.example.factoryguard.domain.inspection.model.RunType;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record InspectionRunResponse(
@@ -12,7 +13,7 @@ public record InspectionRunResponse(
         Long targetId,
         RunType runType,
         RunStatus runStatus,
-        double appliedThreshold,
+        BigDecimal appliedThreshold,
         String errorCode,
         LocalDateTime startedAt,
         LocalDateTime completedAt

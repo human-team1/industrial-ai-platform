@@ -4,11 +4,13 @@ import com.example.factoryguard.adapter.out.persistence.inspection.AnalysisTarge
 import com.example.factoryguard.adapter.out.persistence.inspection.CameraSourceJpaEntity;
 import com.example.factoryguard.adapter.out.persistence.inspection.InspectionEventLogJpaEntity;
 import com.example.factoryguard.adapter.out.persistence.inspection.InspectionInputJpaEntity;
+import com.example.factoryguard.adapter.out.persistence.inspection.InspectionResultJpaEntity;
 import com.example.factoryguard.adapter.out.persistence.inspection.InspectionRunJpaEntity;
 import com.example.factoryguard.domain.inspection.model.AnalysisTarget;
 import com.example.factoryguard.domain.inspection.model.CameraSource;
 import com.example.factoryguard.domain.inspection.model.InspectionEventLog;
 import com.example.factoryguard.domain.inspection.model.InspectionInput;
+import com.example.factoryguard.domain.inspection.model.InspectionResult;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import org.springframework.stereotype.Component;
 
@@ -59,6 +61,40 @@ public class InspectionPersistenceMapper {
                 .errorCode(e.getErrorCode())
                 .startedAt(e.getStartedAt())
                 .completedAt(e.getCompletedAt())
+                .build();
+    }
+
+    public InspectionResultJpaEntity toEntity(InspectionResult result) {
+        return InspectionResultJpaEntity.builder()
+                .inspectionId(result.getInspectionId())
+                .score(result.getScore())
+                .confidence(result.getConfidence())
+                .decisionCode(result.getDecisionCode())
+                .finalDecisionCode(result.getFinalDecisionCode())
+                .resultStatus(result.getResultStatus())
+                .thresholdSource(result.getThresholdSource())
+                .thresholdId(result.getThresholdId())
+                .thresholdVersion(result.getThresholdVersion())
+                .modelVersionId(result.getModelVersionId())
+                .failureReason(result.getFailureReason())
+                .build();
+    }
+
+    public InspectionResult toDomain(InspectionResultJpaEntity e) {
+        return InspectionResult.builder()
+                .resultId(e.getResultId())
+                .inspectionId(e.getInspectionId())
+                .score(e.getScore())
+                .confidence(e.getConfidence())
+                .decisionCode(e.getDecisionCode())
+                .finalDecisionCode(e.getFinalDecisionCode())
+                .resultStatus(e.getResultStatus())
+                .thresholdSource(e.getThresholdSource())
+                .thresholdId(e.getThresholdId())
+                .thresholdVersion(e.getThresholdVersion())
+                .modelVersionId(e.getModelVersionId())
+                .failureReason(e.getFailureReason())
+                .createdAt(e.getCreatedAt())
                 .build();
     }
 

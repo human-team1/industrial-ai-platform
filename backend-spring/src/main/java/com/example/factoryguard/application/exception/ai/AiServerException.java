@@ -1,4 +1,4 @@
-package com.example.factoryguard.adapter.out.fastapi.client;
+package com.example.factoryguard.application.exception.ai;
 
 public class AiServerException extends RuntimeException {
 

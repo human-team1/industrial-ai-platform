@@ -1,4 +1,4 @@
-package com.example.factoryguard.application.dto.inspection;
+package com.example.factoryguard.adapter.out.fastapi.response;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

@@ -17,6 +17,7 @@ public class ListInspectionResultsQuery {
     private final String runType;
     private final String decision;
     private final String resultStatus;
+    private final Long targetId;
     private final int page;
     private final int size;
 }
