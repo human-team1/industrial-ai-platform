@@ -1,5 +1,6 @@
 package com.example.factoryguard.adapter.out.persistence.inspection;
 
+import com.example.factoryguard.adapter.out.persistence.inspection.mapper.InspectionPersistenceMapper;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
 import com.example.factoryguard.application.port.out.inspection.LoadInspectionRunPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionResultPort;
@@ -30,17 +31,11 @@ public class InspectionPersistenceAdapter implements
     private final AnalysisTargetJpaRepository analysisTargetJpaRepository;
     private final InspectionRunJpaRepository inspectionRunJpaRepository;
     private final InspectionResultJpaRepository inspectionResultJpaRepository;
+    private final InspectionPersistenceMapper mapper;
 
     @Override
     public Optional<AnalysisTarget> findById(Long targetId) {
-        return analysisTargetJpaRepository.findById(targetId)
-                .map(e -> AnalysisTarget.builder()
-                        .targetId(e.getTargetId())
-                        .organizationId(e.getOrganizationId())
-                        .targetName(e.getTargetName())
-                        .equipmentName(e.getEquipmentName())
-                        .productName(e.getProductName())
-                        .build());
+        return analysisTargetJpaRepository.findById(targetId).map(mapper::toDomain);
     }
 
     @Override
@@ -55,24 +50,9 @@ public class InspectionPersistenceAdapter implements
             }
             saved = existing;
         } else {
-            saved = inspectionRunJpaRepository.save(
-                    InspectionRunJpaEntity.builder()
-                            .organizationId(run.getOrganizationId())
-                            .userId(run.getUserId())
-                            .targetId(run.getTargetId())
-                            .runType(run.getRunType())
-                            .inputType(run.getInputType())
-                            .sourceType(run.getSourceType())
-                            .sourceId(run.getSourceId())
-                            .runStatus(run.getRunStatus())
-                            .appliedThreshold(run.getAppliedThreshold())
-                            .idempotencyKey(run.getIdempotencyKey())
-                            .payloadFingerprint(run.getPayloadFingerprint())
-                            .startedAt(run.getStartedAt())
-                            .build()
-            );
+            saved = inspectionRunJpaRepository.save(mapper.toEntity(run));
         }
-        return toDomain(saved);
+        return mapper.toDomain(saved);
     }
 
     @Override
@@ -80,12 +60,12 @@ public class InspectionPersistenceAdapter implements
             Long organizationId, Long userId, String idempotencyKey) {
         return inspectionRunJpaRepository
                 .findByOrganizationIdAndUserIdAndIdempotencyKey(organizationId, userId, idempotencyKey)
-                .map(this::toDomain);
+                .map(mapper::toDomain);
     }
 
     @Override
     public Optional<InspectionRun> findRunById(Long inspectionId) {
-        return inspectionRunJpaRepository.findById(inspectionId).map(this::toDomain);
+        return inspectionRunJpaRepository.findById(inspectionId).map(mapper::toDomain);
     }
 
     @Override
@@ -93,13 +73,13 @@ public class InspectionPersistenceAdapter implements
         return inspectionRunJpaRepository.findByOrganizationId(
                 organizationId,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "startedAt"))
-        ).stream().map(this::toDomain).toList();
+        ).stream().map(mapper::toDomain).toList();
     }
 
     @Override
     public List<InspectionRun> findRunsByStatusAndStartedAtBefore(RunStatus status, LocalDateTime threshold) {
         return inspectionRunJpaRepository.findByRunStatusAndStartedAtBefore(status, threshold).stream()
-                .map(this::toDomain).toList();
+                .map(mapper::toDomain).toList();
     }
 
     @Override
@@ -119,21 +99,7 @@ public class InspectionPersistenceAdapter implements
                         .failureReason(result.getFailureReason())
                         .build()
         );
-        return InspectionResult.builder()
-                .resultId(saved.getResultId())
-                .inspectionId(saved.getInspectionId())
-                .score(saved.getScore())
-                .confidence(saved.getConfidence())
-                .decisionCode(saved.getDecisionCode())
-                .finalDecisionCode(saved.getFinalDecisionCode())
-                .resultStatus(saved.getResultStatus())
-                .thresholdSource(saved.getThresholdSource())
-                .thresholdId(saved.getThresholdId())
-                .thresholdVersion(saved.getThresholdVersion())
-                .modelVersionId(saved.getModelVersionId())
-                .failureReason(saved.getFailureReason())
-                .createdAt(saved.getCreatedAt())
-                .build();
+        return toDomain(saved);
     }
 
     @Override
@@ -163,26 +129,6 @@ public class InspectionPersistenceAdapter implements
                 .modelVersionId(e.getModelVersionId())
                 .failureReason(e.getFailureReason())
                 .createdAt(e.getCreatedAt())
-                .build();
-    }
-
-    private InspectionRun toDomain(InspectionRunJpaEntity e) {
-        return InspectionRun.builder()
-                .inspectionId(e.getInspectionId())
-                .organizationId(e.getOrganizationId())
-                .userId(e.getUserId())
-                .targetId(e.getTargetId())
-                .runType(e.getRunType())
-                .inputType(e.getInputType())
-                .sourceType(e.getSourceType())
-                .sourceId(e.getSourceId())
-                .runStatus(e.getRunStatus())
-                .appliedThreshold(e.getAppliedThreshold())
-                .idempotencyKey(e.getIdempotencyKey())
-                .payloadFingerprint(e.getPayloadFingerprint())
-                .errorCode(e.getErrorCode())
-                .startedAt(e.getStartedAt())
-                .completedAt(e.getCompletedAt())
                 .build();
     }
 }
