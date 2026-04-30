@@ -2,10 +2,10 @@ package com.example.factoryguard.adapter.in.web.inspection;
 
 import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionEventLogResponse;
 import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionRunResponse;
+import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionStatusResponse;
 import com.example.factoryguard.adapter.in.web.inspection.mapper.InspectionWebMapper;
 import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
 import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
-import com.example.factoryguard.application.dto.inspection.InspectionStatusResponse;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.port.in.inspection.GetInspectionEventsUseCase;
@@ -44,7 +44,7 @@ public class InspectionController {
 
     @GetMapping("/status")
     public ApiResponse<InspectionStatusResponse> getStatus() {
-        return ApiResponse.success(InspectionStatusResponse.from(getInspectionStatusUseCase.getStatus()));
+        return ApiResponse.success(webMapper.toResponse(getInspectionStatusUseCase.getStatus()));
     }
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
