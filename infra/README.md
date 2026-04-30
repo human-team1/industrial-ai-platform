@@ -9,6 +9,12 @@
 - `inspection_run.payload_fingerprint VARCHAR(64)` 컬럼 추가
 - `inspection_input.source_type VARCHAR(20) NOT NULL` 컬럼 추가 (검사 입력 출처 구분: 파일/카메라/스트림)
 - `inspection_result.threshold_version` 타입 `VARCHAR(50)` → `INT` 정정 (`user_threshold_history.version INT` 참조 정수 버전과 정합)
+- AI 산출값/임계값/좌표/사용률/모델 평가지표 계열 수치 컬럼을 `DECIMAL(...)` → `DOUBLE`로 환원. AI 서버 페이로드(JSON number)와 자바 도메인의 `double`/`Double`에 맞춰 타입 정합성 회복(mapper 분리 작업 전 사전 정리). 환원 대상:
+  - `user_threshold_history.old_anomaly_threshold`, `new_anomaly_threshold`
+  - `model_version.accuracy`, `precision_score`, `recall_score`
+  - `inspection_run.applied_threshold`
+  - `anomaly_region.bbox_x`, `bbox_y`, `bbox_w`, `bbox_h`, `score`
+  - `system_status_snapshot.cpu_usage`, `memory_usage`, `disk_usage`
 
 ## 서비스
 

@@ -25,10 +25,10 @@ public class UserThresholdHistoryJpaEntity {
     @Column(name = "version")
     private Integer version;
 
-    @Column(name = "old_anomaly_threshold", nullable = false, columnDefinition = "DECIMAL(5,4)")
+    @Column(name = "old_anomaly_threshold", nullable = false)
     private double oldAnomalyThreshold;
 
-    @Column(name = "new_anomaly_threshold", nullable = false, columnDefinition = "DECIMAL(5,4)")
+    @Column(name = "new_anomaly_threshold", nullable = false)
     private double newAnomalyThreshold;
 
     @Column(name = "change_reason", columnDefinition = "TEXT")

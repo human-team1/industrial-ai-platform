@@ -15,7 +15,6 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -36,20 +35,20 @@ public class AnomalyRegionJpaEntity {
     @Column(name = "label_code")
     private AnomalyRegionLabel labelCode;
 
-    @Column(name = "bbox_x", precision = 10, scale = 4)
-    private BigDecimal bboxX;
+    @Column(name = "bbox_x")
+    private Double bboxX;
 
-    @Column(name = "bbox_y", precision = 10, scale = 4)
-    private BigDecimal bboxY;
+    @Column(name = "bbox_y")
+    private Double bboxY;
 
-    @Column(name = "bbox_w", precision = 10, scale = 4)
-    private BigDecimal bboxW;
+    @Column(name = "bbox_w")
+    private Double bboxW;
 
-    @Column(name = "bbox_h", precision = 10, scale = 4)
-    private BigDecimal bboxH;
+    @Column(name = "bbox_h")
+    private Double bboxH;
 
-    @Column(name = "score", precision = 6, scale = 4)
-    private BigDecimal score;
+    @Column(name = "score")
+    private Double score;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -59,11 +58,11 @@ public class AnomalyRegionJpaEntity {
     public AnomalyRegionJpaEntity(
             Long imageId,
             AnomalyRegionLabel labelCode,
-            BigDecimal bboxX,
-            BigDecimal bboxY,
-            BigDecimal bboxW,
-            BigDecimal bboxH,
-            BigDecimal score
+            Double bboxX,
+            Double bboxY,
+            Double bboxW,
+            Double bboxH,
+            Double score
     ) {
         this.imageId = imageId;
         this.labelCode = labelCode;

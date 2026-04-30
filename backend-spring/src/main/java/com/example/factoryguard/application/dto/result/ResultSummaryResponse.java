@@ -3,7 +3,6 @@ package com.example.factoryguard.application.dto.result;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -18,8 +17,8 @@ public class ResultSummaryResponse {
     private final String productName;
     private final String runType;
     private final String inputType;
-    private final BigDecimal score;
-    private final BigDecimal confidence;
+    private final Double score;
+    private final Double confidence;
     private final String decisionCode;
     private final String finalDecisionCode;
     private final String resultStatus;

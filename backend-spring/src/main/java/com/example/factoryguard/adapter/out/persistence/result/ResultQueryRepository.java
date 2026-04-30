@@ -19,7 +19,6 @@ import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
-import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -144,13 +143,13 @@ public class ResultQueryRepository {
                         .completedAt(toLocalDateTime(row[11]))
                         .build())
                 .result(ResultDecisionResponse.builder()
-                        .score(toBigDecimal(row[12]))
-                        .confidence(toBigDecimal(row[13]))
+                        .score(toDouble(row[12]))
+                        .confidence(toDouble(row[13]))
                         .decisionCode(toApiDecision(toStringObject(row[14])))
                         .finalDecisionCode(toApiDecision(toStringObject(row[15])))
                         .resultStatus(toStringObject(row[16]))
                         .thresholdSource(toStringObject(row[17]))
-                        .appliedThreshold(toBigDecimal(row[18]))
+                        .appliedThreshold(toDouble(row[18]))
                         .modelVersionId(toLongObject(row[19]))
                         .failureReason(toStringObject(row[20]))
                         .createdAt(toLocalDateTime(row[21]))
@@ -294,7 +293,7 @@ public class ResultQueryRepository {
                 .normalCount(toLongObject(row[1]) == null ? 0 : toLong(row[1]))
                 .defectCount(toLongObject(row[2]) == null ? 0 : toLong(row[2]))
                 .retestCount(toLongObject(row[3]) == null ? 0 : toLong(row[3]))
-                .avgScore(toBigDecimal(row[4]))
+                .avgScore(toDouble(row[4]))
                 .build();
     }
 
@@ -308,8 +307,8 @@ public class ResultQueryRepository {
                 .productName(toStringObject(row[5]))
                 .runType(toStringObject(row[6]))
                 .inputType(toStringObject(row[7]))
-                .score(toBigDecimal(row[8]))
-                .confidence(toBigDecimal(row[9]))
+                .score(toDouble(row[8]))
+                .confidence(toDouble(row[9]))
                 .decisionCode(toApiDecision(toStringObject(row[10])))
                 .finalDecisionCode(toApiDecision(toStringObject(row[11])))
                 .resultStatus(toStringObject(row[12]))
@@ -377,11 +376,11 @@ public class ResultQueryRepository {
                 .map(row -> AnomalyRegionResponse.builder()
                         .regionId(toLongObject(row[0]))
                         .labelCode(toStringObject(row[1]))
-                        .bboxX(toBigDecimal(row[2]))
-                        .bboxY(toBigDecimal(row[3]))
-                        .bboxW(toBigDecimal(row[4]))
-                        .bboxH(toBigDecimal(row[5]))
-                        .score(toBigDecimal(row[6]))
+                        .bboxX(toDouble(row[2]))
+                        .bboxY(toDouble(row[3]))
+                        .bboxW(toDouble(row[4]))
+                        .bboxH(toDouble(row[5]))
+                        .score(toDouble(row[6]))
                         .build())
                 .toList();
     }
@@ -439,7 +438,7 @@ public class ResultQueryRepository {
                 .map(row -> RelatedResultResponse.builder()
                         .resultId(toLongObject(row[0]))
                         .createdAt(toLocalDateTime(row[1]))
-                        .score(toBigDecimal(row[2]))
+                        .score(toDouble(row[2]))
                         .decisionCode(toApiDecision(toStringObject(row[3])))
                         .location(toStringObject(row[4]))
                         .build())
@@ -482,17 +481,14 @@ public class ResultQueryRepository {
         return Long.parseLong(value.toString());
     }
 
-    private BigDecimal toBigDecimal(Object value) {
+    private Double toDouble(Object value) {
         if (value == null) {
             return null;
         }
-        if (value instanceof BigDecimal decimal) {
-            return decimal;
-        }
         if (value instanceof Number number) {
-            return BigDecimal.valueOf(number.doubleValue());
+            return number.doubleValue();
         }
-        return new BigDecimal(value.toString());
+        return Double.parseDouble(value.toString());
     }
 
     private String toStringObject(Object value) {
