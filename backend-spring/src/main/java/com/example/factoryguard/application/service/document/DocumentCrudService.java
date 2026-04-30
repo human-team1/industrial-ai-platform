@@ -291,7 +291,11 @@ public class DocumentCrudService implements DocumentCrudUseCase {
     }
 
     private boolean isAdmin(AuthenticatedPrincipal principal) {
-        return principal.role() != null && "ADMIN".equalsIgnoreCase(principal.role());
+        if (principal.role() == null) {
+            return false;
+        }
+        String normalized = principal.role().trim().toUpperCase(Locale.ROOT);
+        return "ROLE_SITE_ADMIN".equals(normalized) || "ADMIN".equals(normalized);
     }
 
     private void validateOrganizationAccess(Long documentId, Long organizationId, boolean isAdmin) {

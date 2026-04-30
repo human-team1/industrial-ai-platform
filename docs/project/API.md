@@ -12,6 +12,12 @@
 | 날짜 형식 | ISO-8601 |
 | 페이지네이션 | `page`, `size`, `sort` |
 
+권한 표기 규칙:
+
+- 본 문서의 관리자 권한은 `ROLE_SITE_ADMIN`을 기본값으로 표기한다.
+- 정책명/화면 문구는 "사이트 관리자"를 사용한다.
+- 상세 권한 매트릭스(회사 관리자/작업자 포함)는 `docs/auth/api-authority-matrix.md`를 단일 기준으로 본다.
+
 ## 성공 응답 예시
 
 ```json
@@ -54,14 +60,14 @@
 | GET | `/auth/me` | 내 로그인 정보 조회 | USER |
 | GET | `/signup-requests/organizations/public` | 회원가입용 조직 목록 조회 (이름 위주) | Public |
 | POST | `/signup-requests` | 회원가입 신청 | Public |
-| GET | `/signup-requests` | 가입 신청 목록 조회 | ADMIN |
-| PATCH | `/signup-requests/{requestId}/approve` | 가입 승인 | ADMIN |
-| PATCH | `/signup-requests/{requestId}/reject` | 가입 거절 | ADMIN |
+| GET | `/signup-requests` | 가입 신청 목록 조회 | ROLE_SITE_ADMIN |
+| PATCH | `/signup-requests/{requestId}/approve` | 가입 승인 | ROLE_SITE_ADMIN |
+| PATCH | `/signup-requests/{requestId}/reject` | 가입 거절 | ROLE_SITE_ADMIN |
 | GET | `/users/me` | 내 정보 조회 | USER |
 | PATCH | `/users/me` | 내 정보 수정 | USER |
-| GET | `/users` | 사용자 목록 조회 | ADMIN |
-| GET | `/users/{userId}` | 사용자 상세 조회 | ADMIN |
-| PATCH | `/users/{userId}/status` | 사용자 상태 변경 | ADMIN |
+| GET | `/users` | 사용자 목록 조회 | ROLE_SITE_ADMIN |
+| GET | `/users/{userId}` | 사용자 상세 조회 | ROLE_SITE_ADMIN |
+| PATCH | `/users/{userId}/status` | 사용자 상태 변경 | ROLE_SITE_ADMIN |
 
 ## POST `/auth/login`
 
@@ -132,11 +138,11 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/organizations` | 조직 목록 조회 | ADMIN |
-| POST | `/organizations` | 조직 생성 | ADMIN |
-| GET | `/organizations/{organizationId}` | 조직 상세 조회 | ADMIN |
-| PATCH | `/organizations/{organizationId}` | 조직 수정 | ADMIN |
-| PATCH | `/organizations/{organizationId}/status` | 조직 상태 변경 | ADMIN |
+| GET | `/organizations` | 조직 목록 조회 | ROLE_SITE_ADMIN |
+| POST | `/organizations` | 조직 생성 | ROLE_SITE_ADMIN |
+| GET | `/organizations/{organizationId}` | 조직 상세 조회 | ROLE_SITE_ADMIN |
+| PATCH | `/organizations/{organizationId}` | 조직 수정 | ROLE_SITE_ADMIN |
+| PATCH | `/organizations/{organizationId}/status` | 조직 상태 변경 | ROLE_SITE_ADMIN |
 
 ---
 
@@ -257,11 +263,11 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/reviews` | 재검토 큐 목록 조회 | ADMIN |
-| GET | `/reviews/{reviewQueueId}` | 재검토 상세 조회 | ADMIN |
-| PATCH | `/reviews/{reviewQueueId}` | 재검토 처리 | ADMIN |
-| GET | `/results/{resultId}/review-histories` | 결과별 재검토 이력 조회 | ADMIN |
-| POST | `/results/{resultId}/learning-candidates` | 학습 후보 등록 | ADMIN |
+| GET | `/reviews` | 재검토 큐 목록 조회 | ROLE_SITE_ADMIN |
+| GET | `/reviews/{reviewQueueId}` | 재검토 상세 조회 | ROLE_SITE_ADMIN |
+| PATCH | `/reviews/{reviewQueueId}` | 재검토 처리 | ROLE_SITE_ADMIN |
+| GET | `/results/{resultId}/review-histories` | 결과별 재검토 이력 조회 | ROLE_SITE_ADMIN |
+| POST | `/results/{resultId}/learning-candidates` | 학습 후보 등록 | ROLE_SITE_ADMIN |
 
 ## PATCH `/reviews/{reviewQueueId}`
 
@@ -332,12 +338,12 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/reports` | 보고서 목록 조회 | ADMIN |
-| POST | `/reports` | 보고서 생성 요청 | ADMIN |
-| GET | `/reports/{reportId}` | 보고서 상세 조회 | ADMIN |
-| GET | `/reports/{reportId}/items` | 보고서 항목 조회 | ADMIN |
-| GET | `/reports/{reportId}/files` | 보고서 파일 조회 | ADMIN |
-| GET | `/reports/{reportId}/download` | 보고서 다운로드 | ADMIN |
+| GET | `/reports` | 보고서 목록 조회 | ROLE_SITE_ADMIN |
+| POST | `/reports` | 보고서 생성 요청 | ROLE_SITE_ADMIN |
+| GET | `/reports/{reportId}` | 보고서 상세 조회 | ROLE_SITE_ADMIN |
+| GET | `/reports/{reportId}/items` | 보고서 항목 조회 | ROLE_SITE_ADMIN |
+| GET | `/reports/{reportId}/files` | 보고서 파일 조회 | ROLE_SITE_ADMIN |
+| GET | `/reports/{reportId}/download` | 보고서 다운로드 | ROLE_SITE_ADMIN |
 
 ---
 
@@ -345,14 +351,14 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/admin/audit-logs` | 감사 로그 조회 | ADMIN |
-| GET | `/admin/action-logs` | 관리자 작업 로그 조회 | ADMIN |
-| GET | `/admin/operation-logs` | 운영 로그 조회 | ADMIN |
-| GET | `/admin/system-status` | 시스템 상태 조회 | ADMIN |
-| GET | `/admin/operation-policies` | 운영 정책 조회 | ADMIN |
-| PATCH | `/admin/operation-policies/{policyId}` | 운영 정책 수정 | ADMIN |
-| GET | `/admin/async-jobs` | 비동기 작업 목록 조회 | ADMIN |
-| GET | `/admin/async-jobs/{jobId}` | 비동기 작업 상세 조회 | ADMIN |
+| GET | `/admin/audit-logs` | 감사 로그 조회 | ROLE_SITE_ADMIN |
+| GET | `/admin/action-logs` | 관리자 작업 로그 조회 | ROLE_SITE_ADMIN |
+| GET | `/admin/operation-logs` | 운영 로그 조회 | ROLE_SITE_ADMIN |
+| GET | `/admin/system-status` | 시스템 상태 조회 | ROLE_SITE_ADMIN |
+| GET | `/admin/operation-policies` | 운영 정책 조회 | ROLE_SITE_ADMIN |
+| PATCH | `/admin/operation-policies/{policyId}` | 운영 정책 수정 | ROLE_SITE_ADMIN |
+| GET | `/admin/async-jobs` | 비동기 작업 목록 조회 | ROLE_SITE_ADMIN |
+| GET | `/admin/async-jobs/{jobId}` | 비동기 작업 상세 조회 | ROLE_SITE_ADMIN |
 
 ---
 
@@ -370,13 +376,13 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/models` | 모델 목록 조회 | ADMIN |
-| POST | `/models` | 모델 등록 | ADMIN |
-| GET | `/models/{modelId}/versions` | 모델 버전 목록 조회 | ADMIN |
-| POST | `/models/{modelId}/versions` | 모델 버전 등록 | ADMIN |
-| PATCH | `/model-versions/{versionId}/activate` | 모델 버전 활성화 | ADMIN |
-| POST | `/model-versions/{versionId}/deployments` | 모델 배포 | ADMIN |
-| PATCH | `/model-deployments/{deploymentId}/rollback` | 모델 롤백 | ADMIN |
+| GET | `/models` | 모델 목록 조회 | ROLE_SITE_ADMIN |
+| POST | `/models` | 모델 등록 | ROLE_SITE_ADMIN |
+| GET | `/models/{modelId}/versions` | 모델 버전 목록 조회 | ROLE_SITE_ADMIN |
+| POST | `/models/{modelId}/versions` | 모델 버전 등록 | ROLE_SITE_ADMIN |
+| PATCH | `/model-versions/{versionId}/activate` | 모델 버전 활성화 | ROLE_SITE_ADMIN |
+| POST | `/model-versions/{versionId}/deployments` | 모델 배포 | ROLE_SITE_ADMIN |
+| PATCH | `/model-deployments/{deploymentId}/rollback` | 모델 롤백 | ROLE_SITE_ADMIN |
 
 ---
 

@@ -1,5 +1,9 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
+import { formatDateTime } from '../../../shared/lib/date'
+import type { ChatSendStatus } from '../model/sendStatus'
+import { assistantDeliveryLabel } from '../model/mapper'
+import { STATIC_RECOMMENDED_CHAT_QUESTIONS } from '../model/recommendedQuestions'
 import type { ChatConversationSummary, ChatMessage, ChatSource, DocumentScope } from '../types'
 
 const roleLabel: Record<ChatMessage['role'], string> = {
@@ -8,39 +12,54 @@ const roleLabel: Record<ChatMessage['role'], string> = {
 }
 
 export function ChatInput({
-  loading,
+  sendStatus,
   documentScope,
   onScopeChange,
   onSubmit,
+  value: controlledValue,
+  onChange: controlledOnChange,
 }: {
-  loading: boolean
+  sendStatus: ChatSendStatus
   documentScope: DocumentScope
   onScopeChange: (scope: DocumentScope) => void
   onSubmit: (question: string) => void
+  value?: string
+  onChange?: (value: string) => void
 }) {
-  const [value, setValue] = useState('')
+  const [internal, setInternal] = useState('')
+  const value = controlledValue !== undefined ? controlledValue : internal
+  const setValue = controlledOnChange ?? setInternal
   const trimmed = value.trim()
+  const pending = sendStatus === 'pending'
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    if (!trimmed || loading) return
+    if (!trimmed || pending) return
     onSubmit(trimmed)
     setValue('')
   }
 
   return (
     <form className="space-y-3" onSubmit={submit}>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <select
-          className="control"
+          className="control max-w-xs"
           value={documentScope}
           onChange={(event) => onScopeChange(event.target.value as DocumentScope)}
         >
           <option value="ALL">전체문서</option>
         </select>
-        <button className="btn-secondary" type="button" disabled title="첨부 기능은 문서 업로드 화면을 사용합니다.">
-          첨부
-        </button>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed rounded-md border border-slate-200 bg-slate-100 px-3 py-1.5 text-slate-400"
+            aria-disabled="true"
+          >
+            첨부
+          </button>
+          <span>문서 첨부 기능은 추후 지원 예정입니다.</span>
+        </div>
       </div>
       <div className="flex gap-2">
         <textarea
@@ -49,8 +68,9 @@ export function ChatInput({
           placeholder="문서를 기반으로 궁금한 내용을 질문해 주세요."
           value={value}
           onChange={(event) => setValue(event.target.value)}
+          disabled={pending}
         />
-        <button className="btn-primary h-auto min-w-[84px]" disabled={!trimmed || loading} type="submit">
+        <button className="btn-primary h-auto min-w-[84px]" disabled={!trimmed || pending} type="submit">
           전송
         </button>
       </div>
@@ -59,8 +79,24 @@ export function ChatInput({
   )
 }
 
-export function ChatMessageList({ messages, loading }: { messages: ChatMessage[]; loading: boolean }) {
-  if (messages.length === 0 && !loading) {
+export function ChatMessageList({
+  messages,
+  detailLoading,
+  sendStatus,
+}: {
+  messages: ChatMessage[]
+  detailLoading: boolean
+  sendStatus: ChatSendStatus
+}) {
+  if (detailLoading && messages.length === 0) {
+    return (
+      <div className="flex min-h-[260px] items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-600">
+        대화를 불러오는 중입니다.
+      </div>
+    )
+  }
+
+  if (messages.length === 0 && !detailLoading) {
     return (
       <div className="flex min-h-[260px] items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-600">
         아직 대화가 없습니다. 문서 기반 질문을 시작해 보세요.
@@ -68,12 +104,15 @@ export function ChatMessageList({ messages, loading }: { messages: ChatMessage[]
     )
   }
 
+  const lastRole = messages.length > 0 ? messages[messages.length - 1]?.role : null
+  const showTyping = sendStatus === 'pending' && lastRole === 'USER'
+
   return (
     <div className="space-y-3">
       {messages.map((message) => (
         <ChatMessageItem key={message.messageId} message={message} />
       ))}
-      {loading ? (
+      {showTyping ? (
         <div className="rounded-md border border-slate-200 bg-white p-4 text-sm text-slate-600">
           답변을 생성하는 중입니다.
         </div>
@@ -85,7 +124,7 @@ export function ChatMessageList({ messages, loading }: { messages: ChatMessage[]
 export function ChatMessageItem({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'USER'
   const isFailed = message.messageStatus === 'FAILED'
-  const isNoSource = message.answerStatus === 'NO_RELEVANT_SOURCE'
+  const delivery = !isUser ? assistantDeliveryLabel(message) : ''
 
   const copyAnswer = async () => {
     await navigator.clipboard.writeText(message.messageText)
@@ -100,18 +139,17 @@ export function ChatMessageItem({ message }: { message: ChatMessage }) {
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className={`text-xs font-semibold ${isUser ? 'text-slate-200' : isFailed ? 'text-red-700' : 'text-slate-500'}`}>
           {roleLabel[message.role]}
-          {isFailed ? ' · 실패' : ''}
-          {isNoSource ? ' · 검색 결과 없음' : ''}
+          {!isUser && delivery ? ` · ${delivery}` : ''}
           {message.modelName ? ` · ${message.modelName}` : ''}
         </span>
-        {!isUser ? (
+        {!isUser && message.messageText?.trim() ? (
           <button className="btn-secondary h-8" type="button" onClick={copyAnswer}>
             복사
           </button>
         ) : null}
       </div>
-      <p className="whitespace-pre-wrap text-sm leading-6">{message.messageText}</p>
-      {isFailed ? <p className="mt-2 text-xs text-red-700">재시도하거나 질문을 더 구체적으로 입력해 주세요.</p> : null}
+      <p className="whitespace-pre-wrap text-sm leading-6">{message.messageText || (isFailed ? '(내용 없음)' : '')}</p>
+      {isFailed ? <p className="mt-2 text-xs text-red-700">아래 안내 또는 재시도를 확인해 주세요.</p> : null}
       {!isUser ? <ChatSourceList sources={message.sources ?? []} /> : null}
     </article>
   )
@@ -119,7 +157,11 @@ export function ChatMessageItem({ message }: { message: ChatMessage }) {
 
 export function ChatSourceList({ sources }: { sources: ChatSource[] }) {
   if (sources.length === 0) {
-    return <p className="mt-3 text-xs text-slate-500">참조 가능한 문서를 찾지 못했습니다.</p>
+    return (
+      <p className="mt-3 text-xs text-slate-500">
+        표시할 출처가 없습니다. (RAG·AI 서버 연동 후 제공될 수 있습니다.)
+      </p>
+    )
   }
 
   return (
@@ -156,22 +198,43 @@ export function ChatSourceList({ sources }: { sources: ChatSource[] }) {
   )
 }
 
-export function RecommendedQuestions({ onPick }: { onPick: (question: string) => void }) {
-  const questions = [
-    '모터 과부하 경보 발생 시 조치 절차는?',
-    '베어링 교체 주기 기준은 어떻게 되나요?',
-    '문서 업로드 방법을 알려줘',
-    '정기 점검 체크리스트는 어디서 확인하나요?',
-  ]
-
+export function RecommendedQuestions({
+  onSend,
+  onFill,
+  disabled,
+}: {
+  onSend: (question: string) => void
+  onFill?: (question: string) => void
+  disabled?: boolean
+}) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {questions.map((question) => (
-        <button key={question} className="btn-secondary h-auto py-2 text-left" type="button" onClick={() => onPick(question)}>
-          {question}
-        </button>
+    <ul className="space-y-2 text-sm">
+      {STATIC_RECOMMENDED_CHAT_QUESTIONS.map((question) => (
+        <li key={question} className="rounded-md border border-slate-200 bg-white p-2">
+          <p className="text-slate-800">{question}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              className="btn-primary py-1 text-xs"
+              type="button"
+              disabled={disabled}
+              onClick={() => onSend(question)}
+            >
+              바로 전송
+            </button>
+            {onFill ? (
+              <button
+                className="btn-secondary py-1 text-xs"
+                type="button"
+                disabled={disabled}
+                onClick={() => onFill(question)}
+              >
+                입력창에 넣기
+              </button>
+            ) : null}
+          </div>
+        </li>
       ))}
-    </div>
+    </ul>
   )
 }
 
@@ -257,18 +320,8 @@ export function ChatDetailPanel({
   return (
     <div className="page-panel space-y-4">
       <h2 className="text-lg font-semibold text-slate-900">{detail.title}</h2>
-      <ChatMessageList messages={detail.messages} loading={false} />
+      <ChatMessageList messages={detail.messages} detailLoading={false} sendStatus="idle" />
     </div>
   )
 }
 
-export function formatDateTime(value: string) {
-  if (!value) return '-'
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
-}

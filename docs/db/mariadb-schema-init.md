@@ -102,7 +102,7 @@ docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p
 회원가입/로그인 후 계정이 `PENDING` 상태라면 로컬 검증을 위해 본인 계정을 관리자 계정으로 승격할 수 있습니다.
 
 ```powershell
-docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "UPDATE users SET status='ACTIVE', role='ADMIN', deleted_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE email='본인@gmail.com';"
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "UPDATE users SET status='ACTIVE', role='ROLE_SITE_ADMIN', deleted_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE email='본인@gmail.com';"
 ```
 
 확인:
@@ -114,8 +114,8 @@ docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p
 주의:
 
 - 실제 Gmail 주소는 문서에 기록하지 않습니다.
-- 프로젝트의 현재 로컬 승격 값은 `role='ADMIN'`, `status='ACTIVE'` 기준입니다.
-- `SITE_ADMIN`처럼 enum에 없는 값을 넣지 않습니다.
+- 프로젝트의 현재 로컬 승격 값은 `role='ROLE_SITE_ADMIN'`, `status='ACTIVE'` 기준입니다.
+- `ADMIN`처럼 enum에 없는 값을 신규 데이터에 넣지 않습니다. (`UserRole`: `ROLE_SITE_ADMIN`, `ROLE_COMPANY_ADMIN`, `ROLE_COMPANY_WORKER`)
 
 ## 8. 최신 스키마 검증 쿼리
 
@@ -213,6 +213,6 @@ docker compose ps
 - [ ] `inspection_input.source_type` 확인
 - [ ] `chat_message.message_status`, `chat_source.document_title` 확인
 - [ ] 샘플 조직 조회 가능
-- [ ] 본인 계정 `ACTIVE` + `ADMIN` 승격 가능
+- [ ] 본인 계정 `ACTIVE` + `ROLE_SITE_ADMIN` 승격 가능
 - [ ] Spring `bootRun` 시 JPA schema validation 통과
 - [ ] DBeaver `localhost:3307` 연결 가능

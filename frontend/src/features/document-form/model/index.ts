@@ -6,7 +6,7 @@ import {
   updateDocument,
   uploadDocumentVersion,
 } from '../api'
-import type { DocumentDetail } from '../../document/types'
+import type { DocumentCreateResult, DocumentDetail } from '../../document/types'
 
 export type DocumentFormMode = 'create' | 'edit'
 
@@ -40,8 +40,8 @@ export function useDocumentForm(documentId?: number) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof DocumentFormValues | 'file', string>>>({})
 
-  const loadDetail = useCallback(async () => {
-    if (!documentId) return
+  const loadDetail = useCallback(async (): Promise<DocumentDetail | null> => {
+    if (!documentId) return null
 
     try {
       setLoading(true)
@@ -55,8 +55,10 @@ export function useDocumentForm(documentId?: number) {
         tags: nextDetail.tags?.join(', ') ?? '',
         description: nextDetail.description ?? '',
       })
+      return nextDetail
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '문서 상세를 불러오지 못했습니다.')
+      return null
     } finally {
       setLoading(false)
     }
@@ -100,7 +102,7 @@ export function useDocumentForm(documentId?: number) {
     return Object.keys(nextErrors).length === 0
   }, [file, mode, values.title])
 
-  const submit = useCallback(async () => {
+  const submit = useCallback(async (): Promise<DocumentCreateResult | DocumentDetail | null> => {
     setErrorMessage(null)
     if (!validate()) return null
 
@@ -110,10 +112,14 @@ export function useDocumentForm(documentId?: number) {
         const formData = new FormData()
         formData.append('file', file as File)
         formData.append('title', values.title.trim())
-        formData.append('category', values.category.trim())
-        formData.append('equipmentType', values.equipmentType.trim())
-        formData.append('description', values.description.trim())
-        formData.append('tags', values.tags.trim())
+        const category = values.category.trim()
+        const equipmentType = values.equipmentType.trim()
+        const description = values.description.trim()
+        const tags = values.tags.trim()
+        if (category) formData.append('category', category)
+        if (equipmentType) formData.append('equipmentType', equipmentType)
+        if (description) formData.append('description', description)
+        if (tags) formData.append('tags', tags)
         return await createDocument(formData)
       }
 
@@ -135,11 +141,11 @@ export function useDocumentForm(documentId?: number) {
         formData.append('file', file)
         formData.append('changeReason', 'manual update')
         await uploadDocumentVersion(documentId, formData)
-        await loadDetail()
-      } else {
-        setDetail(updated)
+        const refreshed = await loadDetail()
+        return refreshed ?? updated
       }
 
+      setDetail(updated)
       return updated
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '문서를 저장하지 못했습니다.')

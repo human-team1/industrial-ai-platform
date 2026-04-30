@@ -39,10 +39,14 @@ export async function askChat(conversationId: number, body: AskChatRequest): Pro
   }
 }
 
-export async function getChatConversations(query: ChatHistoryQuery): Promise<ChatConversationPage> {
+export async function getChatConversations(
+  query: ChatHistoryQuery,
+  signal?: AbortSignal,
+): Promise<ChatConversationPage> {
   try {
     const response = await apiClient.get<ApiResponse<ChatConversationPage>>('/chat-conversations', {
       params: query,
+      signal,
     })
     return response.data.data
   } catch (error) {
