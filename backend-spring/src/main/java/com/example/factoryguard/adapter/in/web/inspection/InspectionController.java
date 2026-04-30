@@ -2,6 +2,7 @@ package com.example.factoryguard.adapter.in.web.inspection;
 
 import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionEventLogResponse;
 import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionRunResponse;
+import com.example.factoryguard.adapter.in.web.inspection.mapper.InspectionWebMapper;
 import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
 import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
 import com.example.factoryguard.application.dto.inspection.InspectionStatusResponse;
@@ -39,6 +40,7 @@ public class InspectionController {
     private final MinioProperties minioProperties;
     private final SecurityUtils securityUtils;
     private final FileValidator fileValidator;
+    private final InspectionWebMapper webMapper;
 
     @GetMapping("/status")
     public ApiResponse<InspectionStatusResponse> getStatus() {
@@ -103,14 +105,14 @@ public class InspectionController {
             @RequestParam(defaultValue = "20") int size) {
         AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
         return ApiResponse.success(getInspectionsUseCase.list(p.organizationId(), page, size).stream()
-                .map(InspectionRunResponse::from)
+                .map(webMapper::toResponse)
                 .toList());
     }
 
     @GetMapping("/{inspectionId}")
     public ApiResponse<InspectionRunResponse> detail(@PathVariable Long inspectionId) {
         AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
-        return ApiResponse.success(InspectionRunResponse.from(
+        return ApiResponse.success(webMapper.toResponse(
                 getInspectionsUseCase.detail(p.organizationId(), inspectionId)));
     }
 
@@ -118,7 +120,7 @@ public class InspectionController {
     public ApiResponse<List<InspectionEventLogResponse>> events(@PathVariable Long inspectionId) {
         AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
         return ApiResponse.success(getInspectionEventsUseCase.execute(p.organizationId(), inspectionId).stream()
-                .map(InspectionEventLogResponse::from)
+                .map(webMapper::toResponse)
                 .toList());
     }
 }

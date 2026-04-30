@@ -3,6 +3,7 @@ package com.example.factoryguard.adapter.in.web.inspection;
 import com.example.factoryguard.adapter.in.web.inspection.dto.CameraSourceResponse;
 import com.example.factoryguard.adapter.in.web.inspection.dto.CreateCameraSourceRequest;
 import com.example.factoryguard.adapter.in.web.inspection.dto.UpdateCameraSourceRequest;
+import com.example.factoryguard.adapter.in.web.inspection.mapper.InspectionWebMapper;
 import com.example.factoryguard.application.dto.inspection.CreateCameraSourceCommand;
 import com.example.factoryguard.application.dto.inspection.UpdateCameraSourceCommand;
 import com.example.factoryguard.application.port.in.inspection.CreateCameraSourceUseCase;
@@ -27,19 +28,20 @@ public class CameraSourceController {
     private final UpdateCameraSourceUseCase updateCameraSourceUseCase;
     private final DeleteCameraSourceUseCase deleteCameraSourceUseCase;
     private final SecurityUtils securityUtils;
+    private final InspectionWebMapper webMapper;
 
     @GetMapping
     public ApiResponse<List<CameraSourceResponse>> list() {
         AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
         return ApiResponse.success(getCameraSourcesUseCase.execute(p.organizationId()).stream()
-                .map(CameraSourceResponse::from)
+                .map(webMapper::toResponse)
                 .toList());
     }
 
     @PostMapping
     public ApiResponse<CameraSourceResponse> create(@RequestBody CreateCameraSourceRequest request) {
         AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
-        return ApiResponse.success(CameraSourceResponse.from(createCameraSourceUseCase.execute(
+        return ApiResponse.success(webMapper.toResponse(createCameraSourceUseCase.execute(
                 new CreateCameraSourceCommand(p.userId(), p.organizationId(),
                         request.cameraName(), request.streamUrl()))),
                 "카메라가 등록되었습니다.");
@@ -49,7 +51,7 @@ public class CameraSourceController {
     public ApiResponse<CameraSourceResponse> update(@PathVariable Long cameraId,
                                                     @RequestBody UpdateCameraSourceRequest request) {
         AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
-        return ApiResponse.success(CameraSourceResponse.from(updateCameraSourceUseCase.execute(
+        return ApiResponse.success(webMapper.toResponse(updateCameraSourceUseCase.execute(
                 new UpdateCameraSourceCommand(cameraId, p.organizationId(),
                         request.cameraName(), request.streamUrl(), request.status()))),
                 "카메라가 수정되었습니다.");
