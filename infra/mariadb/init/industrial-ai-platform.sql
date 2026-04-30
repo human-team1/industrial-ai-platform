@@ -397,18 +397,31 @@
     conversation_id BIGINT NOT NULL,
     role VARCHAR(20) NOT NULL,
     message_text TEXT NOT NULL,
+    message_status VARCHAR(20) NOT NULL DEFAULT 'SUCCESS',
+    answer_status VARCHAR(50) NULL,
+    error_code VARCHAR(50) NULL,
+    model_name VARCHAR(100) NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_chat_message_conversation FOREIGN KEY (conversation_id) REFERENCES chat_conversation(conversation_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
   CREATE TABLE chat_source (
     chat_source_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     message_id BIGINT NOT NULL,
-    source_type VARCHAR(50),
+    source_type VARCHAR(50) NOT NULL,
     source_id BIGINT,
+    document_id BIGINT,
+    document_title VARCHAR(255),
+    document_type VARCHAR(50),
     chunk_id BIGINT,
+    page_no INT,
+    section VARCHAR(255),
     source_snippet TEXT,
+    score DECIMAL(5,4),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_chat_source_message FOREIGN KEY (message_id) REFERENCES chat_message(message_id),
+    CONSTRAINT fk_chat_source_document FOREIGN KEY (document_id) REFERENCES document(document_id),
     CONSTRAINT fk_chat_source_chunk FOREIGN KEY (chunk_id) REFERENCES chunk(chunk_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -528,6 +541,11 @@
   CREATE INDEX idx_document_org_owner ON document(organization_id, owner_user_id);
   CREATE INDEX idx_notification_user_read ON notification(user_id, is_read);
   CREATE INDEX idx_chat_conversation_user ON chat_conversation(user_id);
+  CREATE INDEX idx_chat_conversation_user_updated ON chat_conversation(user_id, updated_at);
+  CREATE INDEX idx_chat_message_conversation_created ON chat_message(conversation_id, created_at);
+  CREATE INDEX idx_chat_source_message ON chat_source(message_id);
+  CREATE INDEX idx_chat_source_document ON chat_source(document_id);
+  CREATE INDEX idx_chat_source_chunk ON chat_source(chunk_id);
   CREATE INDEX idx_document_category ON document(category);
   CREATE INDEX idx_document_equipment_type ON document(equipment_type);
   CREATE INDEX idx_document_tag_name ON document_tag(tag_name);

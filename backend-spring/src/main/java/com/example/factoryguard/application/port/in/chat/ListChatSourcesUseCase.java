@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface ListChatSourcesUseCase {
 
-    List<ChatSourceResult> execute(Long messageId);
+    List<ChatSourceResult> listSources(Long userId, Long messageId);
 }
