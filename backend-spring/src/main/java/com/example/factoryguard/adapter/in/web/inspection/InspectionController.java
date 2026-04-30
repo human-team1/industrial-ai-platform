@@ -3,6 +3,7 @@ package com.example.factoryguard.adapter.in.web.inspection;
 import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionEventLogResponse;
 import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionRunResponse;
 import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionStatusResponse;
+import com.example.factoryguard.adapter.in.web.inspection.dto.StopInspectionResponse;
 import com.example.factoryguard.adapter.in.web.inspection.dto.UploadInspectionResponse;
 import com.example.factoryguard.adapter.in.web.inspection.mapper.InspectionWebMapper;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionCommand;
@@ -15,6 +16,7 @@ import com.example.factoryguard.application.port.in.inspection.SubmitInspectionU
 import com.example.factoryguard.common.response.ApiResponse;
 import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.SecurityUtils;
+import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -74,10 +76,17 @@ public class InspectionController {
     }
 
     @PatchMapping("/{inspectionId}/stop")
-    public ApiResponse<Void> stop(@PathVariable Long inspectionId) {
+    public ApiResponse<StopInspectionResponse> stop(@PathVariable Long inspectionId) {
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
-        stopInspectionUseCase.execute(principal.userId(), principal.organizationId(), inspectionId);
-        return ApiResponse.success(null, "검사가 중단되었습니다.");
+        InspectionRun stopped = stopInspectionUseCase.execute(principal.userId(), principal.organizationId(), inspectionId);
+        return ApiResponse.success(
+                new StopInspectionResponse(
+                        stopped.getInspectionId(),
+                        stopped.getRunStatus(),
+                        stopped.getCompletedAt()
+                ),
+                "실시간 탐지가 중지되었습니다."
+        );
     }
 
     @GetMapping
