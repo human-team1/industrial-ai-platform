@@ -1,5 +1,6 @@
 package com.example.factoryguard.adapter.in.web.result;
 
+import com.example.factoryguard.adapter.in.web.result.mapper.ResultWebMapper;
 import com.example.factoryguard.application.dto.result.ListInspectionResultsQuery;
 import com.example.factoryguard.application.dto.result.ResultDetailResponse;
 import com.example.factoryguard.application.dto.result.ResultPageResponse;
@@ -24,6 +25,7 @@ public class ResultController {
 
     private final ListInspectionResultsUseCase listInspectionResultsUseCase;
     private final GetInspectionResultDetailUseCase getInspectionResultDetailUseCase;
+    private final ResultWebMapper resultWebMapper;
 
     @GetMapping
     public ResponseEntity<ApiResponse<ResultPageResponse>> listResults(
@@ -42,7 +44,7 @@ public class ResultController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        ListInspectionResultsQuery query = new ListInspectionResultsQuery(
+        ListInspectionResultsQuery query = resultWebMapper.toListQuery(
                 from,
                 to,
                 keyword,
