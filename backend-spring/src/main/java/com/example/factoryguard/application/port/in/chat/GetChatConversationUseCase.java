@@ -4,5 +4,5 @@ import com.example.factoryguard.application.dto.chat.ChatConversationDetail;
 
 public interface GetChatConversationUseCase {
 
-    ChatConversationDetail execute(Long conversationId);
+    ChatConversationDetail execute(Long userId, Long conversationId);
 }

@@ -3,6 +3,7 @@ import { AuthPage } from '../pages/AuthPage'
 import { SignupPage } from '../pages/SignupPage'
 import { SignupStatusPage } from '../pages/SignupStatusPage'
 import { ChatbotPage } from '../pages/ChatbotPage'
+import { ChatbotHistoryPage } from '../pages/ChatbotHistoryPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { InspectionPage } from '../pages/InspectionPage'
 import { ResultPage } from '../pages/ResultPage'
@@ -43,6 +44,7 @@ export function AppRouter() {
             <Route path="/documents/new" element={<DocumentFormPage />} />
             <Route path="/documents/:documentId/edit" element={<DocumentFormPage />} />
             <Route path="/chatbot" element={<ChatbotPage />} />
+            <Route path="/chatbot/history" element={<ChatbotHistoryPage />} />
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/settings" element={<UserSettingsPage />} />
           </Route>
