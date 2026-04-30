@@ -1,12 +1,12 @@
 package com.example.factoryguard.adapter.out.fastapi;
 
-import com.example.factoryguard.adapter.out.fastapi.client.AiServerException;
 import com.example.factoryguard.adapter.out.fastapi.client.FastApiClient;
 import com.example.factoryguard.adapter.out.fastapi.request.AiInspectionRequest;
 import com.example.factoryguard.adapter.out.fastapi.response.AiInspectionResponse;
 import com.example.factoryguard.application.dto.inspection.AiInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.AiInspectionResult;
 import com.example.factoryguard.application.dto.inspection.AiRealtimeInspectionCommand;
+import com.example.factoryguard.application.exception.ai.AiServerException;
 import com.example.factoryguard.application.port.out.inspection.CallAiInspectionPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
