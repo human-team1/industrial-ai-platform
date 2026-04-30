@@ -16,13 +16,15 @@ public class ResolvedThreshold {
     private final double lowConfidenceThreshold;
     private final ThresholdSource source;
     private final Long thresholdId;
+    private final Integer thresholdVersion;
 
-    public static ResolvedThreshold fromUserThreshold(UserThreshold threshold) {
+    public static ResolvedThreshold fromUserThreshold(UserThreshold threshold, Integer version) {
         return new ResolvedThreshold(
                 threshold.getAnomalyThreshold(),
                 threshold.getLowConfidenceThreshold(),
                 ThresholdSource.USER,
-                threshold.getThresholdId()
+                threshold.getThresholdId(),
+                version
         );
     }
 
@@ -30,7 +32,8 @@ public class ResolvedThreshold {
         return new ResolvedThreshold(
                 DEFAULT_ANOMALY_THRESHOLD,
                 DEFAULT_LOW_CONFIDENCE_THRESHOLD,
-                ThresholdSource.DEFAULT,
+                ThresholdSource.SYSTEM_DEFAULT,
+                null,
                 null
         );
     }

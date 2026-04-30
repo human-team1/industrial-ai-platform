@@ -1,11 +1,16 @@
 package com.example.factoryguard.adapter.out.persistence.result;
 
+import com.example.factoryguard.domain.result.vo.AnomalyRegionLabel;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -27,24 +32,45 @@ public class AnomalyRegionJpaEntity {
     @Column(name = "image_id", nullable = false)
     private Long imageId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "label_code")
-    private String labelCode;
+    private AnomalyRegionLabel labelCode;
 
-    @Column(name = "bbox_x")
+    @Column(name = "bbox_x", precision = 10, scale = 4)
     private BigDecimal bboxX;
 
-    @Column(name = "bbox_y")
+    @Column(name = "bbox_y", precision = 10, scale = 4)
     private BigDecimal bboxY;
 
-    @Column(name = "bbox_w")
+    @Column(name = "bbox_w", precision = 10, scale = 4)
     private BigDecimal bboxW;
 
-    @Column(name = "bbox_h")
+    @Column(name = "bbox_h", precision = 10, scale = 4)
     private BigDecimal bboxH;
 
-    @Column(name = "score")
+    @Column(name = "score", precision = 6, scale = 4)
     private BigDecimal score;
 
-    @Column(name = "created_at")
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Builder
+    public AnomalyRegionJpaEntity(
+            Long imageId,
+            AnomalyRegionLabel labelCode,
+            BigDecimal bboxX,
+            BigDecimal bboxY,
+            BigDecimal bboxW,
+            BigDecimal bboxH,
+            BigDecimal score
+    ) {
+        this.imageId = imageId;
+        this.labelCode = labelCode;
+        this.bboxX = bboxX;
+        this.bboxY = bboxY;
+        this.bboxW = bboxW;
+        this.bboxH = bboxH;
+        this.score = score;
+    }
 }

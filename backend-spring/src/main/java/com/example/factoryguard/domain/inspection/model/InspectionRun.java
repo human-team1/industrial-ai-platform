@@ -6,7 +6,7 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
+@Builder(toBuilder = true)
 public class InspectionRun {
 
     private final Long inspectionId;
@@ -20,6 +20,7 @@ public class InspectionRun {
     private final RunStatus runStatus;
     private final double appliedThreshold;
     private final String idempotencyKey;
+    private final String payloadFingerprint;
     private final String errorCode;
     private final LocalDateTime startedAt;
     private final LocalDateTime completedAt;

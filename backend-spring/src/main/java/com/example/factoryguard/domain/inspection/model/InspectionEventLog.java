@@ -1,6 +1,5 @@
 package com.example.factoryguard.domain.inspection.model;
 
-import com.example.factoryguard.domain.inspection.vo.InspectionEventType;
 import lombok.Builder;
 import lombok.Getter;
 

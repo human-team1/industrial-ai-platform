@@ -14,4 +14,6 @@ public class SubmitInspectionCommand {
     private final String fileUrl;
     private final String originalFileName;
     private final String mimeType;
+    private final Long fileSize;
+    private final String idempotencyKey;
 }

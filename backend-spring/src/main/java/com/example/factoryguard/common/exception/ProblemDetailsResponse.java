@@ -2,6 +2,7 @@ package com.example.factoryguard.common.exception;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.slf4j.MDC;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -16,6 +17,7 @@ public class ProblemDetailsResponse {
     private final String instance;
     @JsonProperty("errorCode")
     private final String code;
+    private final String requestId;
     private final OffsetDateTime timestamp;
     private final List<ValidationFieldError> errors;
 
@@ -31,6 +33,7 @@ public class ProblemDetailsResponse {
         this.detail = detail;
         this.instance = instance;
         this.code = code;
+        this.requestId = MDC.get("requestId");
         this.timestamp = OffsetDateTime.now();
         this.errors = errors;
     }
@@ -57,6 +60,10 @@ public class ProblemDetailsResponse {
 
     public String getCode() {
         return code;
+    }
+
+    public String getRequestId() {
+        return requestId;
     }
 
     public OffsetDateTime getTimestamp() {

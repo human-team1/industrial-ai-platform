@@ -9,4 +9,5 @@ public class AiInspectionResponse {
 
     private double score;
     private double confidence;
+    private Long modelVersionId;
 }

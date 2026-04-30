@@ -1,14 +1,21 @@
 package com.example.factoryguard.adapter.out.persistence.inspection;
 
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
+import com.example.factoryguard.application.port.out.inspection.LoadInspectionRunPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionResultPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionRunPort;
+import com.example.factoryguard.application.port.out.result.LoadInspectionResultPort;
 import com.example.factoryguard.domain.inspection.model.AnalysisTarget;
 import com.example.factoryguard.domain.inspection.model.InspectionResult;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
+import com.example.factoryguard.domain.inspection.model.RunStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -16,7 +23,9 @@ import java.util.Optional;
 public class InspectionPersistenceAdapter implements
         LoadAnalysisTargetPort,
         SaveInspectionRunPort,
-        SaveInspectionResultPort {
+        LoadInspectionRunPort,
+        SaveInspectionResultPort,
+        LoadInspectionResultPort {
 
     private final AnalysisTargetJpaRepository analysisTargetJpaRepository;
     private final InspectionRunJpaRepository inspectionRunJpaRepository;
@@ -41,6 +50,9 @@ public class InspectionPersistenceAdapter implements
             InspectionRunJpaEntity existing = inspectionRunJpaRepository.findById(run.getInspectionId())
                     .orElseThrow();
             existing.updateStatus(run.getRunStatus());
+            if (run.getErrorCode() != null) {
+                existing.updateError(run.getErrorCode());
+            }
             saved = existing;
         } else {
             saved = inspectionRunJpaRepository.save(
@@ -55,24 +67,39 @@ public class InspectionPersistenceAdapter implements
                             .runStatus(run.getRunStatus())
                             .appliedThreshold(run.getAppliedThreshold())
                             .idempotencyKey(run.getIdempotencyKey())
+                            .payloadFingerprint(run.getPayloadFingerprint())
                             .startedAt(run.getStartedAt())
                             .build()
             );
         }
-        return InspectionRun.builder()
-                .inspectionId(saved.getInspectionId())
-                .organizationId(saved.getOrganizationId())
-                .userId(saved.getUserId())
-                .targetId(saved.getTargetId())
-                .runType(saved.getRunType())
-                .inputType(saved.getInputType())
-                .sourceType(saved.getSourceType())
-                .sourceId(saved.getSourceId())
-                .runStatus(saved.getRunStatus())
-                .appliedThreshold(saved.getAppliedThreshold())
-                .idempotencyKey(saved.getIdempotencyKey())
-                .startedAt(saved.getStartedAt())
-                .build();
+        return toDomain(saved);
+    }
+
+    @Override
+    public Optional<InspectionRun> findByOrganizationIdAndUserIdAndIdempotencyKey(
+            Long organizationId, Long userId, String idempotencyKey) {
+        return inspectionRunJpaRepository
+                .findByOrganizationIdAndUserIdAndIdempotencyKey(organizationId, userId, idempotencyKey)
+                .map(this::toDomain);
+    }
+
+    @Override
+    public Optional<InspectionRun> findRunById(Long inspectionId) {
+        return inspectionRunJpaRepository.findById(inspectionId).map(this::toDomain);
+    }
+
+    @Override
+    public List<InspectionRun> findRunsByOrganizationId(Long organizationId, int page, int size) {
+        return inspectionRunJpaRepository.findByOrganizationId(
+                organizationId,
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "startedAt"))
+        ).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public List<InspectionRun> findRunsByStatusAndStartedAtBefore(RunStatus status, LocalDateTime threshold) {
+        return inspectionRunJpaRepository.findByRunStatusAndStartedAtBefore(status, threshold).stream()
+                .map(this::toDomain).toList();
     }
 
     @Override
@@ -106,6 +133,56 @@ public class InspectionPersistenceAdapter implements
                 .modelVersionId(saved.getModelVersionId())
                 .failureReason(saved.getFailureReason())
                 .createdAt(saved.getCreatedAt())
+                .build();
+    }
+
+    @Override
+    public Optional<InspectionResult> findResultById(Long resultId) {
+        return inspectionResultJpaRepository.findById(resultId).map(this::toDomain);
+    }
+
+    @Override
+    public List<InspectionResult> findAllByInspectionId(Long inspectionId) {
+        return inspectionResultJpaRepository.findAllByInspectionIdOrderByCreatedAtAsc(inspectionId).stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    private InspectionResult toDomain(InspectionResultJpaEntity e) {
+        return InspectionResult.builder()
+                .resultId(e.getResultId())
+                .inspectionId(e.getInspectionId())
+                .score(e.getScore())
+                .confidence(e.getConfidence())
+                .decisionCode(e.getDecisionCode())
+                .finalDecisionCode(e.getFinalDecisionCode())
+                .resultStatus(e.getResultStatus())
+                .thresholdSource(e.getThresholdSource())
+                .thresholdId(e.getThresholdId())
+                .thresholdVersion(e.getThresholdVersion())
+                .modelVersionId(e.getModelVersionId())
+                .failureReason(e.getFailureReason())
+                .createdAt(e.getCreatedAt())
+                .build();
+    }
+
+    private InspectionRun toDomain(InspectionRunJpaEntity e) {
+        return InspectionRun.builder()
+                .inspectionId(e.getInspectionId())
+                .organizationId(e.getOrganizationId())
+                .userId(e.getUserId())
+                .targetId(e.getTargetId())
+                .runType(e.getRunType())
+                .inputType(e.getInputType())
+                .sourceType(e.getSourceType())
+                .sourceId(e.getSourceId())
+                .runStatus(e.getRunStatus())
+                .appliedThreshold(e.getAppliedThreshold())
+                .idempotencyKey(e.getIdempotencyKey())
+                .payloadFingerprint(e.getPayloadFingerprint())
+                .errorCode(e.getErrorCode())
+                .startedAt(e.getStartedAt())
+                .completedAt(e.getCompletedAt())
                 .build();
     }
 }

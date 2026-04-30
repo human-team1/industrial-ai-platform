@@ -22,13 +22,16 @@ public class UserThresholdHistoryJpaEntity {
     @Column(name = "threshold_id", nullable = false)
     private Long thresholdId;
 
-    @Column(name = "old_anomaly_threshold", nullable = false)
+    @Column(name = "version")
+    private Integer version;
+
+    @Column(name = "old_anomaly_threshold", nullable = false, columnDefinition = "DECIMAL(5,4)")
     private double oldAnomalyThreshold;
 
-    @Column(name = "new_anomaly_threshold", nullable = false)
+    @Column(name = "new_anomaly_threshold", nullable = false, columnDefinition = "DECIMAL(5,4)")
     private double newAnomalyThreshold;
 
-    @Column(name = "change_reason")
+    @Column(name = "change_reason", columnDefinition = "TEXT")
     private String changeReason;
 
     @Column(name = "changed_by")
@@ -38,10 +41,12 @@ public class UserThresholdHistoryJpaEntity {
     private LocalDateTime changedAt;
 
     @Builder
-    public UserThresholdHistoryJpaEntity(Long thresholdId, double oldAnomalyThreshold,
+    public UserThresholdHistoryJpaEntity(Long thresholdId, Integer version,
+                                         double oldAnomalyThreshold,
                                          double newAnomalyThreshold, String changeReason,
                                          Long changedBy) {
         this.thresholdId = thresholdId;
+        this.version = version;
         this.oldAnomalyThreshold = oldAnomalyThreshold;
         this.newAnomalyThreshold = newAnomalyThreshold;
         this.changeReason = changeReason;

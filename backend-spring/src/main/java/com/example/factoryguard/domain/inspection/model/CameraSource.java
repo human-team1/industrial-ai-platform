@@ -14,6 +14,7 @@ public class CameraSource {
     private final Long userId;
     private final String cameraName;
     private final String streamUrl;
+    private final CameraStatus status;
     private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 }

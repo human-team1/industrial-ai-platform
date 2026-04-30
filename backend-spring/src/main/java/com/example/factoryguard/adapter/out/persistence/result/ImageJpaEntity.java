@@ -1,11 +1,16 @@
 package com.example.factoryguard.adapter.out.persistence.result;
 
+import com.example.factoryguard.domain.result.vo.ImageRole;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -29,9 +34,18 @@ public class ImageJpaEntity {
     @Column(name = "file_id")
     private Long fileId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "image_role")
-    private String imageRole;
+    private ImageRole imageRole;
 
-    @Column(name = "created_at")
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Builder
+    public ImageJpaEntity(Long resultId, Long fileId, ImageRole imageRole) {
+        this.resultId = resultId;
+        this.fileId = fileId;
+        this.imageRole = imageRole;
+    }
 }

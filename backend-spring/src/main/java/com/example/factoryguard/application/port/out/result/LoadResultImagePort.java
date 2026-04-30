@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface LoadResultImagePort {
 
-    List<Image> findAllByResultId(Long resultId);
+    List<Image> findImagesByResultId(Long resultId);
 }
