@@ -2,16 +2,13 @@ package com.example.factoryguard.adapter.in.web.chat;
 
 import com.example.factoryguard.adapter.in.web.chat.dto.AskChatRequest;
 import com.example.factoryguard.adapter.in.web.chat.dto.CreateChatConversationRequest;
-import com.example.factoryguard.application.dto.chat.AskChatCommand;
+import com.example.factoryguard.adapter.in.web.chat.mapper.ChatWebMapper;
 import com.example.factoryguard.application.dto.chat.AskChatResult;
 import com.example.factoryguard.application.dto.chat.ChatConversationDetail;
 import com.example.factoryguard.application.dto.chat.ChatConversationPageResult;
 import com.example.factoryguard.application.dto.chat.ChatConversationResult;
 import com.example.factoryguard.application.dto.chat.ChatMessageResult;
 import com.example.factoryguard.application.dto.chat.ChatSourceResult;
-import com.example.factoryguard.application.dto.chat.CreateChatConversationCommand;
-import com.example.factoryguard.application.dto.chat.DocumentScope;
-import com.example.factoryguard.application.dto.chat.ListChatConversationsQuery;
 import com.example.factoryguard.application.port.in.chat.AskChatUseCase;
 import com.example.factoryguard.application.port.in.chat.CreateChatConversationUseCase;
 import com.example.factoryguard.application.port.in.chat.DeleteChatConversationUseCase;
@@ -19,8 +16,6 @@ import com.example.factoryguard.application.port.in.chat.GetChatConversationUseC
 import com.example.factoryguard.application.port.in.chat.ListChatConversationsUseCase;
 import com.example.factoryguard.application.port.in.chat.ListChatMessagesUseCase;
 import com.example.factoryguard.application.port.in.chat.ListChatSourcesUseCase;
-import com.example.factoryguard.common.exception.BusinessException;
-import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.common.response.ApiResponse;
 import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.SecurityUtils;
@@ -53,6 +48,7 @@ public class ChatController {
     private final ListChatSourcesUseCase listChatSourcesUseCase;
     private final DeleteChatConversationUseCase deleteChatConversationUseCase;
     private final SecurityUtils securityUtils;
+    private final ChatWebMapper chatWebMapper;
 
     @GetMapping("/chat-conversations")
     public ResponseEntity<ApiResponse<ChatConversationPageResult>> list(
@@ -65,17 +61,17 @@ public class ChatController {
     ) {
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
         ChatConversationPageResult result = listChatConversationsUseCase.execute(
-                new ListChatConversationsQuery(principal.userId(), Math.max(page, 0), normalizeSize(size), keyword, from, to));
+                chatWebMapper.toListQuery(principal, page, size, keyword, from, to)
+        );
         return ResponseEntity.ok(ApiResponse.success(result, "챗봇 대화 목록을 조회했습니다."));
     }
 
     @PostMapping("/chat-conversations")
     public ResponseEntity<ApiResponse<ChatConversationResult>> create(@RequestBody(required = false) CreateChatConversationRequest request) {
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
-        ChatConversationResult result = createChatConversationUseCase.create(CreateChatConversationCommand.builder()
-                .userId(principal.userId())
-                .title(request == null ? null : request.getTitle())
-                .build());
+        ChatConversationResult result = createChatConversationUseCase.create(
+                chatWebMapper.toCreateConversationCommand(principal, request)
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(result, "챗봇 대화가 생성되었습니다."));
     }
 
@@ -106,19 +102,9 @@ public class ChatController {
             @RequestBody AskChatRequest request
     ) {
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
-        AskChatRequest safeRequest = request == null ? new AskChatRequest() : request;
-        AskChatRequest.ChatMessageContext context = safeRequest.getContext() == null
-                ? new AskChatRequest.ChatMessageContext()
-                : safeRequest.getContext();
-        AskChatResult result = askChatUseCase.execute(AskChatCommand.builder()
-                .userId(principal.userId())
-                .organizationId(principal.organizationId())
-                .conversationId(conversationId)
-                .question(safeRequest.getMessageText())
-                .documentScope(parseScope(context.getDocumentScope()))
-                .documentIds(context.getDocumentIds())
-                .resultId(context.getResultId())
-                .build());
+        AskChatResult result = askChatUseCase.execute(
+                chatWebMapper.toAskChatCommand(principal, conversationId, request)
+        );
         return ResponseEntity.ok(ApiResponse.success(result, "챗봇 답변이 생성되었습니다."));
     }
 
@@ -129,18 +115,4 @@ public class ChatController {
         return ResponseEntity.ok(ApiResponse.success(result, "챗봇 답변 출처를 조회했습니다."));
     }
 
-    private DocumentScope parseScope(String value) {
-        try {
-            return DocumentScope.valueOf(value == null ? "ALL" : value.trim().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "documentScope는 ALL 또는 SELECTED만 허용됩니다.");
-        }
-    }
-
-    private int normalizeSize(int size) {
-        if (size < 1) {
-            return 10;
-        }
-        return Math.min(size, 50);
-    }
 }
