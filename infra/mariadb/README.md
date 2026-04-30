@@ -11,6 +11,33 @@
 - 공식 테이블명: lowercase snake_case
 - Spring local profile: `ddl-auto=validate`
 
+## DB 작업 모드 선택
+
+- `db-reset`: DB 전체 초기화 + init + migration + seed (파괴적)
+- `db-migrate`: migration SQL만 순차 적용
+- `db-seed`: 샘플 데이터만 재삽입
+- `db-status`: 테이블/migration/샘플 건수/role 분포 조회
+
+PowerShell:
+
+```powershell
+cd infra
+.\scripts\db-status.ps1
+.\scripts\db-migrate.ps1
+.\scripts\db-seed.ps1
+.\scripts\db-reset.ps1 -Force
+```
+
+Bash:
+
+```bash
+cd infra
+./scripts/db-status.sh
+./scripts/db-migrate.sh
+./scripts/db-seed.sh
+./scripts/db-reset.sh --force
+```
+
 ## 1. MariaDB 실행
 
 ```powershell
@@ -44,7 +71,7 @@ Get-Content -Raw -Encoding UTF8 .\mariadb\seed\seed-sample-organizations.sql |
 회원가입/로그인 후 `PENDING` 상태인 계정을 로컬 검증용 관리자 계정으로 승격합니다.
 
 ```powershell
-docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "UPDATE users SET status='ACTIVE', role='ADMIN', deleted_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE email='본인@gmail.com';"
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "UPDATE users SET status='ACTIVE', role='ROLE_SITE_ADMIN', deleted_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE email='본인@gmail.com';"
 ```
 
 확인:
@@ -83,7 +110,7 @@ docker compose --env-file .env up -d
 ## 8. 현재 스키마 주의사항
 
 - 가입 신청은 `signup_request`에 저장됩니다.
-- 로컬 관리자 승격은 `users.status='ACTIVE'`, `users.role='ADMIN'` 기준입니다.
+- 로컬 관리자 승격은 `users.status='ACTIVE'`, `users.role='ROLE_SITE_ADMIN'` 기준입니다.
 - 문서 메타데이터는 `document`, `document_tag`, `document_version`에 저장됩니다.
 - 문서 인덱싱 상태는 `document_version.indexing_status`에 저장됩니다.
 - 청크/벡터 참조는 `chunk`, `vector_index`에 저장됩니다.
