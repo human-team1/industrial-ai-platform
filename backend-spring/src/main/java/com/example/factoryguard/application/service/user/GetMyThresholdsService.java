@@ -28,7 +28,7 @@ public class GetMyThresholdsService implements GetMyThresholdsUseCase {
 
         return findActiveThresholdByUserIdPort.findActiveByUserId(userId)
                 .map(UserThresholdResult::fromUserThreshold)
-                .orElseGet(UserThresholdResult::defaultThreshold);
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_THRESHOLD_NOT_FOUND));
     }
 
     private void validateSession(Long userId, String sessionId) {
