@@ -9,26 +9,60 @@
 | AUTH_SESSION | auth_session_id (PK), user_id (FK), access_token, refresh_token, ip_address, user_agent, login_at, expires_at, revoked_at | 로그인 세션 |
 | USER_SETTING | user_setting_id (PK), user_id (FK), notification_enabled, default_dashboard_range, default_camera_id, created_at, updated_at | 사용자 설정 |
 | USER_THRESHOLD | threshold_id (PK), user_id (FK), anomaly_threshold, low_confidence_threshold, min_allowed, max_allowed, apply_scope, is_active, created_at, updated_at | 개인 임계값 |
-| USER_THRESHOLD_HISTORY | threshold_history_id (PK), threshold_id (FK), old_anomaly_threshold, new_anomaly_threshold, change_reason, changed_by (FK), changed_at | 임계값 변경 이력 |
+| USER_THRESHOLD_HISTORY | threshold_history_id (PK), threshold_id (FK), version,old_anomaly_threshold, new_anomaly_threshold,change_reason, changed_by (FK), changed_at | 임계값 변경 이력 |
 | ORGANIZATION_PUBLIC  |  id, name | ACTIVE 상태의 조직만 외부/회원가입 화면에 제공하는 공개 조직 목록 View |
 
 ---
 
+### USER_THRESHOLD_HISTORY 상세 타입 변경 ⇒ erd 페이지에서 수정예정
+
+| 컬럼 | 기존 | 수정 |
+| --- | --- | --- |
+| `version` | 없음 | `INT` |
+| `old_anomaly_threshold` | `DOUBLE` | `DECIMAL(5,4)` |
+| `new_anomaly_threshold` | `DOUBLE` | `DECIMAL(5,4)` |
+| `change_reason` | `VARCHAR(255)` | `TEXT` |
+
 # ✅ 2. INSPECTION DOMAIN
 
-| Table | Columns | Description |
-| --- | --- | --- |
-| ANALYSIS_TARGET | target_id (PK), organization_id (FK), target_name, equipment_name, product_name, target_type, target_status, created_by (FK), created_at, updated_at | 검사 대상 |
-| CAMERA_SOURCE | camera_id (PK), organization_id (FK), user_id (FK), camera_name, stream_url, status, created_at, updated_at | 카메라/스트림 입력 |
-| INSPECTION_RUN | inspection_id (PK), organization_id (FK), user_id (FK), target_id (FK), run_type, input_type, source_type, source_id, run_status, applied_threshold, idempotency_key (UK), error_code, started_at, completed_at | 검사 실행 |
-| INSPECTION_INPUT | inspection_input_id (PK), inspection_id (FK), file_id, camera_id, stream_url, source_name, mime_type, duration_sec, frame_count, created_at | 검사 입력 데이터 |
-| INSPECTION_EVENT_LOG | event_id (PK), inspection_id (FK), event_type, message, created_at | 검사 이벤트 로그 |
-| INSPECTION_RESULT | result_id (PK), inspection_id (FK), score, confidence, decision_code, final_decision_code, result_status, threshold_source, threshold_id, threshold_version, model_version_id, failure_reason, created_at | 검사 결과 |
-| RESULT_ARTIFACT | artifact_id (PK), result_id (FK), artifact_type, file_id, created_at | 결과 산출물 |
-| IMAGE | image_id (PK), result_id (FK), file_id, image_role, created_at | 결과 이미지 |
-| ANOMALY_REGION | region_id (PK), image_id (FK), label_code, bbox_x, bbox_y, bbox_w, bbox_h, score, created_at | 이상 영역 |
+| Table | Columns | Description | 비고 |
+| --- | --- | --- | --- |
+| ANALYSIS_TARGET | target_id (PK), organization_id (FK), target_name, equipment_name, product_name, target_type, target_status, created_by (FK), created_at, updated_at | 검사 대상 |  |
+| CAMERA_SOURCE | camera_id (PK), organization_id (FK), user_id (FK), camera_name, stream_url, status, created_at, updated_at | 카메라/스트림 입력 |  |
+| INSPECTION_RUN | inspection_id (PK), organization_id (FK), user_id (FK), target_id (FK),run_type, input_type, source_type, source_id, run_status,applied_threshold, idempotency_key, payload_fingerprint,error_code, started_at, completed_at | 검사 실행 | UK: (organization_id, user_id, idempotency_key)
+constraint: uk_inspection_run_org_user_idempotency |
+| INSPECTION_INPUT | inspection_input_id (PK), inspection_id (FK), source_type,file_id, camera_id, stream_url, source_name, mime_type,duration_sec, frame_count, created_at | 검사 입력 데이터 |  |
+| INSPECTION_EVENT_LOG | event_id (PK), inspection_id (FK), event_type, message, created_at | 검사 이벤트 로그 |  |
+| INSPECTION_RESULT | result_id (PK), inspection_id (FK), score, confidence, decision_code, final_decision_code, result_status, threshold_source, threshold_id, threshold_version, model_version_id, failure_reason, created_at | 검사 결과 |  |
+| RESULT_ARTIFACT | artifact_id (PK), result_id (FK), artifact_type, file_id, created_at | 결과 산출물 |  |
+| IMAGE | image_id (PK), result_id (FK), file_id, image_role, created_at | 결과 이미지 |  |
+| ANOMALY_REGION | region_id (PK), image_id (FK), label_code, bbox_x, bbox_y, bbox_w, bbox_h, score, created_at | 이상 영역 |  |
 
 ---
+
+### INSPECTION_RUN 상세 타입 변경
+
+| 컬럼/제약 | 기존 | 수정 |
+| --- | --- | --- |
+| `applied_threshold` | `DOUBLE` | `DECIMAL(5,4)` |
+| `idempotency_key` | `VARCHAR(255) UNIQUE` | `VARCHAR(255) NOT NULL` |
+| `payload_fingerprint` | 없음 | `VARCHAR(64)` |
+| UNIQUE | `UNIQUE(idempotency_key)` | `UNIQUE(organization_id, user_id, idempotency_key)` |
+
+### INSPECTION_INPUT 상세 타입
+
+| 컬럼 | 기존 | 수정 |
+| --- | --- | --- |
+| `source_type` | 없음 | `VARCHAR(20) NOT NULL` |
+| `stream_url` | `TEXT` | `TEXT` |
+| `source_name` | `VARCHAR(255)` | `VARCHAR(255)` |
+| `mime_type` | `VARCHAR(100)` | `VARCHAR(100)` |
+
+### INSPECTION_RESULT 상세 타입
+
+| 컬럼 | 기존 | 수정 |
+| --- | --- | --- |
+| threshold_version | `VARCHAR(50)` | `VARCHAR(int)` |
 
 # ✅ 3. REVIEW DOMAIN
 
@@ -58,8 +92,34 @@
 | Table | Columns | Description |
 | --- | --- | --- |
 | CHAT_CONVERSATION | conversation_id (PK), user_id (FK), title, created_at, updated_at, deleted_at | 챗봇 대화 |
-| CHAT_MESSAGE | message_id (PK), conversation_id (FK), role, message_text, created_at | 메시지 |
-| CHAT_SOURCE | chat_source_id (PK), message_id (FK), source_type, source_id, chunk_id, source_snippet | 답변 출처 |
+| CHAT_MESSAGE | message_id (PK), conversation_id (FK), role, message_text, message_status, answer_status, error_code, model_name, created_at, updated_at | 메시지 |
+| CHAT_SOURCE | chat_source_id (PK), message_id (FK), source_type, source_id, document_id (FK), document_title, document_type, chunk_id (FK), page_no, section, source_snippet, score, created_at | 답변 출처 |
+
+---
+
+### CHAT_MESSAGE 상세 컬럼
+
+| 컬럼 | 타입 제안 | 설명 |
+| --- | --- | --- |
+| `message_status` | `VARCHAR(20)` | 메시지 처리 상태. `SUCCESS / FAILED` |
+| `answer_status` | `VARCHAR(50)` | RAG 답변 상태. `ANSWERED / NO_RELEVANT_SOURCE / LLM_FAILED / VECTOR_STORE_FAILED / DOCUMENT_SCOPE_FORBIDDEN / VALIDATION_FAILED` |
+| `error_code` | `VARCHAR(50)` | 답변 생성 실패 시 에러 코드 |
+| `model_name` | `VARCHAR(100)` | 답변 생성에 사용한 모델명 |
+| `updated_at` | `TIMESTAMP` | 메시지 상태 변경 시각 |
+
+### CHAT_SOURCE 상세 컬럼
+
+| 컬럼 | 타입 제안 | 설명 |
+| --- | --- | --- |
+| `document_id` | `BIGINT` | 출처 문서 ID |
+| `document_title` | `VARCHAR(255)` | 답변 생성 당시 문서 제목 스냅샷 |
+| `document_type` | `VARCHAR(50)` | PDF, DOCX, XLSX 등 문서 타입 |
+| `chunk_id` | `BIGINT` | 검색된 문서 청크 ID |
+| `page_no` | `INT` | 출처 페이지 번호 |
+| `section` | `VARCHAR(255)` | 출처 섹션명 |
+| `source_snippet` | `TEXT` | 출처 본문 일부 |
+| `score` | `DECIMAL(5,4)` | RAG 검색 유사도 또는 신뢰도 점수 |
+| `created_at` | `TIMESTAMP` | 출처 저장 시각 |
 
 ---
 

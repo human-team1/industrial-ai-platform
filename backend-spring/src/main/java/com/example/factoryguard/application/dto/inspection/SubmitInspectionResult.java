@@ -16,6 +16,15 @@ public class SubmitInspectionResult {
     private final ResultPayload result;
     private final boolean replay;
 
+    public static SubmitInspectionResult accepted(InspectionRun run, boolean replay) {
+        return new SubmitInspectionResult(
+                run.getInspectionId(),
+                run.getRunStatus(),
+                null,
+                replay
+        );
+    }
+
     public static SubmitInspectionResult of(InspectionRun run, InspectionResult result, boolean reviewQueued) {
         return new SubmitInspectionResult(
                 run.getInspectionId(),

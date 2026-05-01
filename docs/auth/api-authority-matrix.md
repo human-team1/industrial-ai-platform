@@ -18,6 +18,15 @@
 
 신규 가입자는 승인 시 `ROLE_COMPANY_WORKER`로 생성됩니다 (`SignupService`).
 
+권한 표기 매핑:
+
+| 구분 | 표기 |
+| --- | --- |
+| 정책명/화면 표시명 | 사이트 관리자 |
+| Spring authority 문자열 | `ROLE_SITE_ADMIN` |
+| DB 저장값 (`users.role`) | `ROLE_SITE_ADMIN` |
+| 본 문서 표의 축약 컬럼명 | `SITE_ADMIN` |
+
 ---
 
 ## 2. Status 정의

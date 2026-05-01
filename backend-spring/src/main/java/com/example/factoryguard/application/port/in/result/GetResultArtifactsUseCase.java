@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface GetResultArtifactsUseCase {
 
-    List<ResultArtifactResult> execute(Long resultId);
+    List<ResultArtifactResult> getArtifacts(Long resultId);
 }

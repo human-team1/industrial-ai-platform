@@ -1,31 +1,47 @@
 package com.example.factoryguard.application.service.inspection;
 
-import com.example.factoryguard.application.dto.inspection.*;
+import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
+import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
+import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
+import com.example.factoryguard.application.dto.inspection.SubmitInspectionCommand;
+import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.port.in.inspection.SubmitInspectionUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
-import com.example.factoryguard.application.port.out.inspection.*;
+import com.example.factoryguard.application.port.out.file.PersistUploadedFilePort;
+import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
+import com.example.factoryguard.application.port.out.inspection.LoadInspectionRunPort;
 import com.example.factoryguard.application.port.out.result.LoadInspectionResultPort;
 import com.example.factoryguard.application.port.out.review.LoadReviewQueuePort;
-import com.example.factoryguard.application.port.out.review.SaveReviewQueuePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
-import com.example.factoryguard.domain.inspection.model.*;
-import com.example.factoryguard.domain.review.model.ReviewQueue;
-import com.example.factoryguard.domain.review.vo.ReviewQueueStatus;
-import com.example.factoryguard.adapter.out.fastapi.client.AiInvalidRequestException;
-import com.example.factoryguard.adapter.out.fastapi.client.AiServerException;
+import com.example.factoryguard.common.validation.FileValidator;
+import com.example.factoryguard.domain.file.model.StoredFile;
+import com.example.factoryguard.domain.file.vo.StorageType;
+import com.example.factoryguard.domain.inspection.model.AnalysisTarget;
+import com.example.factoryguard.domain.inspection.model.InputSourceType;
+import com.example.factoryguard.domain.inspection.model.InspectionEventType;
+import com.example.factoryguard.domain.inspection.model.InspectionInput;
+import com.example.factoryguard.domain.inspection.model.InspectionResult;
+import com.example.factoryguard.domain.inspection.model.InspectionRun;
+import com.example.factoryguard.domain.inspection.model.RunStatus;
+import com.example.factoryguard.domain.inspection.model.RunType;
 import com.example.factoryguard.domain.user.model.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
-import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Service
@@ -33,56 +49,43 @@ import java.util.concurrent.TimeoutException;
 @RequiredArgsConstructor
 public class SubmitInspectionService implements SubmitInspectionUseCase {
 
-    private static final String RESULT_STATUS_SUCCESS = "SUCCESS";
-    private static final String RESULT_STATUS_REVIEW_REQUIRED = "REVIEW_REQUIRED";
-    private static final String RESULT_STATUS_FAILED = "FAILED";
     private static final int IDEMPOTENCY_KEY_MAX_LENGTH = 255;
 
     private final TokenStorePort tokenStorePort;
     private final FindUserByIdPort findUserByIdPort;
     private final LoadAnalysisTargetPort loadAnalysisTargetPort;
-    private final SaveInspectionResultPort saveInspectionResultPort;
     private final LoadInspectionResultPort loadInspectionResultPort;
-    private final SaveReviewQueuePort saveReviewQueuePort;
     private final LoadReviewQueuePort loadReviewQueuePort;
     private final LoadInspectionRunPort loadInspectionRunPort;
-    private final CallAiInspectionPort callAiInspectionPort;
     private final ResolveInspectionThresholdService resolveInspectionThresholdService;
     private final InspectionRunRecorder runRecorder;
     private final InspectionInputRecorder inputRecorder;
     private final InspectionEventLogger eventLogger;
-    private final DecisionProperties decisionProperties;
+    private final FileValidator fileValidator;
+    private final MinioStorageAdapter minioStorageAdapter;
+    private final MinioProperties minioProperties;
+    private final PersistUploadedFilePort persistUploadedFilePort;
 
     @Override
     public SubmitInspectionResult execute(SubmitInspectionCommand command) {
         validateSession(command.getUserId(), command.getSessionId());
         User user = validateUserStatus(command.getUserId());
+        fileValidator.validate(command.getFile());
+
         ResolvedThreshold resolved = resolveInspectionThresholdService.resolve(
                 command.getUserId(), command.getThresholdId());
-        AnalysisTarget target = loadAnalysisTargetPort.findById(command.getTargetId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.TARGET_NOT_FOUND));
-        if (!target.getOrganizationId().equals(user.getOrganizationId())) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
-        }
+        validateTargetAccess(command.getTargetId(), user.getOrganizationId());
 
         Long orgId = user.getOrganizationId();
         Long userId = command.getUserId();
+        MultipartFile file = command.getFile();
         String fingerprint = PayloadFingerprintCalculator.compute(
                 orgId, userId, command.getTargetId(), command.getThresholdId(),
-                null, command.getOriginalFileName(), command.getMimeType(), command.getFileSize()
+                null, file.getOriginalFilename(), file.getContentType(), file.getSize()
         );
 
-        String rawKey = command.getIdempotencyKey();
-        boolean clientProvidedKey = rawKey != null && !rawKey.isBlank();
-        String idempotencyKey;
-        if (clientProvidedKey) {
-            idempotencyKey = rawKey.trim();
-            if (idempotencyKey.length() > IDEMPOTENCY_KEY_MAX_LENGTH) {
-                throw new BusinessException(ErrorCode.INVALID_IDEMPOTENCY_KEY);
-            }
-        } else {
-            idempotencyKey = UUID.randomUUID().toString();
-        }
+        String idempotencyKey = resolveIdempotencyKey(command.getIdempotencyKey());
+        boolean clientProvidedKey = command.getIdempotencyKey() != null && !command.getIdempotencyKey().isBlank();
 
         if (clientProvidedKey) {
             var existingOpt = loadInspectionRunPort
@@ -92,22 +95,10 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
             }
         }
 
+        StoredFile storedFile = uploadAndPersist(file, userId);
         InspectionRun run;
         try {
-            run = runRecorder.create(InspectionRun.builder()
-                    .organizationId(orgId)
-                    .userId(userId)
-                    .targetId(command.getTargetId())
-                    .runType(RunType.UPLOAD)
-                    .inputType("FILE")
-                    .sourceType("UPLOAD")
-                    .sourceId(command.getOriginalFileName())
-                    .runStatus(RunStatus.PENDING)
-                    .appliedThreshold(resolved.getAnomalyThreshold())
-                    .idempotencyKey(idempotencyKey)
-                    .payloadFingerprint(fingerprint)
-                    .startedAt(LocalDateTime.now())
-                    .build());
+            run = createRun(command, resolved, orgId, userId, idempotencyKey, fingerprint, file);
         } catch (DataIntegrityViolationException race) {
             log.info("Idempotency race detected, key={}", idempotencyKey);
             InspectionRun existing = loadInspectionRunPort
@@ -117,105 +108,73 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         }
         Long runId = run.getInspectionId();
 
+        inputRecorder.record(InspectionInput.builder()
+                .inspectionId(runId)
+                .fileId(storedFile.getFileId())
+                .sourceType(InputSourceType.FILE)
+                .sourceName(file.getOriginalFilename())
+                .mimeType(file.getContentType())
+                .build());
+
+        eventLogger.log(runId, InspectionEventType.UPLOAD_RECEIVED, file.getOriginalFilename());
+        eventLogger.log(runId, InspectionEventType.INPUT_SAVED, "input persisted");
+
+        runRecorder.transitTo(runId, RunStatus.PROCESSING);
+        eventLogger.log(runId, InspectionEventType.PROCESS_STARTED, "processing queued");
+
+        // TODO: define POST /ai/v1/inference/anomaly contract, call AI server, then persist result/artifacts/images/regions.
+        return SubmitInspectionResult.accepted(run.toBuilder().runStatus(RunStatus.PROCESSING).build(), false);
+    }
+
+    private InspectionRun createRun(SubmitInspectionCommand command, ResolvedThreshold resolved, Long orgId,
+                                    Long userId, String idempotencyKey, String fingerprint, MultipartFile file) {
+        return runRecorder.create(InspectionRun.builder()
+                .organizationId(orgId)
+                .userId(userId)
+                .targetId(command.getTargetId())
+                .runType(RunType.UPLOAD)
+                .inputType("FILE")
+                .sourceType("UPLOAD")
+                .sourceId(file.getOriginalFilename())
+                .runStatus(RunStatus.PENDING)
+                .appliedThreshold(BigDecimal.valueOf(resolved.getAnomalyThreshold()))
+                .idempotencyKey(idempotencyKey)
+                .payloadFingerprint(fingerprint)
+                .startedAt(LocalDateTime.now())
+                .build());
+    }
+
+    private StoredFile uploadAndPersist(MultipartFile file, Long userId) {
+        String bucket = minioProperties.getBucketInspectionArtifacts();
+        String objectKey = buildObjectKey(file.getOriginalFilename());
+        String checksum = calculateSha256(file);
         try {
-            inputRecorder.record(InspectionInput.builder()
-                    .inspectionId(runId)
-                    .sourceType(InputSourceType.FILE)
-                    .sourceName(command.getOriginalFileName())
-                    .mimeType(command.getMimeType())
-                    .build());
-
-            eventLogger.log(runId, InspectionEventType.UPLOAD_RECEIVED, command.getOriginalFileName());
-            eventLogger.log(runId, InspectionEventType.INPUT_SAVED, "input persisted");
-
-            runRecorder.transitTo(runId, RunStatus.PROCESSING);
-            eventLogger.log(runId, InspectionEventType.PROCESS_STARTED, "processing started");
-
-            eventLogger.log(runId, InspectionEventType.AI_CALLED, "ai called");
-            AiInspectionResponse aiResponse;
-            try {
-                aiResponse = callAiInspectionPort.call(new AiInspectionRequest(
-                        command.getFileUrl(),
-                        resolved.getAnomalyThreshold(),
-                        resolved.getLowConfidenceThreshold()
-                ));
-            } catch (TimeoutException aiEx) {
-                String detail = "AI_TIMEOUT: " + safeMessage(aiEx);
-                saveFailedResult(runId, resolved, detail);
-                eventLogger.logFailure(runId, InspectionEventType.AI_TIMEOUT, detail);
-                runRecorder.markFailed(runId, ErrorCode.AI_TIMEOUT.name());
-                eventLogger.logFailure(runId, InspectionEventType.FAILED, "ai timeout");
-                throw new BusinessException(ErrorCode.AI_TIMEOUT);
-            } catch (AiInvalidRequestException aiEx) {
-                String detail = "AI_REQUEST_INVALID: " + safeMessage(aiEx);
-                saveFailedResult(runId, resolved, detail);
-                eventLogger.logFailure(runId, InspectionEventType.AI_FAILED, detail);
-                runRecorder.markFailed(runId, ErrorCode.AI_REQUEST_INVALID.name());
-                eventLogger.logFailure(runId, InspectionEventType.FAILED, "ai 4xx");
-                throw new BusinessException(ErrorCode.AI_REQUEST_INVALID);
-            } catch (AiServerException aiEx) {
-                String detail = "AI_SERVER_ERROR: " + safeMessage(aiEx);
-                saveFailedResult(runId, resolved, detail);
-                eventLogger.logFailure(runId, InspectionEventType.AI_FAILED, detail);
-                runRecorder.markFailed(runId, ErrorCode.AI_SERVER_ERROR.name());
-                eventLogger.logFailure(runId, InspectionEventType.FAILED, "ai failed");
-                throw new BusinessException(ErrorCode.AI_SERVER_ERROR);
-            }
-
-            DecisionCalculator.DecisionResult decision = DecisionCalculator.decide(
-                    aiResponse.getScore(),
-                    aiResponse.getConfidence(),
-                    resolved.getAnomalyThreshold(),
-                    resolved.getLowConfidenceThreshold(),
-                    decisionProperties.getBoundaryMargin()
+            minioStorageAdapter.upload(
+                    bucket,
+                    objectKey,
+                    file.getInputStream(),
+                    file.getSize(),
+                    file.getOriginalFilename(),
+                    file.getContentType(),
+                    checksum
             );
-
-            String resultStatus = decision.decisionCode() == DecisionCode.RECHECK
-                    ? RESULT_STATUS_REVIEW_REQUIRED
-                    : RESULT_STATUS_SUCCESS;
-
-            InspectionResult result = saveInspectionResultPort.save(InspectionResult.builder()
-                    .inspectionId(runId)
-                    .score(aiResponse.getScore())
-                    .confidence(aiResponse.getConfidence())
-                    .decisionCode(decision.decisionCode())
-                    .finalDecisionCode(decision.decisionCode())
-                    .resultStatus(resultStatus)
-                    .thresholdSource(resolved.getSource().name())
-                    .thresholdId(resolved.getThresholdId())
-                    .thresholdVersion(resolved.getThresholdVersion())
-                    .modelVersionId(aiResponse.getModelVersionId())
-                    .build());
-            eventLogger.log(runId, InspectionEventType.RESULT_SAVED, "result saved");
-
-            boolean reviewQueued = false;
-            if (decision.decisionCode() == DecisionCode.RECHECK) {
-                saveReviewQueuePort.save(ReviewQueue.builder()
-                        .resultId(result.getResultId())
-                        .queueStatus(ReviewQueueStatus.WAITING)
-                        .queuedReason(decision.queuedReason())
-                        .build());
-                reviewQueued = true;
-            }
-
-            runRecorder.transitTo(runId, RunStatus.COMPLETED);
-            eventLogger.log(runId, InspectionEventType.COMPLETED, "completed");
-
-            return SubmitInspectionResult.of(
-                    run.toBuilder().runStatus(RunStatus.COMPLETED).build(),
-                    result,
-                    reviewQueued
-            );
-
-        } catch (BusinessException be) {
-            throw be;
-        } catch (Exception e) {
-            log.error("Unexpected error during inspection submission, runId={}", runId, e);
-            saveFailedResult(runId, resolved, "UNEXPECTED_ERROR: " + safeMessage(e));
-            runRecorder.markFailed(runId, "UNEXPECTED_ERROR");
-            eventLogger.logFailure(runId, InspectionEventType.FAILED, "unexpected: " + safeMessage(e));
-            throw new BusinessException(ErrorCode.INSPECTION_FAILED);
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "검사 파일 업로드에 실패했습니다.");
         }
+
+        return persistUploadedFilePort.save(StoredFile.builder()
+                .storageType(StorageType.MINIO)
+                .bucketName(bucket)
+                .objectKey(objectKey)
+                .filePath(null)
+                .fileName(file.getOriginalFilename())
+                .fileExt(fileExt(file.getOriginalFilename()))
+                .mimeType(file.getContentType())
+                .fileSize(file.getSize())
+                .checksum(checksum)
+                .createdAt(LocalDateTime.now())
+                .createdBy(userId)
+                .build());
     }
 
     private SubmitInspectionResult buildReplay(InspectionRun existing, String fingerprint) {
@@ -226,18 +185,39 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
 
         RunStatus status = existing.getRunStatus();
         if (status == RunStatus.PENDING || status == RunStatus.PROCESSING) {
-            return SubmitInspectionResult.ofReplay(existing, null, false);
+            return SubmitInspectionResult.accepted(existing, true);
         }
         if (status == RunStatus.FAILED) {
             throw new BusinessException(mapFailedErrorCode(existing.getErrorCode()));
         }
-        // COMPLETED or STOPPED
         List<InspectionResult> results = loadInspectionResultPort
                 .findAllByInspectionId(existing.getInspectionId());
         InspectionResult result = results.isEmpty() ? null : results.get(0);
         boolean reviewQueued = result != null
                 && loadReviewQueuePort.findByResultId(result.getResultId()).isPresent();
         return SubmitInspectionResult.ofReplay(existing, result, reviewQueued);
+    }
+
+    private void validateTargetAccess(Long targetId, Long organizationId) {
+        if (targetId == null) {
+            return;
+        }
+        AnalysisTarget target = loadAnalysisTargetPort.findById(targetId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.TARGET_NOT_FOUND));
+        if (!target.getOrganizationId().equals(organizationId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+    }
+
+    private String resolveIdempotencyKey(String rawKey) {
+        if (rawKey == null || rawKey.isBlank()) {
+            return UUID.randomUUID().toString();
+        }
+        String idempotencyKey = rawKey.trim();
+        if (idempotencyKey.length() > IDEMPOTENCY_KEY_MAX_LENGTH) {
+            throw new BusinessException(ErrorCode.INVALID_IDEMPOTENCY_KEY);
+        }
+        return idempotencyKey;
     }
 
     private ErrorCode mapFailedErrorCode(String errorCode) {
@@ -247,30 +227,30 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         return ErrorCode.INSPECTION_FAILED;
     }
 
-    private void saveFailedResult(Long runId, ResolvedThreshold resolved, String failureReason) {
+    private String calculateSha256(MultipartFile file) {
         try {
-            saveInspectionResultPort.save(InspectionResult.builder()
-                    .inspectionId(runId)
-                    .score(null)
-                    .confidence(null)
-                    .decisionCode(null)
-                    .finalDecisionCode(null)
-                    .resultStatus(RESULT_STATUS_FAILED)
-                    .thresholdSource(resolved.getSource().name())
-                    .thresholdId(resolved.getThresholdId())
-                    .thresholdVersion(resolved.getThresholdVersion())
-                    .modelVersionId(null)
-                    .failureReason(failureReason)
-                    .build());
-        } catch (Exception persistEx) {
-            log.error("Failed to persist FAILED InspectionResult, runId={}", runId, persistEx);
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(file.getBytes()));
+        } catch (NoSuchAlgorithmException exception) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "SHA-256 알고리즘을 사용할 수 없습니다.");
+        } catch (Exception exception) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "검사 파일 체크섬 계산에 실패했습니다.");
         }
     }
 
-    private String safeMessage(Throwable t) {
-        String msg = t.getMessage();
-        if (msg == null) return t.getClass().getSimpleName();
-        return msg.length() > 1000 ? msg.substring(0, 1000) : msg;
+    private String buildObjectKey(String originalFilename) {
+        return "inspections/" + UUID.randomUUID() + "_" + originalFilename;
+    }
+
+    private String fileExt(String filename) {
+        if (filename == null) {
+            return "";
+        }
+        int dot = filename.lastIndexOf('.');
+        if (dot < 0 || dot == filename.length() - 1) {
+            return "";
+        }
+        return filename.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
     private void validateSession(Long userId, String sessionId) {

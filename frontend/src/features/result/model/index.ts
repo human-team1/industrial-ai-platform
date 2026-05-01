@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchResultDetail, fetchResults } from '../api'
 import type { ResultDetail, ResultListQuery, ResultPageResponse } from '../types'
@@ -32,26 +32,37 @@ export function useResultList() {
   const [data, setData] = useState<ResultPageResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const requestGeneration = useRef(0)
 
-  const load = useCallback(async (nextRequest: ResultListRequest) => {
+  const load = useCallback(async (nextRequest: ResultListRequest, signal?: AbortSignal) => {
+    const gen = ++requestGeneration.current
     try {
       setLoading(true)
       setError(null)
-      const result = await fetchResults({
-        ...nextRequest.filters,
-        page: nextRequest.page,
-        size: RESULT_PAGE_SIZE,
-      })
+      const result = await fetchResults(
+        {
+          ...nextRequest.filters,
+          page: nextRequest.page,
+          size: RESULT_PAGE_SIZE,
+        },
+        signal,
+      )
+      if (gen !== requestGeneration.current) return
       setData(result)
     } catch (err) {
+      if (signal?.aborted) return
       setError(err instanceof Error ? err.message : '검사 결과 목록을 불러오지 못했습니다.')
     } finally {
-      setLoading(false)
+      if (gen === requestGeneration.current) {
+        setLoading(false)
+      }
     }
   }, [])
 
   useEffect(() => {
-    void load(request)
+    const controller = new AbortController()
+    void load(request, controller.signal)
+    return () => controller.abort()
   }, [load, request])
 
   const search = useCallback(() => {

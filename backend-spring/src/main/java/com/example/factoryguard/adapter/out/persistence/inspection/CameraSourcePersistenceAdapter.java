@@ -1,5 +1,6 @@
 package com.example.factoryguard.adapter.out.persistence.inspection;
 
+import com.example.factoryguard.adapter.out.persistence.inspection.mapper.InspectionPersistenceMapper;
 import com.example.factoryguard.application.port.out.inspection.DeleteCameraSourcePort;
 import com.example.factoryguard.application.port.out.inspection.LoadCameraSourcePort;
 import com.example.factoryguard.application.port.out.inspection.SaveCameraSourcePort;
@@ -18,6 +19,7 @@ public class CameraSourcePersistenceAdapter implements
         DeleteCameraSourcePort {
 
     private final CameraSourceJpaRepository repository;
+    private final InspectionPersistenceMapper mapper;
 
     @Override
     public CameraSource save(CameraSource camera) {
@@ -27,44 +29,25 @@ public class CameraSourcePersistenceAdapter implements
             existing.update(camera.getCameraName(), camera.getStreamUrl(), camera.getStatus());
             saved = existing;
         } else {
-            saved = repository.save(CameraSourceJpaEntity.builder()
-                    .organizationId(camera.getOrganizationId())
-                    .userId(camera.getUserId())
-                    .cameraName(camera.getCameraName())
-                    .streamUrl(camera.getStreamUrl())
-                    .status(camera.getStatus())
-                    .build());
+            saved = repository.save(mapper.toEntity(camera));
         }
-        return toDomain(saved);
+        return mapper.toDomain(saved);
     }
 
     @Override
     public Optional<CameraSource> findById(Long cameraId) {
-        return repository.findById(cameraId).map(this::toDomain);
+        return repository.findById(cameraId).map(mapper::toDomain);
     }
 
     @Override
     public List<CameraSource> findByOrganizationId(Long organizationId) {
         return repository.findByOrganizationIdOrderByCreatedAtDesc(organizationId).stream()
-                .map(this::toDomain)
+                .map(mapper::toDomain)
                 .toList();
     }
 
     @Override
     public void deleteById(Long cameraId) {
         repository.deleteById(cameraId);
-    }
-
-    private CameraSource toDomain(CameraSourceJpaEntity e) {
-        return CameraSource.builder()
-                .cameraId(e.getCameraId())
-                .organizationId(e.getOrganizationId())
-                .userId(e.getUserId())
-                .cameraName(e.getCameraName())
-                .streamUrl(e.getStreamUrl())
-                .status(e.getStatus())
-                .createdAt(e.getCreatedAt())
-                .updatedAt(e.getUpdatedAt())
-                .build();
     }
 }

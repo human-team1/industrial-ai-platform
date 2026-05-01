@@ -2,7 +2,7 @@ import type { DragEventHandler, ReactNode } from 'react'
 import { useState } from 'react'
 import type { DocumentFormMode, DocumentFormValues } from '../model'
 import type { DocumentDetail, DocumentVersion, IndexingStatus } from '../../document/types'
-import { indexingStatusLabel } from '../../document/ui'
+import { indexingStatusLabel } from '../../document/lib/indexingStatusLabel'
 
 type DocumentFormProps = {
   mode: DocumentFormMode

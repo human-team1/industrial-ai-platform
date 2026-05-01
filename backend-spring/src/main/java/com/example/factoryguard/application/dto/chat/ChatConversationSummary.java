@@ -11,5 +11,9 @@ public class ChatConversationSummary {
 
     private final Long conversationId;
     private final String title;
+    private final String lastMessagePreview;
+    private final long messageCount;
+    private final long sourceCount;
+    private final LocalDateTime createdAt;
     private final LocalDateTime updatedAt;
 }

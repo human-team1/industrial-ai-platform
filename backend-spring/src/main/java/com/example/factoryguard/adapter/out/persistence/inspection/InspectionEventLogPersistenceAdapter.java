@@ -1,5 +1,6 @@
 package com.example.factoryguard.adapter.out.persistence.inspection;
 
+import com.example.factoryguard.adapter.out.persistence.inspection.mapper.InspectionPersistenceMapper;
 import com.example.factoryguard.application.port.out.inspection.LoadInspectionEventLogPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionEventLogPort;
 import com.example.factoryguard.domain.inspection.model.InspectionEventLog;
@@ -13,31 +14,18 @@ import java.util.List;
 public class InspectionEventLogPersistenceAdapter implements SaveInspectionEventLogPort, LoadInspectionEventLogPort {
 
     private final InspectionEventLogJpaRepository repository;
+    private final InspectionPersistenceMapper mapper;
 
     @Override
     public InspectionEventLog save(InspectionEventLog log) {
-        InspectionEventLogJpaEntity saved = repository.save(InspectionEventLogJpaEntity.builder()
-                .inspectionId(log.getInspectionId())
-                .eventType(log.getEventType())
-                .message(log.getMessage())
-                .build());
-        return toDomain(saved);
+        InspectionEventLogJpaEntity saved = repository.save(mapper.toEntity(log));
+        return mapper.toDomain(saved);
     }
 
     @Override
     public List<InspectionEventLog> findByInspectionIdOrderByCreatedAt(Long inspectionId) {
         return repository.findByInspectionIdOrderByCreatedAtAsc(inspectionId).stream()
-                .map(this::toDomain)
+                .map(mapper::toDomain)
                 .toList();
-    }
-
-    private InspectionEventLog toDomain(InspectionEventLogJpaEntity e) {
-        return InspectionEventLog.builder()
-                .eventId(e.getEventId())
-                .inspectionId(e.getInspectionId())
-                .eventType(e.getEventType())
-                .message(e.getMessage())
-                .createdAt(e.getCreatedAt())
-                .build();
     }
 }

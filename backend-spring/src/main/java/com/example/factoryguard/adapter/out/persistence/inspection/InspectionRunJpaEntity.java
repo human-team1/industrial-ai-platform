@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -53,8 +54,8 @@ public class InspectionRunJpaEntity {
     @Column(name = "run_status", nullable = false)
     private RunStatus runStatus;
 
-    @Column(name = "applied_threshold", nullable = false, columnDefinition = "DECIMAL(5,4)")
-    private double appliedThreshold;
+    @Column(name = "applied_threshold", nullable = false, precision = 5, scale = 4, columnDefinition = "DECIMAL(5,4)")
+    private BigDecimal appliedThreshold;
 
     @Column(name = "idempotency_key", nullable = false)
     private String idempotencyKey;
@@ -85,7 +86,7 @@ public class InspectionRunJpaEntity {
     @Builder
     public InspectionRunJpaEntity(Long organizationId, Long userId, Long targetId,
                                   RunType runType, String inputType, String sourceType,
-                                  String sourceId, RunStatus runStatus, double appliedThreshold,
+                                  String sourceId, RunStatus runStatus, BigDecimal appliedThreshold,
                                   String idempotencyKey, String payloadFingerprint,
                                   LocalDateTime startedAt) {
         this.organizationId = organizationId;

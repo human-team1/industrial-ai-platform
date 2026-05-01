@@ -2,9 +2,10 @@ package com.example.factoryguard.adapter.in.web.inspection;
 
 import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionEventLogResponse;
 import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionRunResponse;
-import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
-import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
-import com.example.factoryguard.application.dto.inspection.InspectionStatusResponse;
+import com.example.factoryguard.adapter.in.web.inspection.dto.InspectionStatusResponse;
+import com.example.factoryguard.adapter.in.web.inspection.dto.StopInspectionResponse;
+import com.example.factoryguard.adapter.in.web.inspection.dto.UploadInspectionResponse;
+import com.example.factoryguard.adapter.in.web.inspection.mapper.InspectionWebMapper;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.port.in.inspection.GetInspectionEventsUseCase;
@@ -13,17 +14,23 @@ import com.example.factoryguard.application.port.in.inspection.GetInspectionsUse
 import com.example.factoryguard.application.port.in.inspection.StopInspectionUseCase;
 import com.example.factoryguard.application.port.in.inspection.SubmitInspectionUseCase;
 import com.example.factoryguard.common.response.ApiResponse;
-import com.example.factoryguard.common.validation.FileValidator;
 import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.SecurityUtils;
+import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.Duration;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/inspections")
@@ -35,90 +42,79 @@ public class InspectionController {
     private final StopInspectionUseCase stopInspectionUseCase;
     private final GetInspectionsUseCase getInspectionsUseCase;
     private final GetInspectionEventsUseCase getInspectionEventsUseCase;
-    private final MinioStorageAdapter minioStorageAdapter;
-    private final MinioProperties minioProperties;
     private final SecurityUtils securityUtils;
-    private final FileValidator fileValidator;
+    private final InspectionWebMapper webMapper;
 
     @GetMapping("/status")
     public ApiResponse<InspectionStatusResponse> getStatus() {
-        return ApiResponse.success(InspectionStatusResponse.from(getInspectionStatusUseCase.getStatus()));
+        return ApiResponse.success(webMapper.toResponse(getInspectionStatusUseCase.getStatus()));
     }
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
-    public ResponseEntity<ApiResponse<SubmitInspectionResult>> upload(
+    public ResponseEntity<ApiResponse<UploadInspectionResponse>> upload(
             @RequestPart("file") MultipartFile file,
-            @RequestPart("targetId") String targetId,
+            @RequestPart(value = "targetId", required = false) String targetId,
             @RequestPart(value = "thresholdId", required = false) String thresholdId,
-            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) throws Exception {
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
 
-        fileValidator.validate(file);
-
-        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
-
-        String objectKey = "inspections/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
-        String bucket = minioProperties.getBucketInspectionArtifacts();
-
-        minioStorageAdapter.upload(
-                bucket, objectKey,
-                file.getInputStream(), file.getSize(),
-                file.getOriginalFilename(), file.getContentType(), ""
-        );
-
-        String fileUrl = minioStorageAdapter.createPresignedGetUrl(bucket, objectKey, Duration.ofHours(1));
-
+        AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
         SubmitInspectionResult result = submitInspectionUseCase.execute(new SubmitInspectionCommand(
-                p.userId(),
-                p.sessionId(),
-                Long.parseLong(targetId),
-                thresholdId != null ? Long.parseLong(thresholdId) : null,
-                fileUrl,
-                file.getOriginalFilename(),
-                file.getContentType(),
-                file.getSize(),
+                principal.userId(),
+                principal.sessionId(),
+                parseOptionalLong(targetId),
+                parseOptionalLong(thresholdId),
+                file,
                 idempotencyKey
         ));
 
-        String message = switch (result.getRunStatus()) {
-            case PENDING, PROCESSING -> "검사가 진행 중입니다.";
-            case COMPLETED -> "검사 요청이 완료되었습니다.";
-            default -> "검사 요청이 처리되었습니다.";
-        };
-
         return ResponseEntity.ok()
                 .header("Idempotent-Replay", String.valueOf(result.isReplay()))
-                .body(ApiResponse.success(result, message));
+                .body(ApiResponse.success(
+                        new UploadInspectionResponse(result.getInspectionId(), result.getRunStatus()),
+                        "업로드 검사가 요청되었습니다."
+                ));
     }
 
     @PatchMapping("/{inspectionId}/stop")
-    public ApiResponse<Void> stop(@PathVariable Long inspectionId) {
-        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
-        stopInspectionUseCase.execute(p.userId(), p.organizationId(), inspectionId);
-        return ApiResponse.success(null, "검사가 중단되었습니다.");
+    public ApiResponse<StopInspectionResponse> stop(@PathVariable Long inspectionId) {
+        AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
+        InspectionRun stopped = stopInspectionUseCase.execute(principal.userId(), principal.organizationId(), inspectionId);
+        return ApiResponse.success(
+                new StopInspectionResponse(
+                        stopped.getInspectionId(),
+                        stopped.getRunStatus(),
+                        stopped.getCompletedAt()
+                ),
+                "실시간 탐지가 중지되었습니다."
+        );
     }
 
     @GetMapping
     public ApiResponse<List<InspectionRunResponse>> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
-        return ApiResponse.success(getInspectionsUseCase.list(p.organizationId(), page, size).stream()
-                .map(InspectionRunResponse::from)
+        AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
+        return ApiResponse.success(getInspectionsUseCase.list(principal.organizationId(), page, size).stream()
+                .map(webMapper::toResponse)
                 .toList());
     }
 
     @GetMapping("/{inspectionId}")
     public ApiResponse<InspectionRunResponse> detail(@PathVariable Long inspectionId) {
-        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
-        return ApiResponse.success(InspectionRunResponse.from(
-                getInspectionsUseCase.detail(p.organizationId(), inspectionId)));
+        AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
+        return ApiResponse.success(webMapper.toResponse(
+                getInspectionsUseCase.detail(principal.organizationId(), inspectionId)));
     }
 
     @GetMapping("/{inspectionId}/events")
     public ApiResponse<List<InspectionEventLogResponse>> events(@PathVariable Long inspectionId) {
-        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
-        return ApiResponse.success(getInspectionEventsUseCase.execute(p.organizationId(), inspectionId).stream()
-                .map(InspectionEventLogResponse::from)
+        AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
+        return ApiResponse.success(getInspectionEventsUseCase.execute(principal.organizationId(), inspectionId).stream()
+                .map(webMapper::toResponse)
                 .toList());
+    }
+
+    private Long parseOptionalLong(String value) {
+        return value == null || value.isBlank() ? null : Long.parseLong(value);
     }
 }

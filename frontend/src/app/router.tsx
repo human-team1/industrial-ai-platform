@@ -3,8 +3,10 @@ import { AuthPage } from '../pages/AuthPage'
 import { SignupPage } from '../pages/SignupPage'
 import { SignupStatusPage } from '../pages/SignupStatusPage'
 import { ChatbotPage } from '../pages/ChatbotPage'
+import { ChatbotHistoryPage } from '../pages/ChatbotHistoryPage'
 import { DashboardPage } from '../pages/DashboardPage'
 import { InspectionPage } from '../pages/InspectionPage'
+import { UploadInspectionPage } from '../pages/UploadInspectionPage'
 import { ResultPage } from '../pages/ResultPage'
 import { ResultDetailPage } from '../pages/ResultDetailPage'
 import { AdminSignupRequestsPage } from '../pages/AdminSignupRequestsPage'
@@ -37,12 +39,14 @@ export function AppRouter() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/inspections" element={<InspectionPage />} />
+            <Route path="/inspections/upload" element={<UploadInspectionPage />} />
             <Route path="/results" element={<ResultPage />} />
             <Route path="/results/:resultId" element={<ResultDetailPage />} />
             <Route path="/documents" element={<DocumentListPage />} />
             <Route path="/documents/new" element={<DocumentFormPage />} />
             <Route path="/documents/:documentId/edit" element={<DocumentFormPage />} />
             <Route path="/chatbot" element={<ChatbotPage />} />
+            <Route path="/chatbot/history" element={<ChatbotHistoryPage />} />
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/settings" element={<UserSettingsPage />} />
           </Route>

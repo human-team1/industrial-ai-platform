@@ -72,18 +72,23 @@ MinIO 콘솔:
 
 ## MariaDB 초기화
 
-Compose는 init SQL을 자동 마운트하지 않습니다. 최초 1회 수동 실행합니다.
+Compose는 init SQL을 자동 마운트하지 않습니다. 수동 실행 또는 아래 스크립트를 사용합니다.
 
 ```powershell
-Get-Content .\mariadb\init\industrial-ai-platform.sql -Raw |
-  docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai
+.\scripts\db-migrate.ps1
+.\scripts\db-seed.ps1
 ```
 
 샘플 조직:
 
 ```powershell
-Get-Content .\mariadb\seed\seed-sample-organizations.sql -Raw |
-  docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai
+.\scripts\db-status.ps1
+```
+
+전체 초기화가 필요하면 아래 명령을 사용합니다.
+
+```powershell
+.\scripts\db-reset.ps1 -Force
 ```
 
 자세한 절차는 [mariadb/README.md](mariadb/README.md)와 [docs/db/mariadb-schema-init.md](../docs/db/mariadb-schema-init.md)를 참고하세요.

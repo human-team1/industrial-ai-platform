@@ -71,6 +71,16 @@ Copy-Item .env.example .env
 - 에러 응답: RFC 9457 Problem Details 형식
 - 헬스체크, 파일 preview/download, 204 응답은 예외 가능
 
+## Mapper 분리 규칙
+
+- `adapter/in/web/*/mapper/*WebMapper`:
+  - RequestDto -> Application Command/Query
+  - Application Result -> ResponseDto 변환 책임
+- `adapter/out/persistence/*/mapper/*PersistenceMapper`:
+  - JPA Entity <-> Domain Model 변환 책임
+- Controller는 UseCase 호출 조립만 수행하고, 필드 단위 직접 매핑을 두지 않습니다.
+- Service는 Web DTO/JPA Entity에 직접 의존하지 않습니다.
+
 ## 현재 구현된 주요 엔드포인트
 
 | Method | Path | 설명 |
