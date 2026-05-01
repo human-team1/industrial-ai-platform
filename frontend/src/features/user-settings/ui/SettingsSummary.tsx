@@ -1,16 +1,19 @@
 import { SettingsSectionCard } from './primitives'
-import type { AllSettings } from '../../../entities/user-settings'
+import type { SummaryView } from '../types'
 
-export function SettingsSummary({ settings }: { settings: AllSettings }) {
+export function SettingsSummary({ settings }: { settings: SummaryView }) {
   const summaryItems = [
-    { label: '기본 진입 페이지', value: settings.dashboard.entryPage },
-    { label: '새로고침 주기', value: settings.dashboard.refreshCycle },
-    { label: '차트 기간', value: settings.dashboard.chartRange },
-    { label: '테마', value: settings.dashboard.theme },
-    { label: '이상 탐지 알림', value: settings.notifications.anomalyAlert ? '켜짐' : '꺼짐' },
-    { label: '이메일 알림', value: settings.notifications.emailAlert ? '켜짐' : '꺼짐' },
-    { label: '탐지 임계값', value: settings.detection.threshold },
-    { label: '자동 로그아웃', value: settings.security.autoLogout },
+    { label: '기본 진입 페이지', value: settings.entryPage },
+    { label: '새로고침 주기', value: settings.refreshCycle },
+    { label: '차트 기간', value: settings.chartRange },
+    { label: '테마', value: settings.theme },
+    { label: '이상 탐지 알림', value: settings.anomalyAlert ? '켜짐' : '꺼짐' },
+    { label: '이메일 알림', value: settings.emailAlert ? '켜짐' : '꺼짐' },
+    {
+      label: '탐지 임계값',
+      value: Number.isFinite(settings.threshold) ? settings.threshold.toFixed(2) : '-',
+    },
+    { label: '자리 비움 자동 잠금', value: settings.autoLogout },
   ]
 
   return (

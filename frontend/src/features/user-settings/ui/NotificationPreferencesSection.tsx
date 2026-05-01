@@ -1,14 +1,14 @@
 import { SettingsSectionCard, SettingsToggleSwitch } from './primitives'
-import type { NotificationSettings } from '../../../entities/user-settings'
+import type { NotificationView } from '../types'
 
 export function NotificationPreferencesSection({
   settings,
   onChange,
 }: {
-  settings: NotificationSettings
-  onChange: <K extends keyof NotificationSettings>(key: K, value: NotificationSettings[K]) => void
+  settings: NotificationView
+  onChange: <K extends keyof NotificationView>(key: K, value: NotificationView[K]) => void
 }) {
-  const items: { key: keyof NotificationSettings; label: string; desc: string }[] = [
+  const items: { key: keyof NotificationView; label: string; desc: string }[] = [
     { key: 'anomalyAlert', label: '이상 탐지 알림', desc: '이상이 감지되면 즉시 알림을 받습니다.' },
     { key: 'systemAlert', label: '시스템 점검 알림', desc: '예정된 점검 및 시스템 상태 변경 알림입니다.' },
     { key: 'reportAlert', label: '보고서 생성 알림', desc: '보고서 생성이 완료되면 알림을 받습니다.' },

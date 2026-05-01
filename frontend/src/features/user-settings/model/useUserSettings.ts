@@ -1,61 +1,75 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  DEFAULT_SETTINGS,
-  type AllSettings,
-  type DashboardSettings,
-  type DetectionSettings,
-  type NotificationSettings,
-  type SecuritySettings,
+  DEFAULT_USER_SETTINGS,
+  type UserSettings,
 } from '../../../entities/user-settings'
+import { getMySettings, patchMySettings } from '../api'
+import type { PatchMySettingsRequest } from '../api/types'
 
-export function useUserSettings() {
-  const [settings, setSettings] = useState<AllSettings>(DEFAULT_SETTINGS)
-  const [saved, setSaved] = useState(false)
+export type UseUserSettingsResult = {
+  settings: UserSettings
+  loaded: boolean
+  loadError: string | null
+  setLocal: <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => void
+  reloadFromServer: () => void
+  applyServerResponse: (next: UserSettings) => void
+  saveToServer: (payload: PatchMySettingsRequest) => Promise<UserSettings>
+}
 
-  function updateDashboard<K extends keyof DashboardSettings>(key: K, value: DashboardSettings[K]) {
-    setSettings((prev) => ({ ...prev, dashboard: { ...prev.dashboard, [key]: value } }))
-    setSaved(false)
+export function useUserSettings(): UseUserSettingsResult {
+  const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS)
+  const [loaded, setLoaded] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    let cancelled = false
+
+    setLoadError(null)
+    getMySettings(controller.signal)
+      .then((data) => {
+        if (cancelled) return
+        setSettings(data)
+        setLoaded(true)
+      })
+      .catch((error: unknown) => {
+        if (cancelled || controller.signal.aborted) return
+        setLoadError(error instanceof Error ? error.message : '설정을 불러오지 못했습니다.')
+        setLoaded(true)
+      })
+
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [reloadKey])
+
+  function setLocal<K extends keyof UserSettings>(key: K, value: UserSettings[K]) {
+    setSettings((prev) => ({ ...prev, [key]: value }))
   }
 
-  function updateNotifications<K extends keyof NotificationSettings>(key: K, value: NotificationSettings[K]) {
-    setSettings((prev) => ({ ...prev, notifications: { ...prev.notifications, [key]: value } }))
-    setSaved(false)
+  function reloadFromServer() {
+    setReloadKey((k) => k + 1)
   }
 
-  function updateDetection<K extends keyof DetectionSettings>(key: K, value: DetectionSettings[K]) {
-    setSettings((prev) => ({ ...prev, detection: { ...prev.detection, [key]: value } }))
-    setSaved(false)
+  function applyServerResponse(next: UserSettings) {
+    setSettings(next)
   }
 
-  function updateSecurity<K extends keyof SecuritySettings>(key: K, value: SecuritySettings[K]) {
-    setSettings((prev) => ({ ...prev, security: { ...prev.security, [key]: value } }))
-    setSaved(false)
-  }
-
-  function handleSave() {
-    // TODO: API 연동 (백엔드 계약 확정 후)
-    setSaved(true)
-  }
-
-  function handleCancel() {
-    setSettings(DEFAULT_SETTINGS)
-    setSaved(false)
-  }
-
-  function handleReset() {
-    setSettings(DEFAULT_SETTINGS)
-    setSaved(false)
+  async function saveToServer(payload: PatchMySettingsRequest): Promise<UserSettings> {
+    const result = await patchMySettings(payload)
+    setSettings(result)
+    return result
   }
 
   return {
     settings,
-    saved,
-    updateDashboard,
-    updateNotifications,
-    updateDetection,
-    updateSecurity,
-    handleSave,
-    handleCancel,
-    handleReset,
+    loaded,
+    loadError,
+    setLocal,
+    reloadFromServer,
+    applyServerResponse,
+    saveToServer,
   }
 }
