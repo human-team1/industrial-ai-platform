@@ -5,9 +5,12 @@ import com.example.factoryguard.application.port.in.user.GetMyThresholdsUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.user.FindActiveThresholdByUserIdPort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
+import com.example.factoryguard.application.port.out.user.LoadUserThresholdHistoryPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.user.model.User;
+import com.example.factoryguard.domain.user.model.UserThreshold;
+import com.example.factoryguard.domain.user.model.UserThresholdHistory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,15 +23,22 @@ public class GetMyThresholdsService implements GetMyThresholdsUseCase {
     private final TokenStorePort tokenStorePort;
     private final FindUserByIdPort findUserByIdPort;
     private final FindActiveThresholdByUserIdPort findActiveThresholdByUserIdPort;
+    private final LoadUserThresholdHistoryPort loadUserThresholdHistoryPort;
 
     @Override
     public UserThresholdResult execute(Long userId, String sessionId) {
         validateSession(userId, sessionId);
         validateUserStatus(userId);
 
-        return findActiveThresholdByUserIdPort.findActiveByUserId(userId)
-                .map(UserThresholdResult::fromUserThreshold)
+        UserThreshold threshold = findActiveThresholdByUserIdPort.findActiveByUserId(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_THRESHOLD_NOT_FOUND));
+
+        Integer latestVersion = loadUserThresholdHistoryPort
+                .findLatestByThresholdId(threshold.getThresholdId())
+                .map(UserThresholdHistory::getVersion)
+                .orElse(null);
+
+        return UserThresholdResult.fromUserThreshold(threshold, latestVersion);
     }
 
     private void validateSession(Long userId, String sessionId) {

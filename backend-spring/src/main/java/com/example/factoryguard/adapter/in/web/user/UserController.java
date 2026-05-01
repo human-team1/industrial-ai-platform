@@ -1,11 +1,13 @@
 package com.example.factoryguard.adapter.in.web.user;
 
+import com.example.factoryguard.adapter.in.web.user.dto.CreateMyThresholdRequest;
 import com.example.factoryguard.adapter.in.web.user.dto.PatchMySettingRequest;
 import com.example.factoryguard.adapter.in.web.user.dto.UpdateThresholdRequest;
 import com.example.factoryguard.application.dto.user.UpdateThresholdResult;
 import com.example.factoryguard.application.dto.user.UserMeResult;
 import com.example.factoryguard.application.dto.user.UserSettingResult;
 import com.example.factoryguard.application.dto.user.UserThresholdResult;
+import com.example.factoryguard.application.port.in.user.CreateMyThresholdUseCase;
 import com.example.factoryguard.application.port.in.user.GetMyProfileUseCase;
 import com.example.factoryguard.application.port.in.user.GetMyThresholdsUseCase;
 import com.example.factoryguard.application.port.in.user.GetUserSettingUseCase;
@@ -15,8 +17,11 @@ import com.example.factoryguard.common.response.ApiResponse;
 import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -25,6 +30,7 @@ public class UserController {
 
     private final GetMyProfileUseCase getMyProfileUseCase;
     private final GetMyThresholdsUseCase getMyThresholdsUseCase;
+    private final CreateMyThresholdUseCase createMyThresholdUseCase;
     private final UpdateMyThresholdUseCase updateMyThresholdUseCase;
     private final GetUserSettingUseCase getUserSettingUseCase;
     private final UpdateUserSettingUseCase updateUserSettingUseCase;
@@ -59,6 +65,18 @@ public class UserController {
         AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
         UserThresholdResult result = getMyThresholdsUseCase.execute(p.userId(), p.sessionId());
         return ResponseEntity.ok(ApiResponse.success(result, "임계값 조회 성공."));
+    }
+
+    @PostMapping("/me/thresholds")
+    public ResponseEntity<ApiResponse<UserThresholdResult>> createMyThreshold(
+            @Valid @RequestBody CreateMyThresholdRequest request) {
+        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
+        UserThresholdResult result = createMyThresholdUseCase.execute(
+                p.userId(), p.sessionId(), request.toCommand()
+        );
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(ApiResponse.success(result, "사용자 임계값을 생성했습니다."));
     }
 
     @PatchMapping("/me/thresholds/{thresholdId}")
