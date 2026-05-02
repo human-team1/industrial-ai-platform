@@ -15,6 +15,7 @@ seed_order=(
   "seed-sample-users.sql"
   "seed-sample-documents.sql"
   "seed-sample-inspections.sql"
+  "seed-sample-operation-admin.sql"
 )
 
 for seed in "${seed_order[@]}"; do

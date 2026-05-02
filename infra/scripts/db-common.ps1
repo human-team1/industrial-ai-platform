@@ -55,9 +55,15 @@ function Invoke-MariaDbFile {
     $db = $envMap["MARIADB_DATABASE"]
     $user = if ($UseRoot) { "root" } else { $envMap["MARIADB_USER"] }
     $password = if ($UseRoot) { $envMap["MARIADB_ROOT_PASSWORD"] } else { $envMap["MARIADB_PASSWORD"] }
+    $tempFileName = "codex-" + [System.Guid]::NewGuid().ToString("N") + ".sql"
+    $containerSqlPath = "/tmp/$tempFileName"
 
-    Get-Content -Raw -Encoding UTF8 $SqlFilePath |
-        docker compose --env-file .env exec -T mariadb sh -lc "mariadb --default-character-set=utf8mb4 -u${user} -p${password} ${db}"
+    try {
+        docker compose --env-file .env cp $SqlFilePath "mariadb:${containerSqlPath}" | Out-Null
+        docker compose --env-file .env exec -T mariadb sh -lc "mariadb --default-character-set=utf8mb4 -u${user} -p${password} ${db} < ${containerSqlPath}"
+    } finally {
+        docker compose --env-file .env exec -T mariadb sh -lc "rm -f ${containerSqlPath}" | Out-Null
+    }
 }
 
 function Assert-MariaDbContainerRunning {
