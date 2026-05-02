@@ -1,6 +1,0 @@
-config_id,embedding_model,chunk_size,chunk_overlap,search_mode,top_k,hit_at_3,hit_at_5,recall_at_5,mrr,avg_latency_ms,notes
-R4,text-embedding-3-small,800,100,vector,3,,,,,,"top-k 3 comparison placeholder; run topk_threshold_eval for measured values"
-R5,text-embedding-3-small,800,100,vector,10,,,,,,"top-k 10 comparison placeholder; run topk_threshold_eval for measured values"
-R6,text-embedding-3-small,800,100,vector_with_metadata_filter,5,,,,,,"B integration freeze config"
-R7,text-embedding-3-small,800,100,hybrid,5,,,,,,"hybrid candidate"
-R8,text-embedding-3-small,800,100,hybrid_with_reranker,5,,,,,,"reranker candidate"
