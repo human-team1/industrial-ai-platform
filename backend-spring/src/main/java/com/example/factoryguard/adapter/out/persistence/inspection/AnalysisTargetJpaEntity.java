@@ -28,4 +28,7 @@ public class AnalysisTargetJpaEntity {
 
     @Column(name = "product_name")
     private String productName;
+
+    @Column(name = "location_name")
+    private String locationName;
 }

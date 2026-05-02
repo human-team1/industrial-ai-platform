@@ -523,3 +523,24 @@
   "message": "대시보드 요약 정보를 조회했습니다."
 }
 ```
+### KPI 계산 기준
+
+| Field | 기준 |
+| --- | --- |
+| `totalInspectionCount` | 기간 내 `INSPECTION_RUN.run_status = COMPLETED` 검사 수 |
+| `anomalyCount` | `final_decision_code`가 있으면 `final_decision_code = DEFECT`, 없으면 `decision_code = DEFECT` 기준 |
+| `normalCount` | `final_decision_code`가 있으면 `final_decision_code = NORMAL`, 없으면 `decision_code = NORMAL` 기준 |
+| `recheckCount` | `final_decision_code`가 있으면 `final_decision_code = RECHECK`, 없으면 `decision_code = RECHECK` 기준 |
+| `anomalyRate` | `anomalyCount / totalInspectionCount * 100` |
+| ChangeRate 계열 | 현재 조회 기간과 직전 동일 기간 비교. 직전 기간 값이 0이면 `0.0` |
+| `anomalyRateChangePoint` | 현재 기간 이상률 - 직전 동일 기간 이상률 |
+| `trend` | 일자별 정상/이상/재검사 건수와 이상률 |
+| `topEquipmentAnomalyRates` | 설비별 이상률 상위 5개 |
+| `recentResults` | 최신 검사 결과 5건 |
+| `recentNotifications` | 최신 알림 3건 |
+| `registeredTargetCount` | `ANALYSIS_TARGET.target_status = ACTIVE` 수 |
+| `activeModelCount` | `MODEL_VERSION.is_active = true` 수 |
+| `totalDataSizeBytes` | `FILE.file_size` 합계 |
+| `latestTrainingDate` | `MODEL_VERSION.validated_at` 최신값 우선 |
+
+날짜 기준은 `inspection_run.completed_at`을 우선 사용하고, 없으면 `inspection_result.created_at`을 사용한다.

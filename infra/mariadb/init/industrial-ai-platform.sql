@@ -126,6 +126,7 @@
     target_name VARCHAR(100),
     equipment_name VARCHAR(100),
     product_name VARCHAR(100),
+    location_name VARCHAR(100),
     target_type VARCHAR(50),
     target_status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     created_by BIGINT,
@@ -537,7 +538,12 @@
   CREATE INDEX idx_users_google_sub ON users(google_sub);
   CREATE INDEX idx_inspection_run_org_user ON inspection_run(organization_id, user_id);
   CREATE INDEX idx_inspection_run_status ON inspection_run(run_status);
+  CREATE INDEX idx_inspection_run_org_completed ON inspection_run(organization_id, completed_at);
+  CREATE INDEX idx_inspection_run_org_status_completed ON inspection_run(organization_id, run_status, completed_at);
   CREATE INDEX idx_result_decision ON inspection_result(decision_code);
+  CREATE INDEX idx_result_inspection_decision ON inspection_result(inspection_id, decision_code, final_decision_code, created_at);
+  CREATE INDEX idx_analysis_target_org_status ON analysis_target(organization_id, target_status);
+  CREATE INDEX idx_notification_user_created ON notification(user_id, created_at);
   CREATE INDEX idx_document_org_owner ON document(organization_id, owner_user_id);
   CREATE INDEX idx_notification_user_read ON notification(user_id, is_read);
   CREATE INDEX idx_chat_conversation_user ON chat_conversation(user_id);

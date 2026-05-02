@@ -171,6 +171,13 @@ export function AppSidebar({
       </nav>
 
       <div className="px-5 pb-[55px]">
+        <div className="mb-5 rounded border border-[#2d3347] bg-[#171c2a] p-4 text-xs text-[#a5b0c4]">
+          <p className="mb-3 font-semibold text-[#d8dbe2]">시스템 상태</p>
+          <StatusLine label="모델 서버" />
+          <StatusLine label="스트리밍 서버" />
+          <StatusLine label="스토리지" />
+          <p className="mt-3 text-[11px] text-[#6a7089]">최근 업데이트 방금 전</p>
+        </div>
         <button
           type="button"
           onClick={onCollapse}
@@ -183,5 +190,16 @@ export function AppSidebar({
         </button>
       </div>
     </aside>
+  )
+}
+
+function StatusLine({ label }: { label: string }) {
+  return (
+    <div className="mt-2 flex items-center justify-between">
+      <span>{label}</span>
+      <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">
+        정상
+      </span>
+    </div>
   )
 }

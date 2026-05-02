@@ -20,3 +20,8 @@
   [`../auth/api-authority-matrix.md`](../auth/api-authority-matrix.md)를 참조합니다.
 - DB 작업(초기화/마이그레이션/시드)은 여기서 중복 관리하지 않고
   [`../db/README.md`](../db/README.md)를 참조합니다.
+
+## 최신 반영
+
+- 대시보드 API는 `API.md`의 `GET /dashboard/overview`를 기준으로 한다.
+- `ANALYSIS_TARGET.location_name`은 `ERD.md`, init SQL, migration, seed에 반영되어 있다.

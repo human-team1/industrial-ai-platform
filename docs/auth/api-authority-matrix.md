@@ -313,3 +313,13 @@ SITE_ADMIN이 전체 사용자 소유 데이터에 접근해야 하는 경우 �
 - 서비스 단 조직 스코프: `SecurityUtils.assertSameOrganization(targetOrganizationId)` (또는 메시지 오버로드) 호출로 일관 검증
 - 페이지 조회처럼 organizationId 를 쿼리 파라미터로 자동 주입해야 하는 경우: `securityUtils.isSiteAdmin() ? null : securityUtils.requireOrganizationId()` 패턴 사용
 - 새 컨트롤러 추가 시 본 매트릭스에 행을 먼저 추가하고, 행과 동일한 권한 검사를 코드에 반영합니다.
+
+---
+
+## Dashboard 정합성 메모
+
+대시보드의 현재 기준 엔드포인트는 `GET /dashboard/overview` 하나로 통합한다. 기존 문서에 `/dashboard/summary`, `/dashboard/recent-results`, `/dashboard/statistics/*`가 남아 있으면 레거시 예정 항목으로 보고 신규 구현/프론트 연동 기준에서는 사용하지 않는다.
+
+| Method | Endpoint | Scope | SITE_ADMIN | COMPANY_ADMIN | COMPANY_WORKER | 상태 | 비고 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| GET | `/dashboard/overview` | GLOBAL / ORGANIZATION | 허용 | 자기 회사만 | 자기 회사만 | 구현 | SITE_ADMIN은 `organizationId` 필터 가능, 일반 사용자는 자기 `organization_id` 범위로 자동 제한 |

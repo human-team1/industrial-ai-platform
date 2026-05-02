@@ -216,3 +216,15 @@ docker compose ps
 - [ ] 본인 계정 `ACTIVE` + `ROLE_SITE_ADMIN` 승격 가능
 - [ ] Spring `bootRun` 시 JPA schema validation 통과
 - [ ] DBeaver `localhost:3307` 연결 가능
+
+## Dashboard schema smoke check
+
+```powershell
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SHOW COLUMNS FROM analysis_target LIKE 'location_name';"
+```
+
+대시보드 seed 적용 후 다음 API로 2025-05-14~2025-05-20 샘플 데이터를 확인한다.
+
+```text
+GET /api/v1/dashboard/overview?startDate=2025-05-14&endDate=2025-05-20
+```
