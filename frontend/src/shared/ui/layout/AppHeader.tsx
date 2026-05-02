@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useUnreadNotificationCount } from '../../hooks/useUnreadNotificationCount'
 
 function IconNotification() {
   return (
@@ -48,6 +49,9 @@ export function AppHeader({
   const roleLabel =
     userRole === 'ROLE_SITE_ADMIN' || userRole === 'ROLE_COMPANY_ADMIN' ? '관리자' : '사용자'
 
+  const { unreadCount } = useUnreadNotificationCount()
+  const badgeText = unreadCount > 99 ? '99+' : unreadCount > 0 ? String(unreadCount) : null
+
   return (
     <header
       aria-label="산업 이상 탐지 시스템 상단 헤더"
@@ -59,16 +63,18 @@ export function AppHeader({
       </div>
 
       <div className="flex items-center gap-4">
-        <button
-          type="button"
-          aria-label="알림"
+        <NavLink
+          to="/notifications"
+          aria-label={badgeText ? `알림 ${badgeText}건` : '알림'}
           className="relative text-[#6a7089] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
         >
           <IconNotification />
-          <span className="absolute -right-1 -top-1 text-[10px] font-light leading-none text-[#f5afa3]">
-            12
-          </span>
-        </button>
+          {badgeText ? (
+            <span className="absolute -right-1 -top-1 text-[10px] font-light leading-none text-[#f5afa3]">
+              {badgeText}
+            </span>
+          ) : null}
+        </NavLink>
 
         <div className="h-[33px] w-px bg-[#2d3347]" />
 

@@ -1,6 +1,8 @@
 package com.example.factoryguard.application.port.in.notification;
 
+import com.example.factoryguard.application.dto.notification.MarkAllReadResult;
+
 public interface MarkAllNotificationsReadUseCase {
 
-    void execute(Long userId);
+    MarkAllReadResult execute(Long userId);
 }
