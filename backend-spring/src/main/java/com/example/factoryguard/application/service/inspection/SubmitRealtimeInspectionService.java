@@ -5,7 +5,9 @@ import com.example.factoryguard.application.dto.inspection.AiRealtimeInspectionC
 import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.dto.inspection.SubmitRealtimeInspectionCommand;
+import com.example.factoryguard.application.dto.notification.CreateNotificationCommand;
 import com.example.factoryguard.application.port.in.inspection.SubmitRealtimeInspectionUseCase;
+import com.example.factoryguard.application.port.in.notification.CreateNotificationUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.inspection.CallAiInspectionPort;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
@@ -26,6 +28,8 @@ import com.example.factoryguard.domain.inspection.model.InspectionResult;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import com.example.factoryguard.domain.inspection.model.RunStatus;
 import com.example.factoryguard.domain.inspection.model.RunType;
+import com.example.factoryguard.domain.notification.vo.NotificationSeverity;
+import com.example.factoryguard.domain.notification.vo.NotificationType;
 import com.example.factoryguard.domain.review.model.ReviewQueue;
 import com.example.factoryguard.domain.review.vo.ReviewQueueStatus;
 import com.example.factoryguard.domain.user.model.User;
@@ -63,6 +67,7 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
     private final InspectionInputRecorder inputRecorder;
     private final InspectionEventLogger eventLogger;
     private final DecisionProperties decisionProperties;
+    private final CreateNotificationUseCase createNotificationUseCase;
 
     @Override
     public SubmitInspectionResult execute(SubmitRealtimeInspectionCommand command) {
@@ -122,6 +127,7 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
             saveFailedResult(runId, resolved, "UNEXPECTED_ERROR: " + safeMessage(e));
             runRecorder.markFailed(runId, "UNEXPECTED_ERROR");
             eventLogger.logFailure(runId, InspectionEventType.FAILED, "unexpected: " + safeMessage(e));
+            notifySystemError(command.getUserId(), runId);
             throw new BusinessException(ErrorCode.INSPECTION_FAILED);
         }
     }
@@ -143,6 +149,26 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
                     .build());
         } catch (Exception persistEx) {
             log.error("Failed to persist FAILED InspectionResult, runId={}", runId, persistEx);
+        }
+    }
+
+    private void notifySystemError(Long userId, Long inspectionId) {
+        if (userId == null || inspectionId == null) return;
+        try {
+            createNotificationUseCase.execute(CreateNotificationCommand.builder()
+                    .userId(userId)
+                    .notificationType(NotificationType.SYSTEM_ERROR)
+                    .severity(NotificationSeverity.WARNING)
+                    .title("검사 처리 중 오류가 발생했습니다.")
+                    .message("검사 처리 중 오류가 발생했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.")
+                    .relatedType("INSPECTION")
+                    .relatedId(inspectionId)
+                    .targetUrl("/inspections/" + inspectionId)
+                    .dedupKey("inspection:" + inspectionId + ":system-error")
+                    .build());
+        } catch (Exception notifyEx) {
+            log.warn("Failed to create SYSTEM_ERROR notification, userId={}, inspectionId={}",
+                    userId, inspectionId, notifyEx);
         }
     }
 

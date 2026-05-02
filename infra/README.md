@@ -9,6 +9,10 @@
 - `inspection_run.payload_fingerprint VARCHAR(64)` 컬럼 추가
 - `inspection_input.source_type VARCHAR(20) NOT NULL` 컬럼 추가 (검사 입력 출처 구분: 파일/카메라/스트림)
 - `inspection_result.threshold_version` 타입 `VARCHAR(50)` → `INT` 정정 (`user_threshold_history.version INT` 참조 정수 버전과 정합)
+- `V20260502_002__add_notification_mvp_indexes.sql` — 알림 페이지 MVP 인덱스 3종 추가 (테이블 컬럼 변경 없음, 인덱스만)
+  - `idx_notification_user_read_created (user_id, is_read, created_at)` — Unread 목록/카운트 조회 최적화
+  - `idx_notification_user_type_created (user_id, notification_type, created_at)` — SYSTEM_ERROR/REPORT_GENERATED 필터 최적화
+  - `idx_notification_user_dedup (user_id, dedup_key)` — 동일 원인 중복 알림 방지 조회 최적화
 
 ## 서비스
 

@@ -4,5 +4,5 @@ import com.example.factoryguard.application.dto.notification.NotificationDetail;
 
 public interface GetNotificationDetailUseCase {
 
-    NotificationDetail execute(Long notificationId);
+    NotificationDetail execute(Long userId, Long notificationId);
 }

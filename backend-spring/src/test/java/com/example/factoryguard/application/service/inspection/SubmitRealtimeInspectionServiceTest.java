@@ -3,6 +3,7 @@ package com.example.factoryguard.application.service.inspection;
 import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.dto.inspection.SubmitRealtimeInspectionCommand;
+import com.example.factoryguard.application.port.in.notification.CreateNotificationUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.inspection.CallAiInspectionPort;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
@@ -54,6 +55,7 @@ class SubmitRealtimeInspectionServiceTest {
     @Mock InspectionInputRecorder inputRecorder;
     @Mock InspectionEventLogger eventLogger;
     @Mock DecisionProperties decisionProperties;
+    @Mock CreateNotificationUseCase createNotificationUseCase;
 
     SubmitRealtimeInspectionService service;
 
@@ -71,7 +73,8 @@ class SubmitRealtimeInspectionServiceTest {
                 runRecorder,
                 inputRecorder,
                 eventLogger,
-                decisionProperties
+                decisionProperties,
+                createNotificationUseCase
         );
     }
 

@@ -5,4 +5,8 @@ import com.example.factoryguard.domain.notification.model.Notification;
 public interface SaveNotificationPort {
 
     Notification save(Notification notification);
+
+    void markAsRead(Long notificationId);
+
+    int markAllAsReadByUserId(Long userId);
 }
