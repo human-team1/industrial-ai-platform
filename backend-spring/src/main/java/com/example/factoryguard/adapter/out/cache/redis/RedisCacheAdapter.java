@@ -19,6 +19,10 @@ public class RedisCacheAdapter {
         redisTemplate.opsForValue().set(key, value, ttl);
     }
 
+    public boolean setIfAbsent(String key, String value, Duration ttl) {
+        return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, value, ttl));
+    }
+
     public Optional<String> get(String key) {
         return Optional.ofNullable(redisTemplate.opsForValue().get(key));
     }

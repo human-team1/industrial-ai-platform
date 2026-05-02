@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useResultDetail } from '../features/result/model'
+import { toRegionScoreChart } from '../features/result/model/chartViewModels'
 import {
   ChecklistCard,
   DescriptionCard,
@@ -11,6 +12,7 @@ import {
   RelatedResultsCard,
   VisualizationCard,
 } from '../features/result/ui'
+import { BarChartCard } from '../shared/ui/chart/BarChartCard'
 
 export function ResultDetailPage() {
   const { resultId } = useParams()
@@ -81,6 +83,10 @@ export function ResultDetailPage() {
             originalImage={originalImage}
           />
           <ProbabilityDecisionCard result={data.result} />
+          <BarChartCard
+            viewModel={toRegionScoreChart(data)}
+            empty={{ reason: 'NO_DATA', message: '표시할 region score가 없습니다.' }}
+          />
           <DescriptionCard description={data.description} />
           <ChecklistCard checklist={data.checklist} />
           <RelatedResultsCard

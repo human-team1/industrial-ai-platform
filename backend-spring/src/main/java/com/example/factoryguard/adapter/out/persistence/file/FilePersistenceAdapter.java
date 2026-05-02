@@ -1,5 +1,6 @@
 package com.example.factoryguard.adapter.out.persistence.file;
 
+import com.example.factoryguard.application.port.out.file.CheckFileAccessPort;
 import com.example.factoryguard.application.port.out.file.LoadFilePort;
 import com.example.factoryguard.domain.file.model.StoredFile;
 import com.example.factoryguard.domain.file.vo.StorageType;
@@ -15,7 +16,7 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class FilePersistenceAdapter implements LoadFilePort {
+public class FilePersistenceAdapter implements LoadFilePort, CheckFileAccessPort {
 
     private final EntityManager entityManager;
 
@@ -48,6 +49,70 @@ public class FilePersistenceAdapter implements LoadFilePort {
                 .createdAt(toLocalDateTime(row[10]))
                 .createdBy(toLong(row[11]))
                 .build());
+    }
+
+    @Override
+    public boolean canAccess(Long fileId, Long organizationId, boolean siteAdmin) {
+        if (siteAdmin) {
+            Query query = entityManager.createNativeQuery("""
+                    SELECT COUNT(*)
+                    FROM file
+                    WHERE file_id = :fileId
+                    """);
+            query.setParameter("fileId", fileId);
+            return ((Number) query.getSingleResult()).longValue() > 0;
+        }
+        if (organizationId == null) {
+            return false;
+        }
+        Query query = entityManager.createNativeQuery("""
+                SELECT COUNT(*)
+                FROM file f
+                WHERE f.file_id = :fileId
+                  AND (
+                    EXISTS (
+                      SELECT 1
+                      FROM inspection_input ii
+                      JOIN inspection_run ir ON ir.inspection_id = ii.inspection_id
+                      WHERE ii.file_id = f.file_id
+                        AND ir.organization_id = :organizationId
+                    )
+                    OR EXISTS (
+                      SELECT 1
+                      FROM result_artifact ra
+                      JOIN inspection_result r ON r.result_id = ra.result_id
+                      JOIN inspection_run ir ON ir.inspection_id = r.inspection_id
+                      WHERE ra.file_id = f.file_id
+                        AND ir.organization_id = :organizationId
+                    )
+                    OR EXISTS (
+                      SELECT 1
+                      FROM image im
+                      JOIN inspection_result r ON r.result_id = im.result_id
+                      JOIN inspection_run ir ON ir.inspection_id = r.inspection_id
+                      WHERE im.file_id = f.file_id
+                        AND ir.organization_id = :organizationId
+                    )
+                    OR EXISTS (
+                      SELECT 1
+                      FROM document_version dv
+                      JOIN document d ON d.document_id = dv.document_id
+                      WHERE dv.file_id = f.file_id
+                        AND d.organization_id = :organizationId
+                        AND d.deleted_at IS NULL
+                    )
+                    OR EXISTS (
+                      SELECT 1
+                      FROM report_file rf
+                      JOIN report rp ON rp.report_id = rf.report_id
+                      WHERE rf.file_id = f.file_id
+                        AND rp.organization_id = :organizationId
+                    )
+                  )
+                """);
+        query.setParameter("fileId", fileId);
+        query.setParameter("organizationId", organizationId);
+        return ((Number) query.getSingleResult()).longValue() > 0;
     }
 
     private StorageType toStorageType(Object value) {

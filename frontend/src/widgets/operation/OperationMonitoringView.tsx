@@ -1,7 +1,9 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import type { AsyncJob, OperationLog, PageResponse, SystemComponentStatus, SystemStatus } from '../../entities/operation/model/types'
 import type { OperationLogQuery } from '../../features/operation/api'
+import type { OperationMetricHistory } from '../../features/operation/model/useOperationMetricHistory'
 import { formatDateTime } from '../../shared/lib/date'
+import { LineChartCard } from '../../shared/ui/chart/LineChartCard'
 
 type ResourceState<T> = {
   data: T | null
@@ -19,11 +21,13 @@ type OperationLogsState = ResourceState<PageResponse<OperationLog>> & {
 
 export function OperationMonitoringView({
   systemStatus,
+  metricHistory,
   systemComponents,
   operationLogs,
   asyncJobs,
 }: {
   systemStatus: ResourceState<SystemStatus>
+  metricHistory: OperationMetricHistory
   systemComponents: ResourceState<SystemComponentStatus[]>
   operationLogs: OperationLogsState
   asyncJobs: ResourceState<PageResponse<AsyncJob>>
@@ -31,6 +35,16 @@ export function OperationMonitoringView({
   return (
     <div className="space-y-5">
       <SystemStatusCards state={systemStatus} />
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <LineChartCard
+          viewModel={metricHistory.resourceUsageChart}
+          empty={{ reason: 'NO_DATA', message: '성공한 polling 데이터가 아직 없습니다.' }}
+        />
+        <LineChartCard
+          viewModel={metricHistory.responseTimeChart}
+          empty={{ reason: 'NO_DATA', message: '성공한 polling 데이터가 아직 없습니다.' }}
+        />
+      </div>
       <ComponentGrid state={systemComponents} />
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
         <OperationLogTable state={operationLogs} />

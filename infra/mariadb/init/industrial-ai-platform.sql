@@ -583,7 +583,13 @@
   CREATE INDEX idx_operation_policy_category ON operation_policy(policy_category);
   CREATE INDEX idx_operation_policy_key ON operation_policy(policy_key);
   CREATE INDEX idx_async_job_status ON async_job(job_status);
+  CREATE INDEX idx_async_job_type_status_created ON async_job(job_type, job_status, created_at);
+  CREATE INDEX idx_file_storage_object ON file(storage_type, bucket_name, object_key);
+  CREATE INDEX idx_file_created_by ON file(created_by, created_at);
+  CREATE INDEX idx_inspection_input_file ON inspection_input(file_id);
   CREATE INDEX idx_document_org_owner ON document(organization_id, owner_user_id);
+  CREATE INDEX idx_document_version_status_created ON document_version(indexing_status, created_at);
+  CREATE INDEX idx_document_index_job_status ON document_index_job(job_status, document_version_id);
   CREATE INDEX idx_notification_user_read ON notification(user_id, is_read);
   CREATE INDEX idx_chat_conversation_user ON chat_conversation(user_id);
   CREATE INDEX idx_chat_conversation_user_updated ON chat_conversation(user_id, updated_at);

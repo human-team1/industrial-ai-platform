@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.NoSuchElementException;
 
 @Component
 @RequiredArgsConstructor
@@ -29,6 +30,8 @@ public class MinioFileStorageAdapter implements FileStoragePort {
         }
         try {
             return minioStorageAdapter.download(file.getBucketName(), file.getObjectKey());
+        } catch (NoSuchElementException exception) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "파일 객체를 찾을 수 없습니다.");
         } catch (IllegalStateException exception) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "파일 저장소 조회 중 오류가 발생했습니다.");
         }

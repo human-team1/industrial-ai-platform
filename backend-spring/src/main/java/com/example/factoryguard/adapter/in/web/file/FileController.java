@@ -4,6 +4,7 @@ import com.example.factoryguard.application.dto.file.FilePreviewResult;
 import com.example.factoryguard.application.port.in.file.GetFilePreviewUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +27,16 @@ public class FileController {
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(result.getContentType()))
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.MINUTES))
+                .body(result.getContent());
+    }
+
+    @GetMapping("/{fileId}/download")
+    public ResponseEntity<byte[]> download(@PathVariable Long fileId) {
+        FilePreviewResult result = getFilePreviewUseCase.execute(fileId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(result.getContentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment")
+                .cacheControl(CacheControl.noCache())
                 .body(result.getContent());
     }
 }

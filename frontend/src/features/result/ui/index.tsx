@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { apiClient } from '../../../shared/api/client'
+import { fetchResultFilePreview } from '../api'
 import {
   formatDateMinute,
   labelDecision,
@@ -427,9 +427,9 @@ function PreviewImage({ fileId, emptyText }: { fileId?: number | null; emptyText
     let objectUrl: string | null = null
     setFailed(false)
 
-    apiClient.get(`/files/${fileId}/preview`, { responseType: 'blob' })
-      .then((response) => {
-        objectUrl = URL.createObjectURL(response.data)
+    fetchResultFilePreview(fileId)
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob)
         setPreviewUrl(objectUrl)
       })
       .catch(() => {

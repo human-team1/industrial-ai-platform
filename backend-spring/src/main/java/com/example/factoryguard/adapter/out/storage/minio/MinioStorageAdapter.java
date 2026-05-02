@@ -6,11 +6,14 @@ import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import io.minio.StatObjectArgs;
+import io.minio.errors.ErrorResponseException;
 import io.minio.http.Method;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -94,8 +97,30 @@ public class MinioStorageAdapter {
                 .object(objectKey)
                 .build())) {
             return stream.readAllBytes();
+        } catch (ErrorResponseException exception) {
+            if ("NoSuchKey".equals(exception.errorResponse().code())) {
+                throw new NoSuchElementException("MinIO object not found");
+            }
+            throw new IllegalStateException("MinIO download failed: " + bucketName + "/" + objectKey, exception);
         } catch (Exception exception) {
             throw new IllegalStateException("MinIO download failed: " + bucketName + "/" + objectKey, exception);
+        }
+    }
+
+    public boolean delete(String bucketName, String objectKey) {
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectKey)
+                    .build());
+            return true;
+        } catch (ErrorResponseException exception) {
+            if ("NoSuchKey".equals(exception.errorResponse().code())) {
+                return false;
+            }
+            throw new IllegalStateException("MinIO delete failed: " + bucketName + "/" + objectKey, exception);
+        } catch (Exception exception) {
+            throw new IllegalStateException("MinIO delete failed: " + bucketName + "/" + objectKey, exception);
         }
     }
 

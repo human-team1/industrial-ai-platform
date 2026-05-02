@@ -9,7 +9,7 @@ import com.example.factoryguard.application.dto.operation.RecordOperationLogComm
 import com.example.factoryguard.application.port.in.inspection.SubmitInspectionUseCase;
 import com.example.factoryguard.application.port.in.operation.RecordOperationLogUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
-import com.example.factoryguard.application.port.out.file.PersistUploadedFilePort;
+import com.example.factoryguard.application.port.out.inspection.InspectionIdempotencyCachePort;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
 import com.example.factoryguard.application.port.out.inspection.LoadInspectionRunPort;
 import com.example.factoryguard.application.port.out.result.LoadInspectionResultPort;
@@ -22,7 +22,6 @@ import com.example.factoryguard.domain.file.model.StoredFile;
 import com.example.factoryguard.domain.file.vo.StorageType;
 import com.example.factoryguard.domain.inspection.model.AnalysisTarget;
 import com.example.factoryguard.domain.inspection.model.InputSourceType;
-import com.example.factoryguard.domain.inspection.model.InspectionEventType;
 import com.example.factoryguard.domain.inspection.model.InspectionInput;
 import com.example.factoryguard.domain.inspection.model.InspectionResult;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
@@ -33,7 +32,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -43,11 +41,11 @@ import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class SubmitInspectionService implements SubmitInspectionUseCase {
 
@@ -60,14 +58,12 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
     private final LoadReviewQueuePort loadReviewQueuePort;
     private final LoadInspectionRunPort loadInspectionRunPort;
     private final ResolveInspectionThresholdService resolveInspectionThresholdService;
-    private final InspectionRunRecorder runRecorder;
-    private final InspectionInputRecorder inputRecorder;
-    private final InspectionEventLogger eventLogger;
+    private final InspectionUploadTransactionService inspectionUploadTransactionService;
     private final FileValidator fileValidator;
     private final MinioStorageAdapter minioStorageAdapter;
     private final MinioProperties minioProperties;
-    private final PersistUploadedFilePort persistUploadedFilePort;
     private final RecordOperationLogUseCase recordOperationLogUseCase;
+    private final InspectionIdempotencyCachePort inspectionIdempotencyCachePort;
 
     @Override
     public SubmitInspectionResult execute(SubmitInspectionCommand command) {
@@ -91,14 +87,19 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         boolean clientProvidedKey = command.getIdempotencyKey() != null && !command.getIdempotencyKey().isBlank();
 
         if (clientProvidedKey) {
-            var existingOpt = loadInspectionRunPort
+            findCachedFingerprint(orgId, userId, idempotencyKey)
+                    .filter(existingFingerprint -> !existingFingerprint.equals(fingerprint))
+                    .ifPresent(existingFingerprint -> {
+                        throw new BusinessException(ErrorCode.IDEMPOTENCY_CONFLICT);
+                    });
+            Optional<InspectionRun> existingOpt = loadInspectionRunPort
                     .findByOrganizationIdAndUserIdAndIdempotencyKey(orgId, userId, idempotencyKey);
             if (existingOpt.isPresent()) {
                 return buildReplay(existingOpt.get(), fingerprint);
             }
+            reserveIdempotencyKey(orgId, userId, idempotencyKey, fingerprint);
         }
 
-        StoredFile storedFile = uploadAndPersist(file, userId);
         InspectionRun run;
         try {
             run = createRun(command, resolved, orgId, userId, idempotencyKey, fingerprint, file);
@@ -109,29 +110,41 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                     .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_ERROR));
             return buildReplay(existing, fingerprint);
         }
+
         Long runId = run.getInspectionId();
+        String bucket = minioProperties.getBucketInspectionArtifacts();
+        String objectKey = buildObjectKey(runId, file.getOriginalFilename());
+        boolean uploaded = false;
 
-        inputRecorder.record(InspectionInput.builder()
-                .inspectionId(runId)
-                .fileId(storedFile.getFileId())
-                .sourceType(InputSourceType.FILE)
-                .sourceName(file.getOriginalFilename())
-                .mimeType(file.getContentType())
-                .build());
+        try {
+            StoredFile uploadedFile = uploadToMinio(file, userId, bucket, objectKey);
+            uploaded = true;
+            inspectionUploadTransactionService.persistFileInputAndMarkProcessing(
+                    runId,
+                    uploadedFile,
+                    InspectionInput.builder()
+                            .inspectionId(runId)
+                            .sourceType(InputSourceType.FILE)
+                            .sourceName(file.getOriginalFilename())
+                            .mimeType(file.getContentType())
+                            .build(),
+                    file.getOriginalFilename()
+            );
+        } catch (BusinessException exception) {
+            markUploadFailed(runId, userId, exception, bucket, objectKey, uploaded);
+            throw exception;
+        } catch (Exception exception) {
+            markUploadFailed(runId, userId, exception, bucket, objectKey, uploaded);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "검사 파일 저장 중 오류가 발생했습니다.");
+        }
 
-        eventLogger.log(runId, InspectionEventType.UPLOAD_RECEIVED, file.getOriginalFilename());
-        eventLogger.log(runId, InspectionEventType.INPUT_SAVED, "input persisted");
-
-        runRecorder.transitTo(runId, RunStatus.PROCESSING);
-        eventLogger.log(runId, InspectionEventType.PROCESS_STARTED, "processing queued");
-
-        // TODO: define POST /ai/v1/inference/anomaly contract, call AI server, then persist result/artifacts/images/regions.
+        // FastAPI inference is intentionally not called here. The run remains queued/processing.
         return SubmitInspectionResult.accepted(run.toBuilder().runStatus(RunStatus.PROCESSING).build(), false);
     }
 
     private InspectionRun createRun(SubmitInspectionCommand command, ResolvedThreshold resolved, Long orgId,
                                     Long userId, String idempotencyKey, String fingerprint, MultipartFile file) {
-        return runRecorder.create(InspectionRun.builder()
+        return inspectionUploadTransactionService.createPendingRun(InspectionRun.builder()
                 .organizationId(orgId)
                 .userId(userId)
                 .targetId(command.getTargetId())
@@ -147,9 +160,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                 .build());
     }
 
-    private StoredFile uploadAndPersist(MultipartFile file, Long userId) {
-        String bucket = minioProperties.getBucketInspectionArtifacts();
-        String objectKey = buildObjectKey(file.getOriginalFilename());
+    private StoredFile uploadToMinio(MultipartFile file, Long userId, String bucket, String objectKey) {
         String checksum = calculateSha256(file);
         try {
             minioStorageAdapter.upload(
@@ -168,13 +179,13 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                     .logLevel("ERROR")
                     .sourceComponent("SPRING_API")
                     .actorUserId(userId)
-                    .detailMessage("검사 파일 업로드 실패")
+                    .detailMessage("inspection file upload failed")
                     .relatedPath("/api/v1/inspections")
                     .build());
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "검사 파일 업로드에 실패했습니다.");
         }
 
-        return persistUploadedFilePort.save(StoredFile.builder()
+        return StoredFile.builder()
                 .storageType(StorageType.MINIO)
                 .bucketName(bucket)
                 .objectKey(objectKey)
@@ -186,7 +197,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                 .checksum(checksum)
                 .createdAt(LocalDateTime.now())
                 .createdBy(userId)
-                .build());
+                .build();
     }
 
     private SubmitInspectionResult buildReplay(InspectionRun existing, String fingerprint) {
@@ -244,14 +255,18 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(file.getBytes()));
         } catch (NoSuchAlgorithmException exception) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "SHA-256 알고리즘을 사용할 수 없습니다.");
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "SHA-256 algorithm is not available.");
         } catch (Exception exception) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "검사 파일 체크섬 계산에 실패했습니다.");
         }
     }
 
-    private String buildObjectKey(String originalFilename) {
-        return "inspections/" + UUID.randomUUID() + "_" + originalFilename;
+    private String buildObjectKey(Long inspectionId, String originalFilename) {
+        String ext = fileExt(originalFilename);
+        if (ext.isBlank()) {
+            return "inspections/" + inspectionId + "/inputs/" + UUID.randomUUID();
+        }
+        return "inspections/" + inspectionId + "/inputs/" + UUID.randomUUID() + "." + ext;
     }
 
     private String fileExt(String filename) {
@@ -283,6 +298,63 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
             case PENDING -> throw new BusinessException(ErrorCode.PENDING_APPROVAL);
             case REJECTED -> throw new BusinessException(ErrorCode.ACCOUNT_REJECTED);
             default -> throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    private Optional<String> findCachedFingerprint(Long orgId, Long userId, String idempotencyKey) {
+        try {
+            return inspectionIdempotencyCachePort.findFingerprint(orgId, userId, idempotencyKey);
+        } catch (Exception exception) {
+            log.warn("Redis idempotency lookup failed, organizationId={}, userId={}, idempotencyKey={}, reason={}",
+                    orgId, userId, idempotencyKey, exception.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private void reserveIdempotencyKey(Long orgId, Long userId, String idempotencyKey, String fingerprint) {
+        try {
+            boolean reserved = inspectionIdempotencyCachePort.reserve(orgId, userId, idempotencyKey, fingerprint);
+            if (!reserved) {
+                log.info("Redis idempotency reservation already exists, organizationId={}, userId={}, idempotencyKey={}",
+                        orgId, userId, idempotencyKey);
+            }
+        } catch (Exception exception) {
+            log.warn("Redis idempotency reservation failed, organizationId={}, userId={}, idempotencyKey={}, reason={}",
+                    orgId, userId, idempotencyKey, exception.getMessage());
+        }
+    }
+
+    private void markUploadFailed(Long inspectionId, Long userId, Exception exception,
+                                  String bucket, String objectKey, boolean uploaded) {
+        log.warn("Inspection upload persistence failed, inspectionId={}, userId={}, reason={}",
+                inspectionId, userId, exception.getMessage());
+        if (uploaded) {
+            compensateUploadedObject(inspectionId, userId, bucket, objectKey);
+        }
+        inspectionUploadTransactionService.markFailedRequiresNew(
+                inspectionId,
+                ErrorCode.INTERNAL_ERROR.name(),
+                "inspection upload failed: " + exception.getMessage()
+        );
+    }
+
+    private void compensateUploadedObject(Long inspectionId, Long userId, String bucket, String objectKey) {
+        try {
+            boolean deleted = minioStorageAdapter.delete(bucket, objectKey);
+            log.warn("Compensating MinIO delete result, inspectionId={}, userId={}, deleted={}",
+                    inspectionId, userId, deleted);
+        } catch (Exception deleteException) {
+            log.warn("Compensating MinIO delete failed, inspectionId={}, userId={}, reason={}",
+                    inspectionId, userId, deleteException.getMessage());
+            recordOperationLogUseCase.recordOperationLog(RecordOperationLogCommand.builder()
+                    .eventType("MINIO_COMPENSATION_DELETE_FAILED")
+                    .eventStatus("FAILED")
+                    .logLevel("WARN")
+                    .sourceComponent("MINIO")
+                    .actorUserId(userId)
+                    .detailMessage("inspection upload compensation delete failed")
+                    .relatedPath("/api/v1/inspections/upload")
+                    .build());
         }
     }
 }

@@ -6,7 +6,14 @@ import type {
   RecentDashboardResult,
   TopEquipmentAnomalyRate,
 } from '../../entities/dashboard/model/types'
+import {
+  toDashboardDecisionChart,
+  toDashboardEquipmentChart,
+  toDashboardTrendChart,
+} from '../../features/dashboard/model/chartViewModels'
 import { formatDate, formatDateTime } from '../../shared/lib/date'
+import { BarChartCard } from '../../shared/ui/chart/BarChartCard'
+import { LineChartCard } from '../../shared/ui/chart/LineChartCard'
 
 type Props = {
   data: DashboardOverview
@@ -18,10 +25,13 @@ export function DashboardOverviewView({ data }: Props) {
       <div className="space-y-5">
         <KpiGrid data={data} />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)]">
-          <TrendChart rows={data.trend} />
-          <TopEquipmentChart rows={data.topEquipmentAnomalyRates} />
+          <LineChartCard viewModel={toDashboardTrendChart(data)} empty={{ reason: 'NO_DATA', message: '표시할 데이터가 없습니다.' }} />
+          <BarChartCard viewModel={toDashboardEquipmentChart(data)} empty={{ reason: 'NO_DATA', message: '표시할 데이터가 없습니다.' }} />
         </div>
-        <RecentResultsTable rows={data.recentResults} />
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <RecentResultsTable rows={data.recentResults} />
+          <BarChartCard viewModel={toDashboardDecisionChart(data)} empty={{ reason: 'NO_DATA', message: '표시할 데이터가 없습니다.' }} />
+        </div>
       </div>
 
       <aside className="space-y-5">

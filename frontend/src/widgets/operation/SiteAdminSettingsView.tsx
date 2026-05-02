@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { OperationPolicy } from '../../entities/operation/model/types'
+import { toPolicyActiveChart, toPolicyCategoryChart, toPolicyValueTypeChart } from '../../features/operation/model/policyCharts'
 import { formatDateTime } from '../../shared/lib/date'
+import { BarChartCard } from '../../shared/ui/chart/BarChartCard'
 
 const categories = ['', 'SYSTEM', 'INSPECTION', 'NOTIFICATION', 'SECURITY', 'RETENTION']
 
@@ -38,6 +40,12 @@ export function SiteAdminSettingsView({
             활성만
           </label>
         </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <BarChartCard viewModel={toPolicyCategoryChart(policies)} empty={{ reason: 'NO_DATA', message: '정책 데이터가 없습니다.' }} />
+        <BarChartCard viewModel={toPolicyValueTypeChart(policies)} empty={{ reason: 'NO_DATA', message: '정책 데이터가 없습니다.' }} />
+        <BarChartCard viewModel={toPolicyActiveChart(policies)} empty={{ reason: 'NO_DATA', message: '정책 데이터가 없습니다.' }} />
       </div>
 
       <div className="mt-5 space-y-3">
