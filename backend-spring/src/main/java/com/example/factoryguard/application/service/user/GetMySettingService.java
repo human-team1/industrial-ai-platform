@@ -1,16 +1,13 @@
 package com.example.factoryguard.application.service.user;
 
-import com.example.factoryguard.application.dto.user.UserThresholdResult;
-import com.example.factoryguard.application.port.in.user.GetMyThresholdsUseCase;
+import com.example.factoryguard.application.dto.user.UserSettingResult;
+import com.example.factoryguard.application.port.in.user.GetUserSettingUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
-import com.example.factoryguard.application.port.out.user.FindActiveThresholdByUserIdPort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
-import com.example.factoryguard.application.port.out.user.LoadUserThresholdHistoryPort;
+import com.example.factoryguard.application.port.out.user.LoadUserSettingPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.user.model.User;
-import com.example.factoryguard.domain.user.model.UserThreshold;
-import com.example.factoryguard.domain.user.model.UserThresholdHistory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,41 +15,28 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
-public class GetMyThresholdsService implements GetMyThresholdsUseCase {
+public class GetMySettingService implements GetUserSettingUseCase {
 
     private final TokenStorePort tokenStorePort;
     private final FindUserByIdPort findUserByIdPort;
-    private final FindActiveThresholdByUserIdPort findActiveThresholdByUserIdPort;
-    private final LoadUserThresholdHistoryPort loadUserThresholdHistoryPort;
+    private final LoadUserSettingPort loadUserSettingPort;
 
     @Override
-    public UserThresholdResult execute(Long userId, String sessionId) {
+    public UserSettingResult execute(Long userId, String sessionId) {
         validateSession(userId, sessionId);
         validateUserStatus(userId);
 
-        UserThreshold threshold = findActiveThresholdByUserIdPort.findActiveByUserId(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_THRESHOLD_NOT_FOUND));
-
-        Integer latestVersion = loadUserThresholdHistoryPort
-                .findLatestByThresholdId(threshold.getThresholdId())
-                .map(UserThresholdHistory::getVersion)
-                .orElse(null);
-
-        return UserThresholdResult.fromUserThreshold(threshold, latestVersion);
+        return loadUserSettingPort.findByUserId(userId)
+                .map(UserSettingResult::fromUserSetting)
+                .orElseGet(() -> UserSettingResult.defaultFor(userId));
     }
 
     private void validateSession(Long userId, String sessionId) {
         if (sessionId == null) {
             throw new BusinessException(ErrorCode.SESSION_INVALID);
         }
-
-        String currentSessionId = tokenStorePort.getSessionId(userId).orElse(null);
-
-        if (currentSessionId == null || currentSessionId.isBlank()) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-
-        if (!currentSessionId.equals(sessionId)) {
+        String current = tokenStorePort.getSessionId(userId).orElse(null);
+        if (current == null || current.isBlank() || !current.equals(sessionId)) {
             throw new BusinessException(ErrorCode.SESSION_INVALID);
         }
     }
@@ -60,7 +44,6 @@ public class GetMyThresholdsService implements GetMyThresholdsUseCase {
     private void validateUserStatus(Long userId) {
         User user = findUserByIdPort.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
-
         switch (user.getStatus()) {
             case ACTIVE -> { /* 정상 진행 */ }
             case PENDING -> throw new BusinessException(ErrorCode.PENDING_APPROVAL);

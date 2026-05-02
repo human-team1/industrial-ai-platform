@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 
 @Getter
 @RequiredArgsConstructor
-public class UpdateThresholdCommand {
+public class CreateThresholdCommand {
 
     private final BigDecimal anomalyThreshold;
     private final BigDecimal lowConfidenceThreshold;

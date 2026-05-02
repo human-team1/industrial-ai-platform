@@ -1,6 +1,6 @@
 package com.example.factoryguard.adapter.in.web.user.dto;
 
-import com.example.factoryguard.application.dto.user.UpdateThresholdCommand;
+import com.example.factoryguard.application.dto.user.CreateThresholdCommand;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 
 @Getter
 @NoArgsConstructor
-public class UpdateThresholdRequest {
+public class CreateMyThresholdRequest {
 
     @NotNull(message = "anomalyThreshold는 필수입니다.")
     @DecimalMin(value = "0.0", message = "anomalyThreshold는 0.0 이상이어야 합니다.")
@@ -26,7 +26,7 @@ public class UpdateThresholdRequest {
     private String applyScope;
     private String changeReason;
 
-    public UpdateThresholdCommand toCommand() {
-        return new UpdateThresholdCommand(anomalyThreshold, lowConfidenceThreshold, applyScope, changeReason);
+    public CreateThresholdCommand toCommand() {
+        return new CreateThresholdCommand(anomalyThreshold, lowConfidenceThreshold, applyScope, changeReason);
     }
 }

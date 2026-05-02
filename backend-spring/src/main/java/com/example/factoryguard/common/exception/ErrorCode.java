@@ -36,7 +36,15 @@ public enum ErrorCode {
     AI_SERVER_ERROR("AI-503", HttpStatus.SERVICE_UNAVAILABLE, "AI 서버와 통신 중 오류가 발생했습니다."),
     AI_TIMEOUT("AI-504", HttpStatus.GATEWAY_TIMEOUT, "AI 서버 호출이 시간 초과되었습니다."),
     AI_REQUEST_INVALID("AI-400", HttpStatus.BAD_GATEWAY, "AI 서버 요청 형식이 올바르지 않습니다."),
-    REALTIME_NOT_ENABLED("REALTIME-503", HttpStatus.SERVICE_UNAVAILABLE, "실시간 검사는 현재 사용할 수 없습니다.");
+    REALTIME_NOT_ENABLED("REALTIME-503", HttpStatus.SERVICE_UNAVAILABLE, "실시간 검사는 현재 사용할 수 없습니다."),
+    USER_THRESHOLD_NOT_FOUND("USER-THRESHOLD-404", HttpStatus.NOT_FOUND, "사용자 개인 임계값이 없습니다."),
+    USER_THRESHOLD_FORBIDDEN("USER-THRESHOLD-403", HttpStatus.FORBIDDEN, "다른 사용자의 임계값에 접근할 수 없습니다."),
+    USER_THRESHOLD_INVALID_RANGE("USER-THRESHOLD-422A", HttpStatus.UNPROCESSABLE_ENTITY, "임계값이 허용 범위를 벗어났습니다."),
+    USER_THRESHOLD_INVALID_RELATION("USER-THRESHOLD-422B", HttpStatus.UNPROCESSABLE_ENTITY, "lowConfidenceThreshold는 anomalyThreshold보다 작아야 합니다."),
+    USER_THRESHOLD_INACTIVE("USER-THRESHOLD-409A", HttpStatus.CONFLICT, "비활성 임계값은 수정할 수 없습니다."),
+    USER_THRESHOLD_ALREADY_EXISTS("USER-THRESHOLD-409B", HttpStatus.CONFLICT, "이미 활성화된 개인 임계값이 존재합니다."),
+    USER_THRESHOLD_LOW_CONFIDENCE_CHANGE_UNSUPPORTED("USER-THRESHOLD-422C", HttpStatus.UNPROCESSABLE_ENTITY, "lowConfidenceThreshold 변경은 현재 지원하지 않습니다."),
+    USER_SETTING_SAVE_FAILED("USER-SETTING-500", HttpStatus.INTERNAL_SERVER_ERROR, "사용자 설정 저장 중 오류가 발생했습니다.");
 
     private final String code;
     private final HttpStatus status;

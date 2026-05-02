@@ -4,6 +4,7 @@ import com.example.factoryguard.application.port.out.user.FindActiveThresholdByU
 import com.example.factoryguard.application.port.out.user.LoadThresholdByIdPort;
 import com.example.factoryguard.application.port.out.user.LoadUserThresholdHistoryPort;
 import com.example.factoryguard.application.port.out.user.SaveThresholdHistoryPort;
+import com.example.factoryguard.application.port.out.user.SaveUserThresholdPort;
 import com.example.factoryguard.application.port.out.user.UpdateThresholdPort;
 import com.example.factoryguard.domain.user.model.UserThreshold;
 import com.example.factoryguard.domain.user.model.UserThresholdHistory;
@@ -19,6 +20,7 @@ public class UserThresholdPersistenceAdapter implements
         FindActiveThresholdByUserIdPort,
         LoadThresholdByIdPort,
         UpdateThresholdPort,
+        SaveUserThresholdPort,
         SaveThresholdHistoryPort,
         LoadUserThresholdHistoryPort {
 
@@ -36,6 +38,21 @@ public class UserThresholdPersistenceAdapter implements
     public Optional<UserThreshold> findById(Long thresholdId) {
         return userThresholdJpaRepository.findById(thresholdId)
                 .map(this::toDomain);
+    }
+
+    @Override
+    public UserThreshold save(UserThreshold userThreshold) {
+        UserThresholdJpaEntity entity = UserThresholdJpaEntity.builder()
+                .userId(userThreshold.getUserId())
+                .anomalyThreshold(userThreshold.getAnomalyThreshold())
+                .lowConfidenceThreshold(userThreshold.getLowConfidenceThreshold())
+                .minAllowed(userThreshold.getMinAllowed())
+                .maxAllowed(userThreshold.getMaxAllowed())
+                .applyScope(userThreshold.getApplyScope())
+                .isActive(userThreshold.isActive())
+                .build();
+        UserThresholdJpaEntity saved = userThresholdJpaRepository.save(entity);
+        return toDomain(saved);
     }
 
     @Override
