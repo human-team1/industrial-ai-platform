@@ -228,3 +228,24 @@ docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p
 ```text
 GET /api/v1/dashboard/overview?startDate=2025-05-14&endDate=2025-05-20
 ```
+
+## Operation admin schema smoke check
+
+```powershell
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SHOW COLUMNS FROM operation_log LIKE 'log_level';"
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SHOW TABLES LIKE 'system_component_status';"
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SHOW COLUMNS FROM system_component_status LIKE 'cpu_usage';"
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SHOW COLUMNS FROM operation_policy LIKE 'policy_category';"
+```
+
+운영 관리 seed 적용 후 SITE_ADMIN 토큰으로 다음 API를 확인한다.
+
+```text
+GET /api/v1/admin/system-status
+GET /api/v1/admin/system-components
+GET /api/v1/admin/operation-logs?page=0&size=20
+GET /api/v1/admin/operation-policies
+PATCH /api/v1/admin/operation-policies/{policyId}
+```
+
+운영 모니터링 최신 상태는 Redis 캐시를 우선 조회하고 MariaDB 이력으로 fallback한다. 주요 키는 `operation:system-status:spring:latest`, `operation:system-status:ai:latest`, `operation:component-status:{componentType}`이며 기본 TTL은 60초다.

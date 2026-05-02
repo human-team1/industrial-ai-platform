@@ -10,6 +10,8 @@ public class ListAuditLogsQuery {
     private final Long actorUserId;
     private final String actionType;
     private final String targetType;
+    private final String startDate;
+    private final String endDate;
     private final int page;
     private final int size;
 }

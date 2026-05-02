@@ -10,9 +10,11 @@ import java.time.LocalDateTime;
 @Builder
 public class SystemStatusResult {
 
+    private final Long snapshotId;
     private final BigDecimal cpuUsage;
     private final BigDecimal memoryUsage;
     private final BigDecimal diskUsage;
     private final Integer responseTimeMs;
-    private final LocalDateTime snapshotAt;
+    private final String overallStatus;
+    private final LocalDateTime createdAt;
 }

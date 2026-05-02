@@ -59,6 +59,13 @@ app:
     base-url: ${AI_SERVER_BASE_URL:http://localhost:8001}
     connect-timeout-sec: ${AI_SERVER_CONNECT_TIMEOUT_SEC:5}
     read-timeout-sec: ${AI_SERVER_READ_TIMEOUT_SEC:60}
+  operation:
+    monitoring:
+      collect-interval-ms: ${OPERATION_MONITORING_COLLECT_INTERVAL_MS:30000}
+      redis-ttl-seconds: ${OPERATION_MONITORING_REDIS_TTL_SECONDS:60}
+      ai-status-timeout-sec: ${AI_SERVER_STATUS_TIMEOUT_SEC:3}
+      ai-status-path: ${AI_SERVER_STATUS_PATH:/ai/v1/internal/system-status}
+      instance-id: ${SPRING_INSTANCE_ID:spring-local-1}
   chroma:
     host: ${CHROMA_HOST:localhost}
     port: ${CHROMA_PORT:8000}

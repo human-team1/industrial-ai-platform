@@ -1,10 +1,10 @@
 package com.example.factoryguard.application.port.in.operation;
 
 import com.example.factoryguard.application.dto.operation.AsyncJobSummary;
-
-import java.util.List;
+import com.example.factoryguard.application.dto.operation.ListAsyncJobsQuery;
+import com.example.factoryguard.application.dto.operation.OperationPageResponse;
 
 public interface ListAsyncJobsUseCase {
 
-    List<AsyncJobSummary> execute(String jobStatus);
+    OperationPageResponse<AsyncJobSummary> execute(ListAsyncJobsQuery query);
 }
