@@ -1,0 +1,48 @@
+retrieval_config_id: R3_HYBRID_TK10_S04
+collection_name: industrial_rag_chunks_a_v1
+embedding_model: BAAI/bge-m3
+chunk_size: 800
+chunk_overlap: 100
+search_mode: hybrid
+internal_top_k: 10
+answer_top_k: 5
+visible_source_limit: 3
+min_score: 0.4
+
+organization_filter_required: true
+document_status_filter: PUBLISHED
+document_version_policy: latest_only
+
+deduplicate_by_document: true
+diversify_by_section: true
+mmr_enabled: false
+reranker_enabled: false
+
+score_policy:
+  type: normalized_similarity
+  threshold_note: "no_answer/out_of_scope 차단에는 단독 threshold가 부족하므로 B query router 또는 scope check와 함께 사용한다."
+
+return_fields:
+  - chunk_id
+  - document_id
+  - document_version_id
+  - title
+  - document_type
+  - category
+  - equipment_name
+  - section_title
+  - page
+  - content
+  - score
+  - rank
+  - source_uri
+  - metadata
+
+freeze:
+  frozen_at: "2026-04-30"
+  frozen_for: "B LangGraph integration"
+  evidence:
+    summary: "experiments/rag_langgraph_eval/results/retrieval_eval/retrieval_eval_summary.csv"
+    report: "experiments/rag_langgraph_eval/results/retrieval_eval/retrieval_eval_report.md"
+    failed_cases: "experiments/rag_langgraph_eval/results/retrieval_eval/retrieval_failed_cases.md"
+    reranker_report: "experiments/rag_langgraph_eval/results/reranker_eval/reranker_eval_report.md"

@@ -1,0 +1,6 @@
+﻿experiment_id,provider,model,status,skip_reason,question_count,hit_at_1,hit_at_3,hit_at_5,mrr,elapsed_ms
+E_OPENAI_SMALL,openai,text-embedding-3-small,skipped,OPENAI_API_KEY is empty,0,,,,,0.01
+E_GEMINI_EMBEDDING,gemini,gemini-embedding-001,completed,,15,1.0,1.0,1.0,1.0,913903.16
+E_BGE_M3,sentence_transformers,BAAI/bge-m3,completed,,15,1.0,1.0,1.0,1.0,30649.38
+E_E5_MULTI,sentence_transformers,intfloat/multilingual-e5-large,failed,FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\jecho\\OneDrive\\Desktop\\CJE\\industrial-ai-platform\\ai-server\\experiments\\rag_langgraph_eval\\results\\embedding_eval\\cache\\huggingface\\transformers\\models--intfloat--multilingual-e5-large\\snapshots\\3d7cfbdacd47fdda877c5cd8a79fbcc4f2a574f3\\model.safetensors',0,,,,,4044.41
+E_KOSIMCSE,sentence_transformers,BM-K/KoSimCSE-roberta-multitask,failed,FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\jecho\\OneDrive\\Desktop\\CJE\\industrial-ai-platform\\ai-server\\experiments\\rag_langgraph_eval\\results\\embedding_eval\\cache\\huggingface\\transformers\\models--BM-K--KoSimCSE-roberta-multitask\\snapshots\\c83e4efdf7ee6647e62498ce8738e4efe10e5def\\model.safetensors',0,,,,,1204.08

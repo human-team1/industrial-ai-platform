@@ -20,6 +20,7 @@ node_modules/
 dist/
 build/
 coverage/
+.vite-cache/
 
 # java / gradle
 .gradle/
@@ -38,6 +39,14 @@ Thumbs.db
 
 # logs
 *.log
+
+# ai-server experiment cache / large artifacts
+ai-server/experiments/**/cache/
+ai-server/experiments/**/*.npy
+ai-server/experiments/**/*.bin
+ai-server/experiments/**/*.safetensors
+ai-server/experiments/**/*.zip
+ai-server/experiments/**/chroma_store/
 
 # misc
 tmp/

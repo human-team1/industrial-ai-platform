@@ -1,0 +1,47 @@
+[
+  {
+    "chunk_id": "mock-chunk-001",
+    "document_id": "mock-doc-flexlink-x65",
+    "document_version_id": "mock-docver-flexlink-x65-v1",
+    "title": "FlexLink X65 컨베이어 유지보수 매뉴얼",
+    "document_type": "MAINTENANCE",
+    "category": "conveyor",
+    "equipment_name": "FlexLink X65",
+    "section_title": "점검 순서",
+    "page": 12,
+    "content": "컨베이어 정렬 이상 시 가이드 레일, 체인 장력, 제품 위치 센서를 순서대로 확인한다. 체인 장력이 허용 범위를 벗어나면 장력을 조정하고, 제품 위치 센서의 오염과 고정 상태를 함께 확인한다.",
+    "score": 0.91,
+    "rank": 1,
+    "source_uri": "rag/corpus/JE_md/FlexLink_X65_misalignment_rag_ko.md"
+  },
+  {
+    "chunk_id": "mock-chunk-002",
+    "document_id": "mock-doc-heatmap-guide",
+    "document_version_id": "mock-docver-heatmap-guide-v1",
+    "title": "Heatmap / Anomaly Map 해석 가이드",
+    "document_type": "INSPECTION_GUIDE",
+    "category": "inspection",
+    "equipment_name": null,
+    "section_title": "조명 반사 및 넓은 heatmap 대응",
+    "page": 3,
+    "content": "조명 반사 때문에 heatmap이 넓게 분포하면 렌즈 커버 오염, 조명 각도, 제품 표면 반사, 카메라 초점 상태를 순서대로 확인한다. 조건 변경 후에는 동일 기준 이미지로 재검사한다.",
+    "score": 0.88,
+    "rank": 2,
+    "source_uri": "rag/corpus/SK_md/01_main_manuals/Heatmap_AnomalyMap_해석가이드_v1.md"
+  },
+  {
+    "chunk_id": "mock-chunk-003",
+    "document_id": "mock-doc-vision-sop",
+    "document_version_id": "mock-docver-vision-sop-v1",
+    "title": "이상감지 작업자 대응절차 SOP",
+    "document_type": "SOP",
+    "category": "inspection",
+    "equipment_name": null,
+    "section_title": "재검사 조건",
+    "page": 5,
+    "content": "anomaly score가 임계값 근처이고 confidence가 낮으면 재검사로 분류한다. 작업자는 동일 조건에서 입력 이미지를 다시 촬영하고, 조명과 제품 위치가 기준 상태인지 확인한다.",
+    "score": 0.84,
+    "rank": 3,
+    "source_uri": "rag/corpus/SK_md/01_main_manuals/이상감지_작업자대응절차_SOP_v1.md"
+  }
+]

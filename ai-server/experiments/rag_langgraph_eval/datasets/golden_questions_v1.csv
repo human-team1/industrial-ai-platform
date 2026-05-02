@@ -1,0 +1,11 @@
+question_id,query_type,question,organization_id,document_status,equipment_name,expected_doc_keyword,expected_section_keyword,expected_keywords,expected_behavior
+GQ-001,document_search,컨베이어 정렬 이상 시 점검 순서 알려줘,org-001,PUBLISHED,FlexLink X65,FlexLink X65,점검 순서,가이드 레일;체인 장력;제품 위치 센서,retrieve_sources
+GQ-002,document_search,FlexLink X65 컨베이어 정렬 문제 조치 방법,org-001,PUBLISHED,FlexLink X65,FlexLink X65,조치 방법,정렬;가이드 레일;체인,retrieve_sources
+GQ-003,document_search,조명 반사 때문에 heatmap이 넓게 나올 때 확인할 항목,org-001,PUBLISHED,,Heatmap,조명 반사,렌즈;조명;초점;제품 위치,retrieve_sources
+GQ-004,document_search,anomaly score가 임계값 근처일 때 재검사 기준은 무엇인가,org-001,PUBLISHED,,이상감지 작업자 대응절차,재검사,임계값;confidence;재검사,retrieve_sources
+GQ-005,document_search,일일 비전검사설비 점검 체크리스트 항목 알려줘,org-001,PUBLISHED,,일일 비전검사설비 점검체크리스트,점검체크리스트,렌즈;조명;카메라;네트워크,retrieve_sources
+GQ-006,document_search,OMRON FH FHV 비전 시스템 오류 시 먼저 확인할 것은,org-001,PUBLISHED,OMRON FH/FHV,OMRON FH FHV,오류,조명;렌즈;네트워크;PLC,retrieve_sources
+GQ-007,document_search,SICK WL12 센서 정렬 확인 방법,org-001,PUBLISHED,SICK WL12,SICK WL12,정렬,센서;광축;오염,retrieve_sources
+GQ-008,no_answer,커피머신 물탱크 청소 방법,org-001,PUBLISHED,,NO_ANSWER,,커피머신;물탱크,no_retrieval_result
+GQ-009,no_answer,사무실 프린터 토너 교체 절차 알려줘,org-001,PUBLISHED,,NO_ANSWER,,프린터;토너,no_retrieval_result
+GQ-010,document_search,재검사 결과 기록 양식에는 무엇을 남겨야 하나,org-001,PUBLISHED,,재검사 결과기록 양식,결과 기록,판정;사유;작업자;시간,retrieve_sources

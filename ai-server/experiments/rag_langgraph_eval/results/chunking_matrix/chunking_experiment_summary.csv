@@ -1,0 +1,7 @@
+﻿experiment_id,strategy,purpose,document_count,chunk_size,chunk_overlap,chunk_count,min_chunk_chars,p50_chunk_chars,avg_chunk_chars,max_chunk_chars,tiny_lt20_count,over_limit_count
+C1,section_sliding,짧은 질의에 빠르게 반응하는지,27,300,50,1217,1,299,242.58,300,4,0
+C2,section_sliding,균형형 baseline,27,500,100,788,19,435,372.42,500,1,0
+C3,section_sliding,매뉴얼 절차 단위 보존,27,800,100,572,19,467,478.76,800,1,0
+C4,section_sliding,긴 대응 절차 보존,27,1000,150,523,19,479,521.16,1000,1,0
+C5,section_based,제목/섹션 단위 검색 품질 확인,27,section-based,section-based,451,19,462,584.54,9060,1,0
+C6,heading_body_hybrid,제목은 유지하고 본문만 token split,27,800,100,575,19,468,480.19,800,1,0

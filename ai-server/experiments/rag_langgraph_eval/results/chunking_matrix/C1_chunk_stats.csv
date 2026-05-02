@@ -1,0 +1,28 @@
+﻿experiment_id,strategy,relative_path,title,document_type,source_group,chunk_size,chunk_overlap,chunk_count,min_chunk_chars,max_chunk_chars,avg_chunk_chars
+C1,section_sliding,JE_md/5815EN-3_maintenance_rag_ko.md,FlexLink X65 Conveyor System 유지보수·장애대응 가이드,MAINTENANCE,JE_md,300,50,17,51,300,204.88
+C1,section_sliding,JE_md/Banner_VE_Series_Smart_Camera_RAG_압축문서_ko.md,Banner VE Series Smart Camera 운영 가이드,MANUAL,JE_md,300,50,38,41,300,254.08
+C1,section_sliding,JE_md/CCS_LDR2-LA_RAG_압축문서_ko.md,CCS LDR2-LA Series 저각도 링 조명 운영 가이드,MANUAL,JE_md,300,50,31,39,300,246.1
+C1,section_sliding,JE_md/CCS_LDR2_RAG_압축문서_ko.md,CCS LDR2 Series 링 조명 운영 가이드,MANUAL,JE_md,300,50,32,32,300,244.5
+C1,section_sliding,JE_md/Cognex_In-Sight_2800_RAG_압축문서_ko.md,Cognex In-Sight 2800 Series 비전 시스템 운영 가이드,MANUAL,JE_md,300,50,38,39,300,263.58
+C1,section_sliding,JE_md/FlexLink_X65_misalignment_rag_ko.md,FlexLink X65 제품 쏠림·정렬 불량 대응 가이드,TROUBLESHOOTING,JE_md,300,50,18,87,300,205.22
+C1,section_sliding,JE_md/ifm_O2D50x_O2D52x_RAG_압축문서_ko.md,ifm O2D50x/O2D52x 객체 인식 센서 운영 가이드,MAINTENANCE,JE_md,300,50,63,53,300,262.57
+C1,section_sliding,JE_md/Interroll_RollerDrive_EC5000_RAG_압축문서_ko.md,Interroll RollerDrive EC5000 운영 가이드,MANUAL,JE_md,300,50,41,46,300,253.9
+C1,section_sliding,JE_md/Moxa_EDS-205A_EDS-208A_Series_RAG_압축문서_ko.md,Moxa EDS-205A/EDS-208A 산업용 이더넷 스위치 운영 가이드,MANUAL,JE_md,300,50,57,1,300,234.88
+C1,section_sliding,JE_md/OMRON_FH_FHV_Vision_System_RAG_압축문서_ko.md,OMRON FH/FHV Vision System 운영 가이드,MANUAL,JE_md,300,50,39,45,300,251.54
+C1,section_sliding,JE_md/OMRON_FQ2-S_CH_RAG_압축문서_ko.md,OMRON FQ2-S/CH Smart Camera 운영 가이드,MANUAL,JE_md,300,50,51,46,300,268.8
+C1,section_sliding,JE_md/SICK_InspectorP62x_RAG_압축문서_ko.md,SICK InspectorP62x 2D 비전 검사 운영 가이드,MAINTENANCE,JE_md,300,50,90,24,300,256.77
+C1,section_sliding,JE_md/SICK_WL12-3P2432S01_RAG_압축문서_ko.md,SICK WL12-3P2432S01 광전 센서 운영 가이드,MAINTENANCE,JE_md,300,50,42,1,300,250.74
+C1,section_sliding,JE_md/SmartVisionLights_L300G2_RAG_압축문서_ko.md,Smart Vision Lights L300G2 조명 운영 가이드,MANUAL,JE_md,300,50,87,17,300,265.66
+C1,section_sliding,SK_md/01_main_manuals/Heatmap_AnomalyMap_해석가이드_v1.md,Heatmap / Anomaly Map 해석 가이드,INSPECTION_GUIDE,SK_md,300,50,40,65,300,239.43
+C1,section_sliding,SK_md/01_main_manuals/MVTecAD_검사데이터셋_카테고리개요_v1.md,MVTec AD 검사 데이터셋 카테고리 개요,MANUAL,SK_md,300,50,52,22,300,226.62
+C1,section_sliding,SK_md/01_main_manuals/Object_계열_결함해석가이드_v1.md,Object 계열 결함 해석 가이드,INSPECTION_GUIDE,SK_md,300,50,44,24,300,219.86
+C1,section_sliding,SK_md/01_main_manuals/Object_카테고리별_결함판정기준서_v1.md,Object 카테고리별 결함 판정 기준서,INSPECTION_GUIDE,SK_md,300,50,55,20,300,227.84
+C1,section_sliding,SK_md/01_main_manuals/Texture_계열_결함해석가이드_v1.md,Texture 계열 결함 해석 가이드,INSPECTION_GUIDE,SK_md,300,50,43,57,300,226.7
+C1,section_sliding,SK_md/01_main_manuals/Texture_카테고리별_결함판정기준서_v1.md,Texture 카테고리별 결함 판정 기준서,INSPECTION_GUIDE,SK_md,300,50,60,20,300,210.93
+C1,section_sliding,SK_md/01_main_manuals/이상감지_작업자대응절차_SOP_v1.md,이상 감지 작업자 대응 절차 SOP,SOP,SK_md,300,50,43,19,300,221.35
+C1,section_sliding,SK_md/01_main_manuals/정상_재검사_불량_판정기준서_v1.md,정상 / 재검사 / 불량 판정 기준서,INSPECTION_STANDARD,SK_md,300,50,41,21,300,237.32
+C1,section_sliding,SK_md/03_support_docs/모델버전_및_임계값_변경이력관리_v1.md,모델 버전 및 임계값 변경 이력 관리 가이드,OPERATION_GUIDE,SK_md,300,50,41,63,300,251.17
+C1,section_sliding,SK_md/03_support_docs/오탐_미탐_발생보고서_양식_v1.md,오탐 / 미탐 발생 보고서 양식,REPORT_TEMPLATE,SK_md,300,50,29,52,300,239.76
+C1,section_sliding,SK_md/03_support_docs/일일_비전검사설비_점검체크리스트_v1.md,일일 비전 검사 설비 점검 체크리스트,CHECKLIST,SK_md,300,50,32,44,300,243.16
+C1,section_sliding,SK_md/03_support_docs/작업자_교대시_인수인계체크리스트_v1.md,작업자 교대 시 인수인계 체크리스트,CHECKLIST,SK_md,300,50,68,61,300,231.09
+C1,section_sliding,SK_md/03_support_docs/재검사_결과기록_양식_v1.md,재검사 결과 기록 양식,REPORT_TEMPLATE,SK_md,300,50,25,56,300,253.6

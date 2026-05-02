@@ -1,0 +1,53 @@
+[
+  {
+    "query_case_id": "RLQ-001",
+    "query_type": "result_linked",
+    "query": "검사 결과에서 재검사가 나온 이유와 조치 방법 알려줘",
+    "result_id": "RC-REVIEW-001",
+    "user_id": "user-001",
+    "organization_id": "org-001",
+    "equipment_name": "FlexLink X65",
+    "anomaly_type": "misalignment",
+    "decision": "REVIEW_REQUIRED",
+    "expected_source_keywords": [
+      "anomaly score",
+      "heatmap",
+      "재검사",
+      "조치"
+    ]
+  },
+  {
+    "query_case_id": "RLQ-002",
+    "query_type": "result_linked",
+    "query": "metal_nut score가 높을 때 작업자가 확인할 항목 알려줘",
+    "result_id": "RC-METAL-NUT-001",
+    "user_id": "user-001",
+    "organization_id": "org-001",
+    "equipment_name": null,
+    "anomaly_type": "high_score",
+    "decision": "DEFECT",
+    "expected_source_keywords": [
+      "metal_nut",
+      "score",
+      "확인",
+      "조명"
+    ]
+  },
+  {
+    "query_case_id": "RLQ-003",
+    "query_type": "result_linked",
+    "query": "heatmap이 좌측으로 넓게 퍼졌을 때 먼저 볼 조건은?",
+    "result_id": "RC-HEATMAP-003",
+    "user_id": "user-001",
+    "organization_id": "org-001",
+    "equipment_name": null,
+    "anomaly_type": "wide_heatmap",
+    "decision": "REVIEW_REQUIRED",
+    "expected_source_keywords": [
+      "heatmap",
+      "anomaly map",
+      "점검",
+      "조치"
+    ]
+  }
+]
