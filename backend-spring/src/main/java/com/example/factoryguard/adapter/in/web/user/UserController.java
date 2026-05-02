@@ -3,7 +3,6 @@ package com.example.factoryguard.adapter.in.web.user;
 import com.example.factoryguard.adapter.in.web.user.dto.CreateMyThresholdRequest;
 import com.example.factoryguard.adapter.in.web.user.dto.PatchMySettingRequest;
 import com.example.factoryguard.adapter.in.web.user.dto.UpdateThresholdRequest;
-import com.example.factoryguard.application.dto.user.UpdateThresholdResult;
 import com.example.factoryguard.application.dto.user.UserMeResult;
 import com.example.factoryguard.application.dto.user.UserSettingResult;
 import com.example.factoryguard.application.dto.user.UserThresholdResult;
@@ -80,11 +79,13 @@ public class UserController {
     }
 
     @PatchMapping("/me/thresholds/{thresholdId}")
-    public ResponseEntity<ApiResponse<UpdateThresholdResult>> updateThreshold(
+    public ResponseEntity<ApiResponse<UserThresholdResult>> updateThreshold(
             @PathVariable Long thresholdId,
-            @RequestBody UpdateThresholdRequest request) {
+            @Valid @RequestBody UpdateThresholdRequest request) {
         AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
-        UpdateThresholdResult result = updateMyThresholdUseCase.execute(p.userId(), p.sessionId(), thresholdId, request.toCommand());
-        return ResponseEntity.ok(ApiResponse.success(result, "임계값 수정 성공."));
+        UserThresholdResult result = updateMyThresholdUseCase.execute(
+                p.userId(), p.sessionId(), thresholdId, request.toCommand()
+        );
+        return ResponseEntity.ok(ApiResponse.success(result, "사용자 임계값을 저장했습니다."));
     }
 }

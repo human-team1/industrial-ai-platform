@@ -4,12 +4,25 @@ import com.example.factoryguard.application.dto.user.UpdateThresholdCommand;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import javax.validation.constraints.DecimalMax;
+import javax.validation.constraints.DecimalMin;
+import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
+
 @Getter
 @NoArgsConstructor
 public class UpdateThresholdRequest {
 
-    private double anomalyThreshold;
-    private double lowConfidenceThreshold;
+    @NotNull(message = "anomalyThreshold는 필수입니다.")
+    @DecimalMin(value = "0.0", message = "anomalyThreshold는 0.0 이상이어야 합니다.")
+    @DecimalMax(value = "1.0", message = "anomalyThreshold는 1.0 이하여야 합니다.")
+    private BigDecimal anomalyThreshold;
+
+    @NotNull(message = "lowConfidenceThreshold는 필수입니다.")
+    @DecimalMin(value = "0.0", message = "lowConfidenceThreshold는 0.0 이상이어야 합니다.")
+    @DecimalMax(value = "1.0", message = "lowConfidenceThreshold는 1.0 이하여야 합니다.")
+    private BigDecimal lowConfidenceThreshold;
+
     private String applyScope;
     private String changeReason;
 
