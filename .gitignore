@@ -42,12 +42,23 @@ Thumbs.db
 
 # ai-server experiment cache / large artifacts
 ai-server/experiments/**/cache/
+ai-server/experiments/**/*.csv
+ai-server/experiments/**/*.json
+ai-server/experiments/**/*.jsonl
 ai-server/experiments/**/*.npy
 ai-server/experiments/**/*.bin
 ai-server/experiments/**/*.safetensors
 ai-server/experiments/**/*.zip
 ai-server/experiments/**/chroma_store/
+ai-server/rag/outputs/*.csv
 
 # misc
 tmp/
 temp/
+
+# local document CRUD smoke / bootrun logs (do not commit)
+tmp-doc-smoke/
+tmp-doc-test/
+bootrun-*.txt
+bootrun-error.txt
+bootrun-error-err.txt
