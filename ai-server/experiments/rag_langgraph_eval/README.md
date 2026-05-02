@@ -1,6 +1,6 @@
 # RAG LangGraph Evaluation
 
-3일 실험용 작업 영역입니다. A는 검색 품질 검증, B는 LangGraph/프롬프트/API 응답 검증을 담당합니다.
+RAG 검색 품질 검증의 최종 설정과 요약 보고서를 보관하는 작업 영역입니다. 런타임 코드는 `../../rag`를 우선합니다.
 
 ## 역할
 
@@ -17,24 +17,18 @@ question -> LangGraph routing -> result context -> retrieval -> prompt -> LLM ->
 ```text
 rag_langgraph_eval/
 ├── corpus/      # 실험 문서 배치 영역, 현재 운영 원본은 ../../rag/corpus
-├── datasets/    # golden questions, mock source/context
-├── configs/     # best_retrieval_config.yaml
+├── configs/     # best_retrieval_config.yaml 등 최종 채택 설정
 ├── prompts/     # B prompt 파일
 ├── graph/       # B graph_v0.py 등
 ├── scripts/     # notebook 보조 또는 래퍼 스크립트
-└── results/     # 실험 산출물
+└── results/     # 요약 MD, 최종 검증 보고서, 최종 YAML만 유지
 ```
 
-## A 실험 명령
+## 유지 기준
 
-루트는 `ai-server`입니다.
-
-```powershell
-.\.venv\Scripts\python.exe -m rag.scripts.run_chunking_matrix
-.\.venv\Scripts\python.exe -m rag.scripts.run_embedding_experiment
-.\.venv\Scripts\python.exe -m rag.scripts.run_retrieval_experiment
-.\.venv\Scripts\python.exe -m rag.scripts.run_topk_threshold_experiment
-```
+- 유지: `configs/*.yaml`, 계약/매핑 MD, 최종 검증 보고서, 실험 요약 MD
+- 제외: raw CSV/JSON/JSONL, detail 결과, cache, Chroma local store, 모델 바이너리, 임시 압축 파일
+- 공유: 상세 결과가 필요하면 Notion/Drive 링크로 분리하고 Git에는 요약 MD만 둡니다.
 
 ## 현재 best retrieval config
 
@@ -56,9 +50,10 @@ mmr_enabled=false
 
 ## 산출물
 
-- `results/chunking_matrix/`
-- `results/embedding_eval/`
-- `results/retrieval_eval/`
-- `results/topk_threshold_eval/`
+- `results/chunking_matrix/chunking_experiment_report.md`
+- `results/embedding_eval/*_report.md`
+- `results/retrieval_eval/rag_a_final_verification_report.md`
+- `results/retrieval_eval/best_retrieval_config.yaml`
+- `results/topk_threshold_eval/topk_threshold_eval_report.md`
 
-`cache/`, 모델 파일, 대용량 바이너리는 Git 커밋 대상이 아닙니다.
+`experiments/**/*.csv`, `experiments/**/*.json`, `experiments/**/*.jsonl`, `cache/`, 모델 파일, 대용량 바이너리는 Git 커밋 대상이 아닙니다.

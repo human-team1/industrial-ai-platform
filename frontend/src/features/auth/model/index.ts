@@ -6,6 +6,22 @@ import type { AuthUser, NewUserInfo } from '../types'
 
 const USER_KEY = 'authUser'
 
+type ApiErrorBody = {
+  code?: string
+  errorCode?: string
+}
+
+type ApiError = {
+  response?: {
+    data?: ApiErrorBody
+  }
+}
+
+function getAuthErrorCode(err: unknown): string | undefined {
+  const data = (err as ApiError).response?.data
+  return data?.code ?? data?.errorCode
+}
+
 export type AuthState = {
   accessToken: string | null
   user: AuthUser | null
@@ -61,8 +77,7 @@ export function useAuthState(): AuthState {
       })
       .catch((err) => {
         if (cancelled) return
-        const errorCode: string | undefined =
-          (err as any)?.response?.data?.code ?? (err as any)?.response?.data?.errorCode
+        const errorCode = getAuthErrorCode(err)
         if (errorCode === 'AUTH-405') {
           // PENDING_APPROVAL — 로그아웃 없이 안내 페이지로
           setMemoryToken(null)
@@ -85,7 +100,7 @@ export function useAuthState(): AuthState {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [navigate])
 
   const setAuth = useCallback((token: string, authUser: AuthUser) => {
     setMemoryToken(token)
