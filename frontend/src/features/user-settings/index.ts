@@ -17,4 +17,5 @@ export {
   SecurityPreferencesSection,
   SettingsSummary,
   SettingsActions,
+  SettingsFeedback,
 } from './ui'

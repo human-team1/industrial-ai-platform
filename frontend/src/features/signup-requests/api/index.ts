@@ -1,13 +1,5 @@
 import { apiClient } from '../../../shared/api/client'
-
-export type SignupRequestSummary = {
-  requestId: number
-  userId: number
-  name: string
-  email: string
-  picture?: string
-  requestedAt: string
-}
+import type { SignupRequestSummary } from '../types'
 
 export async function getSignupRequests(): Promise<SignupRequestSummary[]> {
   const response = await apiClient.get<{ success: boolean; data: SignupRequestSummary[] }>(
