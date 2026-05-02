@@ -108,7 +108,7 @@ export function useAsyncJobsPolling() {
 }
 
 export function useOperationLogs() {
-  const [filters, setFilters] = useState<OperationLogQuery>({ page: 0, size: 20 })
+  const [filters, setFilters] = useState<OperationLogQuery>({ page: 0, size: 20, sort: 'desc' })
   const [data, setData] = useState<PageResponse<OperationLog> | null>(null)
   const [initialLoading, setInitialLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)

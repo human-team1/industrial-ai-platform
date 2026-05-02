@@ -48,8 +48,8 @@ export async function getAnalysisTargets(signal?: AbortSignal): Promise<Analysis
   try {
     const response = await apiClient.get<ApiResponse<unknown>>('/analysis-targets', { signal })
     return toAnalysisTargetOptions(response.data.data)
-  } catch {
-    return []
+  } catch (error) {
+    throw new Error(getInspectionErrorMessage(error))
   }
 }
 
@@ -57,8 +57,8 @@ export async function getMyThresholds(signal?: AbortSignal): Promise<ThresholdOp
   try {
     const response = await apiClient.get<ApiResponse<unknown>>('/users/me/thresholds', { signal })
     return toThresholdOptions(response.data.data)
-  } catch {
-    return []
+  } catch (error) {
+    throw new Error(getInspectionErrorMessage(error))
   }
 }
 

@@ -29,6 +29,15 @@ export async function fetchResultDetail(resultId: number): Promise<ResultDetail>
   }
 }
 
+export async function fetchResultFilePreview(fileId: number): Promise<Blob> {
+  try {
+    const response = await apiClient.get<Blob>(`/files/${fileId}/preview`, { responseType: 'blob' })
+    return response.data
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
 function compactParams(query: ResultListQuery) {
   return Object.fromEntries(
     Object.entries(query).filter(([, value]) => value !== undefined && value !== null && value !== ''),

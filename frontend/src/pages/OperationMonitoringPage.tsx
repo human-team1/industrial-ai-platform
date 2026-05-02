@@ -4,6 +4,7 @@ import {
   useSystemComponentsPolling,
   useSystemStatusPolling,
 } from '../features/operation/model/useOperationMonitoring'
+import { useOperationMetricHistory } from '../features/operation/model/useOperationMetricHistory'
 import { OperationMonitoringView } from '../widgets/operation/OperationMonitoringView'
 import { formatDateTime } from '../shared/lib/date'
 
@@ -12,6 +13,7 @@ export function OperationMonitoringPage() {
   const systemComponents = useSystemComponentsPolling()
   const operationLogs = useOperationLogs()
   const asyncJobs = useAsyncJobsPolling()
+  const metricHistory = useOperationMetricHistory({ systemStatus: systemStatus.data, maxPoints: 60 })
 
   function refreshAll() {
     systemStatus.refetch()
@@ -43,6 +45,7 @@ export function OperationMonitoringPage() {
 
       <OperationMonitoringView
         systemStatus={systemStatus}
+        metricHistory={metricHistory}
         systemComponents={systemComponents}
         operationLogs={operationLogs}
         asyncJobs={asyncJobs}

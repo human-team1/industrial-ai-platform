@@ -254,51 +254,51 @@ export function ChatConversationList({
   onDelete: (conversationId: number) => void
 }) {
   if (loading) {
-    return <div className="page-panel text-sm text-slate-600">챗봇 이력을 불러오는 중입니다.</div>
+    return (
+      <div className="page-panel flex min-h-[200px] items-center justify-center text-sm text-slate-600">
+        챗봇 이력을 불러오는 중입니다.
+      </div>
+    )
   }
 
   if (items.length === 0) {
-    return <div className="page-panel text-sm text-slate-600">{emptyMessage}</div>
+    return (
+      <div className="page-panel flex min-h-[200px] items-center justify-center text-center text-sm text-slate-600">
+        {emptyMessage}
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {items.map((item) => (
-        <button
+        <div
           key={item.conversationId}
-          className={`w-full rounded-md border p-4 text-left ${
-            selectedId === item.conversationId ? 'border-slate-900 bg-slate-50' : 'border-slate-200 bg-white'
+          className={`flex w-full items-stretch overflow-hidden rounded-md border transition-colors ${
+            selectedId === item.conversationId ? 'border-slate-900 bg-slate-50' : 'border-slate-200 bg-white hover:border-slate-300'
           }`}
-          type="button"
-          onClick={() => onSelect(item.conversationId)}
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">{item.title}</p>
-              <p className="mt-1 line-clamp-2 text-xs text-slate-600">{item.lastMessagePreview}</p>
-              <p className="mt-2 text-xs text-slate-500">
-                메시지 {item.messageCount}개 · 출처 {item.sourceCount}개 · {formatDateTime(item.updatedAt)}
-              </p>
-            </div>
-            <span
-              className="btn-secondary inline-flex items-center"
-              role="button"
-              tabIndex={0}
-              onClick={(event) => {
-                event.stopPropagation()
-                onDelete(item.conversationId)
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.stopPropagation()
-                  onDelete(item.conversationId)
-                }
-              }}
+          <button
+            type="button"
+            className="min-w-0 flex-1 px-4 py-4 text-left"
+            onClick={() => onSelect(item.conversationId)}
+          >
+            <p className="truncate text-sm font-semibold text-slate-900">{item.title}</p>
+            <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-600">{item.lastMessagePreview}</p>
+            <p className="mt-2.5 text-xs text-slate-500">
+              메시지 {item.messageCount}개 · 출처 {item.sourceCount}개 · {formatDateTime(item.updatedAt)}
+            </p>
+          </button>
+          <div className="flex shrink-0 items-center border-l border-slate-100 px-3">
+            <button
+              type="button"
+              className="btn-secondary inline-flex items-center justify-center whitespace-nowrap px-4"
+              onClick={() => onDelete(item.conversationId)}
             >
               삭제
-            </span>
+            </button>
           </div>
-        </button>
+        </div>
       ))}
     </div>
   )
@@ -312,15 +312,25 @@ export function ChatDetailPanel({
   loading: boolean
 }) {
   if (loading) {
-    return <div className="page-panel text-sm text-slate-600">대화 상세를 불러오는 중입니다.</div>
+    return (
+      <div className="page-panel flex min-h-[360px] flex-col items-center justify-center text-center text-sm text-slate-600">
+        대화 상세를 불러오는 중입니다.
+      </div>
+    )
   }
   if (!detail) {
-    return <div className="page-panel text-sm text-slate-600">왼쪽 목록에서 대화를 선택해 주세요.</div>
+    return (
+      <div className="page-panel flex min-h-[360px] flex-col items-center justify-center px-6 text-center text-sm leading-relaxed text-slate-600">
+        왼쪽 목록에서 대화를 선택해 주세요.
+      </div>
+    )
   }
   return (
-    <div className="page-panel space-y-4">
+    <div className="page-panel flex min-h-[360px] flex-col space-y-4">
       <h2 className="text-lg font-semibold text-slate-900">{detail.title}</h2>
-      <ChatMessageList messages={detail.messages} detailLoading={false} sendStatus="idle" />
+      <div className="min-h-0 flex-1">
+        <ChatMessageList messages={detail.messages} detailLoading={false} sendStatus="idle" />
+      </div>
     </div>
   )
 }

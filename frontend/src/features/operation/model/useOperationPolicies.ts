@@ -29,7 +29,7 @@ export function useOperationPolicies() {
     return () => controller.abort()
   }, [category, activeOnly, reloadKey])
 
-  async function savePolicy(policy: OperationPolicy, policyValue: string, isActive: boolean) {
+  async function savePolicy(policy: OperationPolicy, policyValue: string, isActive: boolean): Promise<boolean> {
     setSavingId(policy.operationPolicyId)
     setError(null)
     setMessage(null)
@@ -37,8 +37,10 @@ export function useOperationPolicies() {
       const updated = await updateOperationPolicy(policy.operationPolicyId, { policyValue, isActive })
       setPolicies((items) => items.map((item) => item.operationPolicyId === updated.operationPolicyId ? updated : item))
       setMessage('운영 정책을 저장했습니다.')
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : '운영 정책 저장에 실패했습니다.')
+      return false
     } finally {
       setSavingId(null)
     }

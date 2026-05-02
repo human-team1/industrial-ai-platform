@@ -25,8 +25,8 @@ export function DocumentFormPage() {
 
   if (createResult) {
     return (
-      <section className="mx-auto w-full max-w-2xl space-y-4">
-        <div className="page-panel space-y-3 border-emerald-200 bg-emerald-50">
+      <section className="mx-auto w-full max-w-[min(100%,48rem)] space-y-5">
+        <div className="page-panel space-y-4 border-emerald-200 bg-emerald-50">
           <h1 className="text-xl font-semibold text-emerald-900">문서가 등록되었습니다</h1>
           <p className="text-sm text-emerald-800">
             문서 ID {createResult.documentId}
@@ -38,13 +38,17 @@ export function DocumentFormPage() {
           <p className="text-xs text-emerald-700">
             위 상태는 Spring 등록 API가 반환한 값입니다. AI 서버(FastAPI)·RAG 인덱싱 완료 여부는 별도 인프라 연동 후에야 검증할 수 있습니다.
           </p>
-          <div className="flex flex-wrap gap-2 pt-2">
-            <button type="button" className="btn-primary" onClick={() => navigate('/documents')}>
+          <div className="flex flex-wrap gap-3 pt-2">
+            <button
+              type="button"
+              className="btn-primary inline-flex items-center justify-center whitespace-nowrap px-5"
+              onClick={() => navigate('/documents')}
+            >
               문서 목록으로
             </button>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-secondary inline-flex items-center justify-center whitespace-nowrap px-5"
               onClick={() => navigate(`/documents/${createResult.documentId}/edit`)}
             >
               문서 상세·수정

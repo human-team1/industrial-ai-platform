@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import { useResultList } from '../features/result/model'
+import { toResultDecisionChart, toResultScoreRangeChart } from '../features/result/model/chartViewModels'
 import {
   AppliedFilterChips,
   ResultListFilter,
   ResultListTable,
   ResultSummaryCards,
 } from '../features/result/ui'
+import { BarChartCard } from '../shared/ui/chart/BarChartCard'
 import { PaginationBar } from '../shared/ui/pagination/PaginationBar'
 
 export function ResultPage() {
@@ -42,6 +44,19 @@ export function ResultPage() {
       />
 
       <ResultSummaryCards summary={data?.summary ?? null} loading={loading && !data} />
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <BarChartCard
+          viewModel={toResultDecisionChart(data)}
+          loading={loading && !data}
+          empty={{ reason: 'NO_DATA', message: '현재 페이지에 표시할 결과가 없습니다.' }}
+        />
+        <BarChartCard
+          viewModel={toResultScoreRangeChart(data)}
+          loading={loading && !data}
+          empty={{ reason: 'NO_DATA', message: 'score가 있는 결과가 없습니다.' }}
+        />
+      </div>
 
       <AppliedFilterChips filters={filters} onReset={reset} />
 

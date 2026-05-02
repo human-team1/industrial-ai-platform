@@ -1,6 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { removeDocument, useDocumentList } from '../features/document/model'
+import {
+  toDocumentIndexingStatusChart,
+  toDocumentPageStatusChart,
+  toDocumentTypeChart,
+} from '../features/document/model/chartViewModels'
 import { DocumentSummaryCards, DocumentTable } from '../features/document/ui'
+import { BarChartCard } from '../shared/ui/chart/BarChartCard'
 import { PaginationBar } from '../shared/ui/pagination/PaginationBar'
 
 export function DocumentListPage() {
@@ -33,6 +39,24 @@ export function DocumentListPage() {
       </div>
 
       <DocumentSummaryCards summary={summary} loading={loading && !summary} />
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <BarChartCard
+          viewModel={toDocumentIndexingStatusChart(summary)}
+          loading={loading && !summary}
+          empty={{ reason: 'NO_DATA', message: '문서 상태 데이터가 없습니다.' }}
+        />
+        <BarChartCard
+          viewModel={toDocumentTypeChart(data?.content ?? [])}
+          loading={loading && !data}
+          empty={{ reason: 'NO_DATA', message: '현재 페이지에 문서가 없습니다.' }}
+        />
+        <BarChartCard
+          viewModel={toDocumentPageStatusChart(data?.content ?? [])}
+          loading={loading && !data}
+          empty={{ reason: 'NO_DATA', message: '현재 페이지에 문서 상태가 없습니다.' }}
+        />
+      </div>
 
       <section className="page-panel space-y-3">
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">

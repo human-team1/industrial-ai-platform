@@ -54,6 +54,17 @@ export function useUploadInspection() {
         setTargetOptions(targets)
         setThresholdOptions(thresholds)
       })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          setTargetOptions([])
+          setThresholdOptions([])
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : '검사 옵션을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
+          )
+        }
+      })
       .finally(() => setLoadingOptions(false))
 
     return () => controller.abort()
