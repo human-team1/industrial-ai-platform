@@ -6,11 +6,21 @@ type Props = {
   loading?: boolean
   error?: string | null
   empty?: EmptyChartState
+  /** 이 개수 미만이면 선을 그리지 않고 대기 메시지 표시 */
+  minPointsForLine?: number
+  insufficientDataMessage?: string
 }
 
 const COLORS = ['#109498', '#dc2626', '#f59e0b', '#2563eb']
 
-export function LineChartCard({ viewModel, loading, error, empty }: Props) {
+export function LineChartCard({
+  viewModel,
+  loading,
+  error,
+  empty,
+  minPointsForLine = 2,
+  insufficientDataMessage = '데이터 수집 중입니다.',
+}: Props) {
   if (loading) {
     return (
       <ChartShell title={viewModel?.title ?? '차트'}>
@@ -35,11 +45,20 @@ export function LineChartCard({ viewModel, loading, error, empty }: Props) {
     )
   }
 
+  if (minPointsForLine > 0 && viewModel.points.length < minPointsForLine) {
+    return (
+      <ChartShell title={viewModel.title} caption={viewModel.caption}>
+        <StateText text={insufficientDataMessage} />
+      </ChartShell>
+    )
+  }
+
   const numericValues = viewModel.points.flatMap((point) =>
     viewModel.series.map((series) => point[series.key]).filter((value): value is number => typeof value === 'number'),
   )
   const dataMax = Math.max(...numericValues, 0)
-  const scaleMax = viewModel.yMax && viewModel.yMax > 0 ? viewModel.yMax : dataMax <= 0 ? 1 : dataMax
+  const scaleMax =
+    viewModel.yMax != null && viewModel.yMax > 0 ? viewModel.yMax : dataMax <= 0 ? 1 : dataMax
 
   return (
     <ChartShell title={viewModel.title} caption={viewModel.caption}>

@@ -17,9 +17,11 @@ type ApiResponse<T> = {
 export type OperationLogQuery = {
   level?: string
   sourceComponent?: string
+  eventType?: string
   eventStatus?: string
   startDate?: string
   endDate?: string
+  sort?: string
   page?: number
   size?: number
 }
@@ -51,8 +53,11 @@ export async function fetchAsyncJobs(signal?: AbortSignal) {
 }
 
 export async function fetchOperationPolicies(query: { category?: string; activeOnly?: boolean }, signal?: AbortSignal) {
+  const params: Record<string, unknown> = {}
+  if (query.category) params.category = query.category
+  if (query.activeOnly) params.activeOnly = true
   const response = await apiClient.get<ApiResponse<OperationPolicy[]>>('/admin/operation-policies', {
-    params: compactParams(query),
+    params,
     signal,
   })
   return response.data.data

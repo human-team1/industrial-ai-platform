@@ -7,6 +7,7 @@ export type BarChartViewModel = {
   title: string
   unit?: string
   points: ChartPoint[]
+  /** 차트 우측 상단 보조 설명 */
   caption?: string
 }
 

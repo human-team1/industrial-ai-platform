@@ -52,13 +52,13 @@ export function DocumentForm({
   }
 
   return (
-    <section className="mx-auto w-full max-w-5xl space-y-4">
+    <section className="mx-auto w-full max-w-[min(100%,72rem)] space-y-5">
       <div className="page-panel">
         <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
-        <p className="mt-2 text-sm text-slate-600">{description}</p>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">{description}</p>
       </div>
 
-      <div className="page-panel space-y-8">
+      <div className="page-panel space-y-8 pb-1">
         <DocumentFileUpload
           mode={mode}
           file={file}
@@ -82,11 +82,21 @@ export function DocumentForm({
           </p>
         ) : null}
 
-        <div className="flex justify-end gap-2 border-t border-slate-100 pt-5">
-          <button type="button" className="btn-secondary" onClick={onCancel} disabled={saving}>
+        <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-6">
+          <button
+            type="button"
+            className="btn-secondary inline-flex min-w-[5rem] items-center justify-center whitespace-nowrap px-5"
+            onClick={onCancel}
+            disabled={saving}
+          >
             취소
           </button>
-          <button type="button" className="btn-primary" disabled={saving} onClick={onSubmit}>
+          <button
+            type="button"
+            className="btn-primary inline-flex min-w-[5.5rem] items-center justify-center whitespace-nowrap px-5"
+            disabled={saving}
+            onClick={onSubmit}
+          >
             {saving ? '저장 중...' : submitLabel}
           </button>
         </div>
@@ -117,7 +127,7 @@ function DocumentFileUpload({
   }
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-4">
       <div>
         <h2 className="text-sm font-semibold text-slate-800">파일 업로드</h2>
         {mode === 'edit' ? (
@@ -130,7 +140,7 @@ function DocumentFileUpload({
       {mode === 'edit' ? <ExistingFileInfo latestVersion={latestVersion} /> : null}
 
       <label
-        className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-6 text-center transition ${
+        className={`flex min-h-[176px] cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed px-6 py-8 text-center transition ${
           dragOver ? 'border-slate-500 bg-slate-50' : 'border-slate-300 bg-slate-50/60'
         }`}
         onDragOver={(event) => {
@@ -141,7 +151,7 @@ function DocumentFileUpload({
         onDrop={onDropFile}
       >
         <p className="text-sm text-slate-600">PDF, DOCX, MD 문서를 업로드하세요</p>
-        <span className="btn-secondary inline-flex items-center">파일 선택</span>
+        <span className="btn-secondary inline-flex items-center justify-center whitespace-nowrap px-5">파일 선택</span>
         <p className="text-xs text-slate-500">
           {file ? `선택된 파일: ${file.name}` : '선택된 파일이 없습니다.'}
         </p>
@@ -187,9 +197,9 @@ function DocumentMetadataFields({
   onChange: (name: keyof DocumentFormValues, value: string) => void
 }) {
   return (
-    <section className="space-y-3">
+    <section className="space-y-4">
       <h2 className="text-sm font-semibold text-slate-800">문서 정보</h2>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
         <Field label="문서명" required errorMessage={fieldErrors.title}>
           <input
             className="control w-full"
@@ -224,7 +234,7 @@ function DocumentMetadataFields({
         </Field>
         <Field label="설명" className="md:col-span-2">
           <textarea
-            className="control min-h-[140px] w-full py-2"
+            className="control min-h-[168px] w-full resize-y py-2.5 leading-relaxed"
             value={values.description}
             onChange={(event) => onChange('description', event.target.value)}
             placeholder="문서 설명을 입력하세요"
@@ -246,7 +256,7 @@ function DocumentIndexingStatus({
     return (
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-800">인덱싱 상태</h2>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        <div className="flex min-h-[100px] items-center rounded-lg border border-slate-200 bg-slate-50 px-5 py-4 text-sm leading-relaxed text-slate-600">
           문서 저장 후 인덱싱 상태가 표시됩니다.
         </div>
       </section>
@@ -258,7 +268,7 @@ function DocumentIndexingStatus({
   return (
     <section className="space-y-3">
       <h2 className="text-sm font-semibold text-slate-800">인덱싱 상태</h2>
-      <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-5 text-sm md:grid-cols-2">
         <Info label="상태" value={<StatusBadge status={status} />} />
         <Info label="청크 수" value={formatChunkCount(latestVersion?.indexedChunkCount)} />
         <Info label="반영 시각" value={formatDateTime(latestVersion?.indexedAt)} />
@@ -287,7 +297,7 @@ function DocumentPreviewPanel({
     return (
       <section className="space-y-3">
         <h2 className="text-sm font-semibold text-slate-800">문서 미리보기</h2>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+        <div className="flex min-h-[100px] items-center rounded-lg border border-slate-200 bg-slate-50 px-5 py-4 text-sm leading-relaxed text-slate-600">
           저장 후 미리보기를 확인할 수 있습니다.
         </div>
       </section>
@@ -301,12 +311,17 @@ function DocumentPreviewPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-800">문서 미리보기</h2>
         {canPreview ? (
-          <button type="button" className="btn-secondary" onClick={onPreviewOpen} disabled={loading}>
+          <button
+            type="button"
+            className="btn-secondary inline-flex shrink-0 items-center justify-center whitespace-nowrap px-4"
+            onClick={onPreviewOpen}
+            disabled={loading}
+          >
             {loading ? '불러오는 중...' : '새 탭에서 열기'}
           </button>
         ) : null}
       </div>
-      <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+      <div className="min-h-[128px] max-h-72 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600">
         {errorMessage ??
           (canPreview
           ? '백엔드가 텍스트 미리보기 필드를 제공하지 않아 원문은 새 탭에서 확인할 수 있습니다.'
@@ -330,8 +345,8 @@ function Field({
   children: ReactNode
 }) {
   return (
-    <label className={`space-y-1 ${className}`}>
-      <span className="text-sm font-medium text-slate-700">
+    <label className={`block space-y-2 ${className}`}>
+      <span className="block text-sm font-medium text-slate-700">
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
       </span>
