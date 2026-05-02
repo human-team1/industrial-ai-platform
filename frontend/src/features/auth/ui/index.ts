@@ -1,2 +1,5 @@
 export { GoogleLoginButton } from './GoogleLoginButton'
 export { AccountManagementCard } from './AccountManagementCard'
+export { AuthLoginHeader } from './AuthLoginHeader'
+export { AuthLoginCard } from './AuthLoginCard'
+export { AuthFooterLinks } from './AuthFooterLinks'
