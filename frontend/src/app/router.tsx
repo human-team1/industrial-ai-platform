@@ -11,6 +11,8 @@ import { ResultPage } from '../pages/ResultPage'
 import { ResultDetailPage } from '../pages/ResultDetailPage'
 import { NotificationPage } from '../pages/NotificationPage'
 import { AdminSignupRequestsPage } from '../pages/AdminSignupRequestsPage'
+import { OperationMonitoringPage } from '../pages/OperationMonitoringPage'
+import { SiteAdminSettingsPage } from '../pages/SiteAdminSettingsPage'
 import { MyPage } from '../pages/MyPage'
 import { UserSettingsPage } from '../pages/UserSettingsPage'
 import { DocumentListPage } from '../pages/DocumentListPage'
@@ -56,6 +58,8 @@ export function AppRouter() {
           <Route element={<RequireRole roles={['ROLE_SITE_ADMIN']} />}>
             <Route element={<AppLayout />}>
               <Route path="/admin/signup-requests" element={<AdminSignupRequestsPage />} />
+              <Route path="/admin/operation-monitoring" element={<OperationMonitoringPage />} />
+              <Route path="/admin/site-settings" element={<SiteAdminSettingsPage />} />
             </Route>
           </Route>
         </Route>

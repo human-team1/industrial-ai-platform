@@ -5,7 +5,9 @@ import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
 import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
+import com.example.factoryguard.application.dto.operation.RecordOperationLogCommand;
 import com.example.factoryguard.application.port.in.inspection.SubmitInspectionUseCase;
+import com.example.factoryguard.application.port.in.operation.RecordOperationLogUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.file.PersistUploadedFilePort;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
@@ -65,6 +67,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
     private final MinioStorageAdapter minioStorageAdapter;
     private final MinioProperties minioProperties;
     private final PersistUploadedFilePort persistUploadedFilePort;
+    private final RecordOperationLogUseCase recordOperationLogUseCase;
 
     @Override
     public SubmitInspectionResult execute(SubmitInspectionCommand command) {
@@ -159,6 +162,15 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                     checksum
             );
         } catch (Exception exception) {
+            recordOperationLogUseCase.recordOperationLog(RecordOperationLogCommand.builder()
+                    .eventType("FILE_UPLOAD_FAILED")
+                    .eventStatus("FAILED")
+                    .logLevel("ERROR")
+                    .sourceComponent("SPRING_API")
+                    .actorUserId(userId)
+                    .detailMessage("검사 파일 업로드 실패")
+                    .relatedPath("/api/v1/inspections")
+                    .build());
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "검사 파일 업로드에 실패했습니다.");
         }
 

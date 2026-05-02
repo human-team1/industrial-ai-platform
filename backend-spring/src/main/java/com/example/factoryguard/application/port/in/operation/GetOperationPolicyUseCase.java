@@ -1,9 +1,11 @@
 package com.example.factoryguard.application.port.in.operation;
 
+import com.example.factoryguard.application.dto.operation.ListOperationPoliciesQuery;
 import com.example.factoryguard.application.dto.operation.OperationPolicyResult;
-import com.example.factoryguard.domain.operation.vo.OperationPolicyType;
+
+import java.util.List;
 
 public interface GetOperationPolicyUseCase {
 
-    OperationPolicyResult execute(OperationPolicyType policyType);
+    List<OperationPolicyResult> execute(ListOperationPoliciesQuery query);
 }

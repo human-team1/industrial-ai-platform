@@ -3,7 +3,9 @@ package com.example.factoryguard.application.service.auth;
 import com.example.factoryguard.application.dto.auth.GoogleLoginCommand;
 import com.example.factoryguard.application.dto.auth.GoogleLoginResult;
 import com.example.factoryguard.application.dto.auth.GoogleTokenInfo;
+import com.example.factoryguard.application.dto.operation.RecordOperationLogCommand;
 import com.example.factoryguard.application.port.in.auth.GoogleLoginUseCase;
+import com.example.factoryguard.application.port.in.operation.RecordOperationLogUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.auth.VerifyGoogleTokenPort;
 import com.example.factoryguard.application.port.out.user.FindUserByGoogleSubPort;
@@ -28,10 +30,24 @@ public class GoogleLoginService implements GoogleLoginUseCase {
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenStorePort tokenStorePort;
     private final JwtProperties jwtProperties;
+    private final RecordOperationLogUseCase recordOperationLogUseCase;
 
     @Override
     public GoogleLoginResult execute(GoogleLoginCommand command) {
-        GoogleTokenInfo tokenInfo = verifyGoogleTokenPort.verify(command.getIdToken());
+        GoogleTokenInfo tokenInfo;
+        try {
+            tokenInfo = verifyGoogleTokenPort.verify(command.getIdToken());
+        } catch (RuntimeException exception) {
+            recordOperationLogUseCase.recordOperationLog(RecordOperationLogCommand.builder()
+                    .eventType("LOGIN_FAILED")
+                    .eventStatus("FAILED")
+                    .logLevel("WARN")
+                    .sourceComponent("SPRING_API")
+                    .detailMessage("Google 로그인 토큰 검증 실패")
+                    .relatedPath("/api/v1/auth/google-login")
+                    .build());
+            throw exception;
+        }
 
         Optional<User> userOpt = findUserByGoogleSubPort.findByGoogleSub(tokenInfo.getSub());
 
@@ -58,6 +74,15 @@ public class GoogleLoginService implements GoogleLoginUseCase {
 
                 tokenStorePort.saveRefreshToken(user.getUserId(), refreshToken, ttl);
                 tokenStorePort.saveSessionId(user.getUserId(), sessionId, ttl);
+                recordOperationLogUseCase.recordOperationLog(RecordOperationLogCommand.builder()
+                        .eventType("LOGIN_SUCCESS")
+                        .eventStatus("SUCCESS")
+                        .logLevel("INFO")
+                        .sourceComponent("SPRING_API")
+                        .actorUserId(user.getUserId())
+                        .detailMessage("사용자 로그인이 완료되었습니다.")
+                        .relatedPath("/api/v1/auth/google-login")
+                        .build());
 
                 yield GoogleLoginResult.ofActive(
                         accessToken, refreshToken,

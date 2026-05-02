@@ -1,6 +1,5 @@
 package com.example.factoryguard.application.dto.operation;
 
-import com.example.factoryguard.domain.operation.vo.OperationPolicyType;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -9,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 public class UpdateOperationPolicyCommand {
 
     private final Long adminUserId;
-    private final OperationPolicyType policyType;
+    private final Long policyId;
     private final String policyValue;
+    private final Boolean isActive;
 }

@@ -500,9 +500,14 @@
     operation_log_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     event_type VARCHAR(50),
     event_status VARCHAR(20),
+    log_level VARCHAR(20),
+    source_component VARCHAR(50),
+    request_id VARCHAR(100),
+    actor_user_id BIGINT,
     detail_message TEXT,
     related_path TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_operation_log_actor FOREIGN KEY (actor_user_id) REFERENCES users(user_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
   CREATE TABLE system_status_snapshot (
@@ -514,10 +519,32 @@
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+  CREATE TABLE system_component_status (
+    component_status_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    component_type VARCHAR(50),
+    component_name VARCHAR(100),
+    status VARCHAR(20),
+    message VARCHAR(255),
+    cpu_usage DECIMAL(5,2),
+    memory_usage DECIMAL(5,2),
+    disk_usage DECIMAL(5,2),
+    host_name VARCHAR(100),
+    instance_id VARCHAR(100),
+    response_time_ms INT,
+    checked_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
   CREATE TABLE operation_policy (
     operation_policy_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     policy_type VARCHAR(50),
+    policy_category VARCHAR(50),
+    policy_key VARCHAR(100),
+    policy_name VARCHAR(100),
     policy_value TEXT,
+    value_type VARCHAR(20),
+    description VARCHAR(255),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     updated_by BIGINT,
     CONSTRAINT fk_operation_policy_user FOREIGN KEY (updated_by) REFERENCES users(user_id)
@@ -544,6 +571,18 @@
   CREATE INDEX idx_result_inspection_decision ON inspection_result(inspection_id, decision_code, final_decision_code, created_at);
   CREATE INDEX idx_analysis_target_org_status ON analysis_target(organization_id, target_status);
   CREATE INDEX idx_notification_user_created ON notification(user_id, created_at);
+  CREATE INDEX idx_operation_log_created ON operation_log(created_at);
+  CREATE INDEX idx_operation_log_level ON operation_log(log_level);
+  CREATE INDEX idx_operation_log_source ON operation_log(source_component);
+  CREATE INDEX idx_operation_log_status ON operation_log(event_status);
+  CREATE INDEX idx_operation_log_request ON operation_log(request_id);
+  CREATE INDEX idx_audit_log_created ON audit_log(created_at);
+  CREATE INDEX idx_admin_action_log_created ON admin_action_log(created_at);
+  CREATE INDEX idx_system_component_type ON system_component_status(component_type);
+  CREATE INDEX idx_system_component_checked ON system_component_status(checked_at);
+  CREATE INDEX idx_operation_policy_category ON operation_policy(policy_category);
+  CREATE INDEX idx_operation_policy_key ON operation_policy(policy_key);
+  CREATE INDEX idx_async_job_status ON async_job(job_status);
   CREATE INDEX idx_document_org_owner ON document(organization_id, owner_user_id);
   CREATE INDEX idx_notification_user_read ON notification(user_id, is_read);
   CREATE INDEX idx_chat_conversation_user ON chat_conversation(user_id);
