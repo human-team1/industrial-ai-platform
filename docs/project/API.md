@@ -11,8 +11,9 @@
 | 에러 응답 | RFC 9457 Problem Details |
 | 날짜 형식 | ISO-8601 |
 | 페이지네이션 | `page`, `size`, `sort` |
+| 기본 정렬 | 최신순 |
 
-## 성공 응답 예시
+### 성공 응답 예시
 
 ```json
 {
@@ -22,7 +23,7 @@
 }
 ```
 
-## 에러 응답 예시
+### 에러 응답 예시
 
 ```json
 {
@@ -30,12 +31,12 @@
   "title": "Validation failed",
   "status": 422,
   "detail": "요청 값이 올바르지 않습니다.",
-  "instance": "/api/v1/users",
+  "instance": "/api/v1/inspections/upload",
   "errorCode": "VALIDATION_ERROR",
   "errors": [
     {
-      "field": "email",
-      "reason": "올바른 이메일 형식이 아닙니다."
+      "field": "roiX",
+      "reason": "roiX는 0 이상 1 이하이어야 합니다."
     }
   ]
 }
@@ -43,7 +44,25 @@
 
 ---
 
-# 1. Auth / Users
+## 1. 공통 ENUM
+
+| 구분 | 값 |
+| --- | --- |
+| Role | `ROLE_SITE_ADMIN / ROLE_COMPANY_ADMIN / ROLE_COMPANY_WORKER` |
+| UserStatus | `PENDING / ACTIVE / REJECTED / INACTIVE` |
+| DecisionCode | `NORMAL / DEFECT / RECHECK` |
+| RunStatus | `PENDING / PROCESSING / COMPLETED / FAILED / STOPPED` |
+| RunType | `UPLOAD / REALTIME` |
+| InputType | `IMAGE / VIDEO / BROWSER_CAMERA / RTSP_STREAM` |
+| SourceType | `IMAGE / VIDEO / BROWSER_CAMERA / RTSP_STREAM` |
+| RoiMode | `FULL_FRAME / FIXED` |
+| RoiCoordinateType | `NORMALIZED` |
+| InputQualityStatus | `PASSED / WARNING / FAILED` |
+| InputQualityReason | `TOO_DARK / TOO_BRIGHT / LOW_CONTRAST / BLURRY / ROI_INVALID / COLOR_SHIFT / SOME_FRAMES_RECHECK / INSUFFICIENT_VALID_FRAMES` |
+
+---
+
+# 2. Auth / Users
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
@@ -52,95 +71,32 @@
 | POST | `/auth/logout` | 로그아웃 | USER |
 | POST | `/auth/refresh` | 토큰 재발급 | USER |
 | GET | `/auth/me` | 내 로그인 정보 조회 | USER |
-| GET | `/signup-requests/organizations/public` | 회원가입용 조직 목록 조회 (이름 위주) | Public |
+| GET | `/signup-requests/organizations/public` | 회원가입용 공개 조직 목록 | Public |
 | POST | `/signup-requests` | 회원가입 신청 | Public |
-| GET | `/signup-requests` | 가입 신청 목록 조회 | ADMIN |
-| PATCH | `/signup-requests/{requestId}/approve` | 가입 승인 | ADMIN |
-| PATCH | `/signup-requests/{requestId}/reject` | 가입 거절 | ADMIN |
+| GET | `/signup-requests` | 가입 신청 목록 조회 | SITE_ADMIN |
+| PATCH | `/signup-requests/{requestId}/approve` | 가입 승인 | SITE_ADMIN |
+| PATCH | `/signup-requests/{requestId}/reject` | 가입 거절 | SITE_ADMIN |
 | GET | `/users/me` | 내 정보 조회 | USER |
 | PATCH | `/users/me` | 내 정보 수정 | USER |
 | GET | `/users` | 사용자 목록 조회 | ADMIN |
 | GET | `/users/{userId}` | 사용자 상세 조회 | ADMIN |
 | PATCH | `/users/{userId}/status` | 사용자 상태 변경 | ADMIN |
 
-## POST `/auth/login`
-
-### Request
-
-```json
-{
-  "email": "user@example.com",
-  "password": "password1234"
-}
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "access-token",
-    "refreshToken": "refresh-token",
-    "user": {
-      "userId": 1,
-      "email": "user@example.com",
-      "name": "홍길동",
-      "role": "USER",
-      "status": "ACTIVE"
-    }
-  },
-  "message": "로그인되었습니다."
-}
-```
-
-## POST `/auth/google`
-
-### Request
-
-```json
-{
-  "idToken": "google-id-token"
-}
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "accessToken": "access-token",
-    "refreshToken": "refresh-token",
-    "user": {
-      "userId": 1,
-      "googleSub": "google-sub",
-      "email": "user@gmail.com",
-      "name": "홍길동",
-      "picture": "https://...",
-      "role": "USER",
-      "status": "ACTIVE"
-    }
-  },
-  "message": "Google 로그인이 완료되었습니다."
-}
-```
-
 ---
 
-# 2. Organizations
+# 3. Organizations
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/organizations` | 조직 목록 조회 | ADMIN |
-| POST | `/organizations` | 조직 생성 | ADMIN |
-| GET | `/organizations/{organizationId}` | 조직 상세 조회 | ADMIN |
-| PATCH | `/organizations/{organizationId}` | 조직 수정 | ADMIN |
-| PATCH | `/organizations/{organizationId}/status` | 조직 상태 변경 | ADMIN |
+| GET | `/organizations` | 조직 목록 조회 | SITE_ADMIN |
+| POST | `/organizations` | 조직 생성 | SITE_ADMIN |
+| GET | `/organizations/{organizationId}` | 조직 상세 조회 | SITE_ADMIN |
+| PATCH | `/organizations/{organizationId}` | 조직 수정 | SITE_ADMIN |
+| PATCH | `/organizations/{organizationId}/status` | 조직 상태 변경 | SITE_ADMIN |
 
 ---
 
-# 3. Settings / Thresholds
+# 4. Settings / Thresholds
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
@@ -151,7 +107,7 @@
 | PATCH | `/users/me/thresholds/{thresholdId}` | 내 임계값 수정 | USER |
 | GET | `/users/me/thresholds/{thresholdId}/histories` | 임계값 변경 이력 조회 | USER |
 
-## PATCH `/users/me/thresholds/{thresholdId}`
+### PATCH `/users/me/thresholds/{thresholdId}`
 
 ```json
 {
@@ -164,90 +120,74 @@
 
 ---
 
-# 4. Analysis Targets / Cameras
+# 5. Analysis Targets / Cameras
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
 | GET | `/analysis-targets` | 검사 대상 목록 조회 | USER |
-| POST | `/analysis-targets` | 검사 대상 등록 | USER |
+| POST | `/analysis-targets` | 검사 대상 등록 | ADMIN |
 | GET | `/analysis-targets/{targetId}` | 검사 대상 상세 조회 | USER |
-| PATCH | `/analysis-targets/{targetId}` | 검사 대상 수정 | USER |
-| DELETE | `/analysis-targets/{targetId}` | 검사 대상 삭제 | USER |
+| PATCH | `/analysis-targets/{targetId}` | 검사 대상 수정 | ADMIN |
+| DELETE | `/analysis-targets/{targetId}` | 검사 대상 삭제 | ADMIN |
 | GET | `/camera-sources` | 카메라 목록 조회 | USER |
-| POST | `/camera-sources` | 카메라 등록 | USER |
-| PATCH | `/camera-sources/{cameraId}` | 카메라 수정 | USER |
-| DELETE | `/camera-sources/{cameraId}` | 카메라 삭제 | USER |
-
-## POST `/analysis-targets`
-
-### Request
-
-```json
-{
-  "targetName": "프레스 검사 대상",
-  "equipmentName": "프레스 #1",
-  "productName": "금속 부품",
-  "locationName": "라인 A-1",
-  "targetType": "EQUIPMENT",
-  "targetStatus": "ACTIVE"
-}
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "targetId": 1,
-    "targetName": "프레스 검사 대상",
-    "equipmentName": "프레스 #1",
-    "productName": "금속 부품",
-    "locationName": "라인 A-1",
-    "targetType": "EQUIPMENT",
-    "targetStatus": "ACTIVE"
-  },
-  "message": "검사 대상이 등록되었습니다."
-}
-```
-
-## PATCH `/analysis-targets/{targetId}`
-
-### Request
-
-```json
-{
-  "targetName":"프레스 검사 대상",
-  "equipmentName":"프레스 #1",
-  "productName":"금속 부품",
-  "locationName":"라인 A-1",
-  "targetType":"EQUIPMENT",
-  "targetStatus":"ACTIVE"
-}
-```
+| POST | `/camera-sources` | 카메라 등록 | ADMIN |
+| PATCH | `/camera-sources/{cameraId}` | 카메라 수정 | ADMIN |
+| DELETE | `/camera-sources/{cameraId}` | 카메라 삭제 | ADMIN |
 
 ---
 
-# 5. Inspections
+# 6. Inspections
+
+## 6.1 엔드포인트
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| POST | `/inspections/upload` | 업로드 기반 검사 요청 | USER |
-| POST | `/inspections/realtime` | 실시간 검사 시작 | USER |
+| POST | `/inspections/upload` | 이미지/영상 업로드 검사 요청 | USER |
+| POST | `/inspections/realtime` | 실시간 검사 세션 시작 | USER |
+| POST | `/inspections/{inspectionId}/frames` | 실시간 프레임 검사 | USER |
 | PATCH | `/inspections/{inspectionId}/stop` | 실시간 검사 중지 | USER |
 | GET | `/inspections` | 검사 실행 목록 조회 | USER |
 | GET | `/inspections/{inspectionId}` | 검사 실행 상세 조회 | USER |
 | GET | `/inspections/{inspectionId}/events` | 검사 이벤트 로그 조회 | USER |
 
-## POST `/inspections/upload`
+## 6.2 ROI / 품질검사 기준
+
+| 항목 | 기준 |
+| --- | --- |
+| 영상/실시간 기본 처리 | 고정 ROI 기반 |
+| 객체탐지/세그멘테이션 | MVP 범위 제외 |
+| 좌표 타입 | `NORMALIZED` |
+| 좌표 범위 | `0.0 ~ 1.0` |
+| 품질검사 실패 | `DEFECT`가 아니라 `RECHECK` |
+| 프레임별 전체 결과 저장 | MVP 범위 제외 |
+
+---
+
+## 6.3 POST `/inspections/upload`
+
+이미지 또는 영상 파일을 업로드하여 검사를 요청한다.
+
+- 이미지: 단일 이미지 추론
+- 영상: 프레임 샘플링 → 고정 ROI crop → 입력 품질 검사 → PatchCore 추론 → 영상 단위 집계
 
 `multipart/form-data`
 
 | Field | Type | Required | 설명 |
 | --- | --- | --- | --- |
-| file | File | Y | 이미지/영상 파일 |
-| targetId | Long | N | 검사 대상 ID |
-| thresholdId | Long | N | 적용 임계값 ID |
+| `file` | File | Y | 이미지/영상 파일 |
+| `targetId` | Long | N | 검사 대상 ID |
+| `thresholdId` | Long | N | 적용 임계값 ID |
+| `inputMode` | String | N | `IMAGE / VIDEO`, 없으면 MIME 기반 판별 |
+| `roiMode` | String | N | `FULL_FRAME / FIXED`, 기본 `FULL_FRAME` |
+| `roiCoordinateType` | String | N | 기본 `NORMALIZED` |
+| `roiX` | Decimal | N | 정규화 ROI x. `0~1` |
+| `roiY` | Decimal | N | 정규화 ROI y. `0~1` |
+| `roiWidth` | Decimal | N | 정규화 ROI width. `0~1` |
+| `roiHeight` | Decimal | N | 정규화 ROI height. `0~1` |
+| `samplingFps` | Decimal | N | 영상 분석 FPS. 기본 `1.00` |
+| `maxFrames` | Int | N | 영상 분석 최대 프레임 수. 기본 `60` |
+| `qualityGateEnabled` | Boolean | N | 입력 품질 검사 사용 여부. 기본 `true` |
+| `idempotencyKey` | String | N | 중복 요청 방지 키 |
 
 ### Response
 
@@ -256,25 +196,227 @@
   "success": true,
   "data": {
     "inspectionId": 1001,
-    "runStatus": "PROCESSING"
+    "runStatus": "PROCESSING",
+    "inputType": "VIDEO",
+    "roiMode": "FIXED",
+    "samplingFps": 1.0,
+    "maxFrames": 60,
+    "qualityGateEnabled": true
   },
   "message": "업로드 검사가 요청되었습니다."
 }
 ```
 
-## POST `/inspections/realtime`
+### 검증 기준
+
+| 조건 | 실패 처리 |
+| --- | --- |
+| 지원하지 않는 MIME | 422 |
+| 손상 파일 | 422 |
+| `roiMode=FIXED`인데 ROI 좌표 누락 | 422 |
+| ROI 좌표가 0~1 범위를 벗어남 | 422 |
+| `samplingFps <= 0` | 422 |
+| `maxFrames <= 0` | 422 |
+| 동일 `idempotencyKey` + 다른 payload | 409 |
+
+---
+
+## 6.4 POST `/inspections/realtime`
+
+실시간 검사 세션을 시작한다.  
+MVP에서는 고정 ROI 기반으로 처리한다.
+
+### Request
 
 ```json
 {
   "targetId": 1,
   "cameraId": 3,
-  "thresholdId": 2
+  "thresholdId": 2,
+  "sourceType": "BROWSER_CAMERA",
+  "roi": {
+    "roiMode": "FIXED",
+    "roiCoordinateType": "NORMALIZED",
+    "roiX": 0.25,
+    "roiY": 0.2,
+    "roiWidth": 0.5,
+    "roiHeight": 0.5
+  },
+  "samplingFps": 1.0,
+  "qualityGateEnabled": true,
+  "idempotencyKey": "realtime-20260503-0001"
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "inspectionId": 2001,
+    "runStatus": "PROCESSING",
+    "sourceType": "BROWSER_CAMERA",
+    "samplingFps": 1.0,
+    "qualityGateEnabled": true
+  },
+  "message": "실시간 검사가 시작되었습니다."
 }
 ```
 
 ---
 
-# 6. Results
+## 6.5 POST `/inspections/{inspectionId}/frames`
+
+실시간 세션에서 캡처한 프레임 1장을 전송한다.  
+MVP에서는 WebSocket 대신 HTTP multipart 전송을 기본으로 한다.
+
+`multipart/form-data`
+
+| Field | Type | Required | 설명 |
+| --- | --- | --- | --- |
+| `frame` | File | Y | JPEG/WebP 프레임 |
+| `frameSeq` | Int | Y | 프레임 순번 |
+| `capturedAt` | String | N | ISO-8601 캡처 시각 |
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "inspectionId": 2001,
+    "frameSeq": 17,
+    "decisionCode": "RECHECK",
+    "score": null,
+    "confidence": 0.42,
+    "quality": {
+      "status": "FAILED",
+      "reason": "TOO_DARK",
+      "brightness": 42.1,
+      "contrast": 18.4,
+      "blurScore": 112.7,
+      "saturation": 73.2
+    }
+  },
+  "message": "프레임 품질이 기준을 만족하지 않아 재검사로 분류되었습니다."
+}
+```
+
+---
+
+## 6.6 PATCH `/inspections/{inspectionId}/stop`
+
+실시간 검사 세션을 중지하고 세션 단위 결과를 집계한다.
+
+### Request
+
+```json
+{
+  "reason": "USER_STOPPED"
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "inspectionId": 2001,
+    "runStatus": "STOPPED",
+    "resultId": 3001,
+    "finalDecisionCode": "RECHECK",
+    "analyzedFrameCount": 48,
+    "skippedFrameCount": 12,
+    "defectFrameCount": 0,
+    "recheckFrameCount": 12,
+    "maxFrameScore": 0.5512,
+    "avgFrameScore": 0.2304,
+    "representativeFrameSeq": 17,
+    "inputQualityStatus": "WARNING",
+    "inputQualityReason": "SOME_FRAMES_RECHECK"
+  },
+  "message": "실시간 검사가 중지되었습니다."
+}
+```
+
+---
+
+## 6.7 GET `/inspections`
+
+| Query | Type | Required | 설명 |
+| --- | --- | --- | --- |
+| `runType` | String | N | `UPLOAD / REALTIME` |
+| `inputType` | String | N | `IMAGE / VIDEO / BROWSER_CAMERA / RTSP_STREAM` |
+| `runStatus` | String | N | 검사 상태 |
+| `targetId` | Long | N | 검사 대상 ID |
+| `startDate` | yyyy-MM-dd | N | 시작일 |
+| `endDate` | yyyy-MM-dd | N | 종료일 |
+| `page` | Int | N | 페이지 |
+| `size` | Int | N | 크기 |
+| `sort` | String | N | 정렬 |
+
+---
+
+## 6.8 GET `/inspections/{inspectionId}`
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "inspectionId": 2001,
+    "runType": "REALTIME",
+    "inputType": "BROWSER_CAMERA",
+    "sourceType": "BROWSER_CAMERA",
+    "runStatus": "COMPLETED",
+    "appliedThreshold": 0.75,
+    "startedAt": "2026-05-03T10:00:00",
+    "completedAt": "2026-05-03T10:01:00",
+    "input": {
+      "roiMode": "FIXED",
+      "roiCoordinateType": "NORMALIZED",
+      "roiX": 0.25,
+      "roiY": 0.2,
+      "roiWidth": 0.5,
+      "roiHeight": 0.5,
+      "samplingFps": 1.0,
+      "maxFrames": null,
+      "qualityGateEnabled": true
+    },
+    "resultSummary": {
+      "resultId": 3001,
+      "finalDecisionCode": "RECHECK",
+      "analyzedFrameCount": 48,
+      "skippedFrameCount": 12,
+      "defectFrameCount": 0,
+      "recheckFrameCount": 12,
+      "maxFrameScore": 0.5512,
+      "avgFrameScore": 0.2304,
+      "representativeFrameSeq": 17,
+      "inputQualityStatus": "WARNING",
+      "inputQualityReason": "SOME_FRAMES_RECHECK"
+    }
+  },
+  "message": "검사 실행 상세를 조회했습니다."
+}
+```
+
+---
+
+## 6.9 GET `/inspections/{inspectionId}/events`
+
+| Query | Type | Required | 설명 |
+| --- | --- | --- | --- |
+| `eventType` | String | N | 이벤트 타입 |
+| `page` | Int | N | 페이지 |
+| `size` | Int | N | 크기 |
+
+---
+
+# 7. Results
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
@@ -288,20 +430,75 @@
 
 ## GET `/results`
 
-### Query
-
-| Query | 설명 |
-| --- | --- |
-| `startDate` | 시작일 |
-| `endDate` | 종료일 |
-| `decisionCode` | `NORMAL / DEFECT / RECHECK` |
-| `targetId` | 검사 대상 |
-| `page` | 페이지 |
-| `size` | 크기 |
+| Query | Type | Required | 설명 |
+| --- | --- | --- | --- |
+| `startDate` | yyyy-MM-dd | N | 시작일 |
+| `endDate` | yyyy-MM-dd | N | 종료일 |
+| `decisionCode` | String | N | `NORMAL / DEFECT / RECHECK` |
+| `targetId` | Long | N | 검사 대상 |
+| `inputType` | String | N | 입력 타입 |
+| `runType` | String | N | `UPLOAD / REALTIME` |
+| `page` | Int | N | 페이지 |
+| `size` | Int | N | 크기 |
+| `sort` | String | N | 정렬 |
 
 ---
 
-# 7. Review
+## GET `/results/{resultId}`
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "resultId": 3001,
+    "inspectionId": 2001,
+    "targetId": 1,
+    "equipmentName": "프레스 #1",
+    "locationName": "라인 A-1",
+    "inputType": "VIDEO",
+    "score": 0.8821,
+    "confidence": 0.89,
+    "decisionCode": "DEFECT",
+    "finalDecisionCode": "DEFECT",
+    "resultStatus": "COMPLETED",
+    "thresholdId": 2,
+    "thresholdVersion": 3,
+    "modelVersionId": 10,
+    "roi": {
+      "roiMode": "FIXED",
+      "roiCoordinateType": "NORMALIZED",
+      "roiX": 0.25,
+      "roiY": 0.2,
+      "roiWidth": 0.5,
+      "roiHeight": 0.5
+    },
+    "videoSummary": {
+      "samplingFps": 1.0,
+      "frameCount": 60,
+      "analyzedFrameCount": 48,
+      "skippedFrameCount": 12,
+      "defectFrameCount": 2,
+      "recheckFrameCount": 8,
+      "maxFrameScore": 0.8821,
+      "avgFrameScore": 0.3412,
+      "representativeFrameSeq": 31
+    },
+    "inputQuality": {
+      "status": "WARNING",
+      "reason": "SOME_FRAMES_RECHECK"
+    },
+    "failureReason": null,
+    "createdAt": "2026-05-03T10:01:00"
+  },
+  "message": "결과 상세를 조회했습니다."
+}
+```
+
+---
+
+# 8. Review
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
@@ -311,7 +508,7 @@
 | GET | `/results/{resultId}/review-histories` | 결과별 재검토 이력 조회 | ADMIN |
 | POST | `/results/{resultId}/learning-candidates` | 학습 후보 등록 | ADMIN |
 
-## PATCH `/reviews/{reviewQueueId}`
+### PATCH `/reviews/{reviewQueueId}`
 
 ```json
 {
@@ -323,34 +520,24 @@
 
 ---
 
-# 8. Documents / RAG
+# 9. Documents / RAG
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
 | GET | `/documents` | 문서 목록 조회 | USER |
-| POST | `/documents` | 문서 업로드 | USER |
+| POST | `/documents` | 문서 업로드 | ADMIN |
 | GET | `/documents/{documentId}` | 문서 상세 조회 | USER |
-| PATCH | `/documents/{documentId}` | 문서 정보 수정 | USER |
-| DELETE | `/documents/{documentId}` | 문서 삭제 | USER |
+| PATCH | `/documents/{documentId}` | 문서 정보 수정 | ADMIN |
+| DELETE | `/documents/{documentId}` | 문서 삭제 | ADMIN |
 | GET | `/documents/{documentId}/versions` | 문서 버전 목록 조회 | USER |
-| POST | `/documents/{documentId}/versions` | 새 문서 버전 업로드 | USER |
+| POST | `/documents/{documentId}/versions` | 새 문서 버전 업로드 | ADMIN |
 | GET | `/document-versions/{versionId}/chunks` | 문서 청크 조회 | USER |
-| GET | `/document-versions/{versionId}/index-jobs` | 인덱싱 작업 조회 | USER |
-| POST | `/document-versions/{versionId}/index-jobs` | 인덱싱 재요청 | USER |
-
-## POST `/documents`
-
-`multipart/form-data`
-
-| Field | Type | Required | 설명 |
-| --- | --- | --- | --- |
-| file | File | Y | 문서 파일 |
-| title | String | Y | 문서 제목 |
-| documentType | String | Y | `MANUAL / SOP / TROUBLESHOOTING` |
+| GET | `/document-versions/{versionId}/index-jobs` | 인덱싱 작업 조회 | ADMIN |
+| POST | `/document-versions/{versionId}/index-jobs` | 인덱싱 재요청 | ADMIN |
 
 ---
 
-# 9. Chatbot
+# 10. Chatbot
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
@@ -364,7 +551,7 @@
 
 ---
 
-# 10. Notifications
+# 11. Notifications
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
@@ -376,7 +563,7 @@
 
 ---
 
-# 11. Reports
+# 12. Reports
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
@@ -389,350 +576,114 @@
 
 ---
 
-# 12. Operation / Admin
+# 13. Operation / Admin
 
-운영 관리 API는 `ROLE_SITE_ADMIN` 전용이다. `ROLE_COMPANY_ADMIN`, `ROLE_COMPANY_WORKER`는 접근할 수 없다.
+운영 관리 API는 `ROLE_SITE_ADMIN` 전용이다.
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/admin/audit-logs` | 감사 로그 조회 | ADMIN |
-| GET | `/admin/action-logs` | 관리자 작업 로그 조회 | ADMIN |
-| GET | `/admin/operation-logs` | 운영 로그 조회 | ADMIN |
-| GET | `/admin/system-status` | 시스템 상태 조회 | ADMIN |
-| GET | `/admin/system-components` | 시스템 컴포넌트별 상태 조회 | ADMIN |
-| GET | `/admin/operation-policies` | 운영 정책 조회 | ADMIN |
-| PATCH | `/admin/operation-policies/{policyId}` | 운영 정책 수정 | ADMIN |
-| GET | `/admin/async-jobs` | 비동기 작업 목록 조회 | ADMIN |
-| GET | `/admin/async-jobs/{jobId}` | 비동기 작업 상세 조회 | ADMIN |
-
-## GET `/admin/system-status`
-
-운영 모니터링 화면의 시스템 리소스 상태 요약을 조회한다.
-Redis 최신 상태 캐시(`operation:system-status:spring:latest`)를 우선 사용하고, 없거나 장애가 있으면 MariaDB `system_status_snapshot` 최신 이력으로 fallback한다.
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "snapshotId": 1,
-    "cpuUsage": 42.5,
-    "memoryUsage": 68.1,
-    "diskUsage": 73.4,
-    "responseTimeMs": 128,
-    "overallStatus": "NORMAL",
-    "createdAt": "2025-05-20T09:30:00"
-  },
-  "message": "시스템 상태를 조회했습니다."
-}
-```
-
-## GET `/admin/system-components`
-
-운영 모니터링 화면의 컴포넌트별 상태를 조회한다.
-Redis 최신 컴포넌트 캐시(`operation:component-status:{componentType}`)를 우선 사용하고, 없으면 MariaDB `system_component_status`의 컴포넌트별 최신 이력으로 fallback한다.
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "componentStatusId": 1,
-      "componentType": "SPRING_API",
-      "componentName": "Spring API 서버",
-      "status": "NORMAL",
-      "message": "정상 응답 중",
-      "cpuUsage": 42.5,
-      "memoryUsage": 68.1,
-      "diskUsage": 73.4,
-      "hostName": "spring-host",
-      "instanceId": "spring-local-1",
-      "responseTimeMs": 42,
-      "checkedAt": "2025-05-20T09:30:00",
-      "createdAt": "2025-05-20T09:30:00"
-    },
-    {
-      "componentStatusId": 2,
-      "componentType": "AI_SERVER",
-      "componentName": "AI 모델 서버",
-      "status": "WARNING",
-      "message": "응답 지연 발생",
-      "cpuUsage": null,
-      "memoryUsage": null,
-      "diskUsage": 71.2,
-      "hostName": "ai-server-local",
-      "instanceId": "ai-server",
-      "responseTimeMs": 850,
-      "checkedAt": "2025-05-20T09:30:00",
-      "createdAt": "2025-05-20T09:30:00"
-    }
-  ],
-  "message": "시스템 컴포넌트 상태를 조회했습니다."
-}
-```
-
-## GET `/admin/operation-logs`
-
-운영 로그 목록을 조회한다.
-
-## Internal AI Server Status API
-
-Spring 운영 모니터링 스케줄러가 AI 서버 컴퓨터 상태를 수집하기 위해 호출한다.
-
-### GET `/ai/v1/internal/system-status`
-
-```json
-{
-  "success": true,
-  "data": {
-    "nodeType": "AI_SERVER",
-    "nodeName": "AI 모델 서버",
-    "hostName": "ai-server-local",
-    "instanceId": "ai-server",
-    "status": "NORMAL",
-    "cpuUsage": null,
-    "memoryUsage": null,
-    "diskUsage": 70.1,
-    "responseTimeMs": 48,
-    "message": "AI 서버 상태 조회 정상",
-    "checkedAt": "2026-05-02T12:00:00"
-  },
-  "message": "AI 서버 상태를 조회했습니다."
-}
-```
-
-현재 AI 서버는 별도 의존성 추가 없이 표준 라이브러리로 디스크 사용률과 응답 시간을 반환한다. CPU/Memory는 수집 불가 시 `null`이다.
-
-### Query
-
-| Query | Type | Required | 설명 |
-| --- | --- | --- | --- |
-| `level` | `String` | N | 로그 레벨. `INFO / WARN / ERROR` |
-| `sourceComponent` | `String` | N | 발생 컴포넌트. 예: `SPRING_API / AI_SERVER / MARIADB / REDIS / MINIO` |
-| `eventStatus` | `String` | N | 이벤트 상태. 예: `SUCCESS / FAILED / PROCESSING` |
-| `startDate` | `yyyy-MM-dd` | N | 조회 시작일 |
-| `endDate` | `yyyy-MM-dd` | N | 조회 종료일 |
-| `page` | `int` | N | 페이지 번호 |
-| `size` | `int` | N | 페이지 크기 |
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "content": [
-      {
-        "operationLogId": 1,
-        "eventType": "INSPECTION_FAILED",
-        "eventStatus": "FAILED",
-        "logLevel": "ERROR",
-        "sourceComponent": "AI_SERVER",
-        "requestId": "req-20250520-0001",
-        "actorUserId": 10,
-        "detailMessage": "AI 서버 응답 지연으로 검사 요청이 실패했습니다.",
-        "relatedPath": "/api/v1/inspections/upload",
-        "createdAt": "2025-05-20T09:28:00"
-      }
-    ],
-    "page": 0,
-    "size": 20,
-    "totalElements": 1,
-    "totalPages": 1
-  },
-  "message": "운영 로그 목록을 조회했습니다."
-}
-```
-
-## GET `/admin/operation-policies`
-
-사이트 관리자 설정 화면의 운영 정책 목록을 조회한다.
-
-### Query
-
-| Query | Type | Required | 설명 |
-| --- | --- | --- | --- |
-| `category` | `String` | N | 정책 카테고리. `INSPECTION / NOTIFICATION / SECURITY / RETENTION / SYSTEM` |
-| `activeOnly` | `Boolean` | N | 활성 정책만 조회 여부 |
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "operationPolicyId": 1,
-      "policyCategory": "INSPECTION",
-      "policyKey": "default_anomaly_threshold",
-      "policyName": "기본 이상 판정 임계값",
-      "policyValue": "0.75",
-      "valueType": "NUMBER",
-      "description": "사용자 임계값이 없을 때 적용되는 기본 이상 판정 기준입니다.",
-      "isActive": true,
-      "updatedAt": "2025-05-20T09:30:00",
-      "updatedBy": 1
-    }
-  ],
-  "message": "운영 정책 목록을 조회했습니다."
-}
-```
-
-## PATCH `/admin/operation-policies/{policyId}`
-
-사이트 관리자 설정 화면에서 운영 정책 값을 수정한다.
-
-### Request
-
-```json
-{
-  "policyValue": "0.80",
-  "isActive": true
-}
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "operationPolicyId": 1,
-    "policyCategory": "INSPECTION",
-    "policyKey": "default_anomaly_threshold",
-    "policyName": "기본 이상 판정 임계값",
-    "policyValue": "0.80",
-    "valueType": "NUMBER",
-    "description": "사용자 임계값이 없을 때 적용되는 기본 이상 판정 기준입니다.",
-    "isActive": true,
-    "updatedAt": "2025-05-20T09:35:00",
-    "updatedBy": 1
-  },
-  "message": "운영 정책을 수정했습니다."
-}
-```
+| GET | `/admin/audit-logs` | 감사 로그 조회 | SITE_ADMIN |
+| GET | `/admin/action-logs` | 관리자 작업 로그 조회 | SITE_ADMIN |
+| GET | `/admin/operation-logs` | 운영 로그 조회 | SITE_ADMIN |
+| GET | `/admin/system-status` | 시스템 상태 조회 | SITE_ADMIN |
+| GET | `/admin/system-components` | 시스템 컴포넌트별 상태 조회 | SITE_ADMIN |
+| GET | `/admin/operation-policies` | 운영 정책 조회 | SITE_ADMIN |
+| PATCH | `/admin/operation-policies/{policyId}` | 운영 정책 수정 | SITE_ADMIN |
+| GET | `/admin/async-jobs` | 비동기 작업 목록 | SITE_ADMIN |
+| GET | `/admin/async-jobs/{jobId}` | 비동기 작업 상세 | SITE_ADMIN |
 
 ---
 
-# 13. Files
+# 14. Files
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
 | GET | `/files/{fileId}` | 파일 메타데이터 조회 | USER |
 | GET | `/files/{fileId}/download` | 파일 다운로드 | USER |
-| DELETE | `/files/{fileId}` | 파일 삭제 | USER |
+| DELETE | `/files/{fileId}` | 파일 삭제 | ADMIN |
 
 ---
 
-# 14. Models
+# 15. Models
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/models` | 모델 목록 조회 | ADMIN |
-| POST | `/models` | 모델 등록 | ADMIN |
-| GET | `/models/{modelId}/versions` | 모델 버전 목록 조회 | ADMIN |
-| POST | `/models/{modelId}/versions` | 모델 버전 등록 | ADMIN |
-| PATCH | `/model-versions/{versionId}/activate` | 모델 버전 활성화 | ADMIN |
-| POST | `/model-versions/{versionId}/deployments` | 모델 배포 | ADMIN |
-| PATCH | `/model-deployments/{deploymentId}/rollback` | 모델 롤백 | ADMIN |
+| GET | `/models` | 모델 목록 조회 | SITE_ADMIN |
+| POST | `/models` | 모델 등록 | SITE_ADMIN |
+| GET | `/models/{modelId}/versions` | 모델 버전 목록 조회 | SITE_ADMIN |
+| POST | `/models/{modelId}/versions` | 모델 버전 등록 | SITE_ADMIN |
+| PATCH | `/model-versions/{versionId}/activate` | 모델 버전 활성화 | SITE_ADMIN |
+| POST | `/model-versions/{versionId}/deployments` | 모델 배포 | SITE_ADMIN |
+| PATCH | `/model-deployments/{deploymentId}/rollback` | 모델 롤백 | SITE_ADMIN |
 
 ---
 
-# 15. Dashboard
+# 16. Dashboard
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
 | GET | `/dashboard/overview` | 대시보드 전체 요약 조회 | USER |
 
-## GET `/dashboard/overview`
+---
 
-대시보드 화면에 필요한 KPI, 추이 차트, 설비별 이상률, 최근 결과, 최근 알림, 요약 정보, 시스템 상태를 한 번에 조회한다.
+# 17. Internal FastAPI
 
-### Query
+Spring 내부 연동용 API다. 외부 사용자에게 직접 노출하지 않는다.
 
-| Query | Type | Required | 설명 |
+| Method | Endpoint | 설명 | 호출 주체 |
 | --- | --- | --- | --- |
-| `startDate` | `yyyy-MM-dd` | N | 조회 시작일. 없으면 최근 7일 기준 |
-| `endDate` | `yyyy-MM-dd` | N | 조회 종료일. 없으면 오늘 기준 |
-| `organizationId` | `Long` | N | 관리자 전용 조직 필터. 일반 사용자는 자기 조직 기준으로 조회 |
+| GET | `/ai/v1/internal/system-status` | AI 서버 상태 조회 | Spring |
+| POST | `/ai/v1/internal/vision/infer-image` | 이미지 추론 | Spring |
+| POST | `/ai/v1/internal/vision/infer-video` | 영상 추론 | Spring |
+| POST | `/ai/v1/internal/vision/infer-frame` | 실시간 프레임 추론 | Spring |
 
-### Response
+## POST `/ai/v1/internal/vision/infer-video`
 
 ```json
 {
-  "success": true,
-  "data": {
-    "period": {
-      "startDate": "2025-05-14",
-      "endDate": "2025-05-20"
-    },
-    "kpis": {
-      "totalInspectionCount": 12842,
-      "totalInspectionChangeRate": 15.6,
-      "anomalyCount": 386,
-      "anomalyChangeRate": 22.1,
-      "normalCount": 12456,
-      "normalChangeRate": 14.3,
-      "anomalyRate": 3.01,
-      "anomalyRateChangePoint": 0.48
-    },
-    "trend": [
-      {
-        "date": "2025-05-14",
-        "normalCount": 1540,
-        "anomalyCount": 60,
-        "recheckCount": 12,
-        "anomalyRate": 3.7
-      }
-    ],
-    "topEquipmentAnomalyRates": [
-      {
-        "targetId": 1,
-        "equipmentName": "프레스 #1",
-        "inspectionCount": 230,
-        "anomalyCount": 10,
-        "anomalyRate": 4.35
-      }
-    ],
-    "recentResults": [
-      {
-        "resultId": 1001,
-        "inspectionId": 2001,
-        "inspectedAt": "2025-05-20T09:28:34",
-        "equipmentName": "프레스 #1",
-        "inspectionType": "실시간 탐지",
-        "decision": "DEFECT",
-        "decisionLabel": "이상",
-        "anomalyScore": 0.924,
-        "locationName": "라인 A-1"
-      }
-    ],
-    "recentNotifications": [
-      {
-        "notificationId": 10,
-        "severity": "WARNING",
-        "title": "프레스 #1에서 이상이 감지되었습니다.",
-        "createdAt": "2025-05-20T09:28:00",
-        "targetUrl": "/results/1001"
-      }
-    ],
-    "summary": {
-      "registeredTargetCount": 32,
-      "activeModelCount": 8,
-      "totalDataSizeBytes": 1451355348664,
-      "latestTrainingDate": "2025-05-18"
-    },
-    "systemStatus": {
-      "overallStatus": "NORMAL",
-      "modelServerStatus": "NORMAL",
-      "streamServerStatus": "NORMAL",
-      "storageStatus": "NORMAL",
-      "lastUpdatedAt": "2025-05-20T09:30:00"
-    }
+  "inspectionId": 1001,
+  "fileKey": "inspections/1001/original/sample.mp4",
+  "targetId": 1,
+  "modelVersionId": 10,
+  "samplingFps": 1.0,
+  "maxFrames": 60,
+  "roi": {
+    "roiMode": "FIXED",
+    "roiCoordinateType": "NORMALIZED",
+    "roiX": 0.25,
+    "roiY": 0.2,
+    "roiWidth": 0.5,
+    "roiHeight": 0.5
   },
-  "message": "대시보드 요약 정보를 조회했습니다."
+  "qualityGateEnabled": true,
+  "threshold": {
+    "anomalyThreshold": 0.75,
+    "lowConfidenceThreshold": 0.55
+  }
+}
+```
+
+## POST `/ai/v1/internal/vision/infer-frame`
+
+```json
+{
+  "inspectionId": 2001,
+  "frameSeq": 17,
+  "frameFileKey": "inspections/2001/tmp/frame_17.jpg",
+  "targetId": 1,
+  "modelVersionId": 10,
+  "roi": {
+    "roiMode": "FIXED",
+    "roiCoordinateType": "NORMALIZED",
+    "roiX": 0.25,
+    "roiY": 0.2,
+    "roiWidth": 0.5,
+    "roiHeight": 0.5
+  },
+  "qualityGateEnabled": true,
+  "threshold": {
+    "anomalyThreshold": 0.75,
+    "lowConfidenceThreshold": 0.55
+  }
 }
 ```

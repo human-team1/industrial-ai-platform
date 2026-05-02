@@ -1,5 +1,9 @@
+---
+
+# ERD-TEXT
 
 ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
+
 실제 MariaDB init SQL의 물리 테이블명 및 FK 참조는 소문자로 통일한다.
 
 ---
@@ -9,24 +13,26 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | Table | Columns | Description |
 | --- | --- | --- |
 | ORGANIZATION | organization_id (PK), organization_name, status, created_at, updated_at | 조직(회사) 정보 |
-| USERS | user_id (PK), organization_id (FK), google_sub (UK, NULL), email (UK, NOT NULL), password_hash (NULL), name, picture, phone, status (NOT NULL), role, last_login_at, created_at, updated_at, deleted_at | 이메일 로그인 + Google OAuth 동시 지원 사용자 계정 |
+| USERS | user_id (PK), organization_id (FK), google_sub (UK, NULL), email (UK, NOT NULL), password_hash (NULL), name, picture, phone, status, role, last_login_at, created_at, updated_at, deleted_at | 사용자 계정 |
 | SIGNUP_REQUEST | signup_request_id (PK), user_id (FK), organization_id (FK), request_status, reject_reason, processed_by (FK), requested_at, processed_at | 가입 승인/거절 요청 |
 | AUTH_SESSION | auth_session_id (PK), user_id (FK), access_token, refresh_token, ip_address, user_agent, login_at, expires_at, revoked_at | 로그인 세션 |
 | USER_SETTING | user_setting_id (PK), user_id (FK), notification_enabled, default_dashboard_range, default_camera_id, created_at, updated_at | 사용자 설정 |
 | USER_THRESHOLD | threshold_id (PK), user_id (FK), anomaly_threshold, low_confidence_threshold, min_allowed, max_allowed, apply_scope, is_active, created_at, updated_at | 개인 임계값 |
-| USER_THRESHOLD_HISTORY | threshold_history_id (PK), threshold_id (FK), version,old_anomaly_threshold, new_anomaly_threshold,change_reason, changed_by (FK), changed_at | 임계값 변경 이력 |
-| ORGANIZATION_PUBLIC  |  id, name | ACTIVE 상태의 조직만 외부/회원가입 화면에 제공하는 공개 조직 목록 View |
+| USER_THRESHOLD_HISTORY | threshold_history_id (PK), threshold_id (FK), version, old_anomaly_threshold, new_anomaly_threshold, change_reason, changed_by (FK), changed_at | 임계값 변경 이력 |
+| ORGANIZATION_PUBLIC | id, name | ACTIVE 조직 공개 View |
 
 ---
 
-### USER_THRESHOLD_HISTORY 상세 타입 변경 ⇒ erd 페이지에서 수정 예정
+### USER_THRESHOLD_HISTORY 상세 컬럼
 
-| 컬럼 | 기존 | 수정 |
+| 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
-| `version` | 없음 | `INT` |
-| `old_anomaly_threshold` | `DOUBLE` | `DECIMAL(5,4)` |
-| `new_anomaly_threshold` | `DOUBLE` | `DECIMAL(5,4)` |
-| `change_reason` | `VARCHAR(255)` | `TEXT` |
+| version | INT | 임계값 변경 버전 |
+| old_anomaly_threshold | DECIMAL(5,4) | 이전 이상 임계값 |
+| new_anomaly_threshold | DECIMAL(5,4) | 변경 이상 임계값 |
+| change_reason | TEXT | 변경 사유 |
+
+---
 
 # ✅ 2. INSPECTION DOMAIN
 
@@ -34,46 +40,68 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | --- | --- | --- | --- |
 | ANALYSIS_TARGET | target_id (PK), organization_id (FK), target_name, equipment_name, product_name, location_name, target_type, target_status, created_by (FK), created_at, updated_at | 검사 대상 |  |
 | CAMERA_SOURCE | camera_id (PK), organization_id (FK), user_id (FK), camera_name, stream_url, status, created_at, updated_at | 카메라/스트림 입력 |  |
-| INSPECTION_RUN | inspection_id (PK), organization_id (FK), user_id (FK), target_id (FK),run_type, input_type, source_type, source_id, run_status,applied_threshold, idempotency_key, payload_fingerprint,error_code, started_at, completed_at | 검사 실행 | UK: (organization_id, user_id, idempotency_key)
-constraint: uk_inspection_run_org_user_idempotency |
-| INSPECTION_INPUT | inspection_input_id (PK), inspection_id (FK), source_type,file_id, camera_id, stream_url, source_name, mime_type,duration_sec, frame_count, created_at | 검사 입력 데이터 |  |
+| INSPECTION_RUN | inspection_id (PK), organization_id (FK), user_id (FK), target_id (FK), run_type, input_type, source_type, source_id, run_status, applied_threshold, idempotency_key, payload_fingerprint, error_code, started_at, completed_at | 검사 실행 | UK: organization_id, user_id, idempotency_key |
+| INSPECTION_INPUT | inspection_input_id (PK), inspection_id (FK), source_type, file_id, camera_id, stream_url, source_name, mime_type, duration_sec, frame_count, roi_mode, roi_coordinate_type, roi_x, roi_y, roi_width, roi_height, sampling_fps, max_frames, quality_gate_enabled, created_at | 검사 입력 데이터 | 이미지/영상/실시간 입력 조건 |
 | INSPECTION_EVENT_LOG | event_id (PK), inspection_id (FK), event_type, message, created_at | 검사 이벤트 로그 |  |
-| INSPECTION_RESULT | result_id (PK), inspection_id (FK), score, confidence, decision_code, final_decision_code, result_status, threshold_source, threshold_id, threshold_version, model_version_id, failure_reason, created_at | 검사 결과 |  |
+| INSPECTION_RESULT | result_id (PK), inspection_id (FK), score, confidence, decision_code, final_decision_code, result_status, threshold_source, threshold_id, threshold_version, model_version_id, analyzed_frame_count, skipped_frame_count, defect_frame_count, recheck_frame_count, max_frame_score, avg_frame_score, representative_frame_seq, input_quality_status, input_quality_reason, failure_reason, created_at | 검사 결과 | 이미지 단건 및 영상/세션 집계 |
 | RESULT_ARTIFACT | artifact_id (PK), result_id (FK), artifact_type, file_id, created_at | 결과 산출물 |  |
 | IMAGE | image_id (PK), result_id (FK), file_id, image_role, created_at | 결과 이미지 |  |
 | ANOMALY_REGION | region_id (PK), image_id (FK), label_code, bbox_x, bbox_y, bbox_w, bbox_h, score, created_at | 이상 영역 |  |
 
 ---
 
-### ANALYSIS_TARGET 상세 컬럼 추가
+### ANALYSIS_TARGET 상세 컬럼
 
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
-| `location_name` | `VARCHAR(100)` | 대시보드 및 결과 목록에서 표시할 설비/검사 위치명. 예: 라인 A-1, 라인 B-2 |
+| location_name | VARCHAR(100) | 대시보드 및 결과 목록 표시용 위치명 |
 
-### INSPECTION_RUN 상세 타입 변경
+---
 
-| 컬럼/제약 | 기존 | 수정 |
+### INSPECTION_RUN 상세 컬럼
+
+| 컬럼/제약 | 타입/정책 | 설명 |
 | --- | --- | --- |
-| `applied_threshold` | `DOUBLE` | `DECIMAL(5,4)` |
-| `idempotency_key` | `VARCHAR(255) UNIQUE` | `VARCHAR(255) NOT NULL` |
-| `payload_fingerprint` | 없음 | `VARCHAR(64)` |
-| UNIQUE | `UNIQUE(idempotency_key)` | `UNIQUE(organization_id, user_id, idempotency_key)` |
+| applied_threshold | DECIMAL(5,4) | 검사에 적용된 임계값 |
+| idempotency_key | VARCHAR(255) NOT NULL | 중복 요청 방지 키 |
+| payload_fingerprint | VARCHAR(64) | 동일 키의 다른 payload 충돌 검출 |
+| UNIQUE | organization_id, user_id, idempotency_key | 사용자/조직 단위 멱등성 보장 |
 
-### INSPECTION_INPUT 상세 타입
+---
 
-| 컬럼 | 기존 | 수정 |
+### INSPECTION_INPUT 상세 컬럼
+
+| 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
-| `source_type` | 없음 | `VARCHAR(20) NOT NULL` |
-| `stream_url` | `TEXT` | `TEXT` |
-| `source_name` | `VARCHAR(255)` | `VARCHAR(255)` |
-| `mime_type` | `VARCHAR(100)` | `VARCHAR(100)` |
+| source_type | VARCHAR(30) NOT NULL | IMAGE / VIDEO / BROWSER_CAMERA / RTSP_STREAM |
+| roi_mode | VARCHAR(20) | FULL_FRAME / FIXED |
+| roi_coordinate_type | VARCHAR(20) | 기본 NORMALIZED |
+| roi_x | DECIMAL(8,6) | 정규화 ROI 시작 x |
+| roi_y | DECIMAL(8,6) | 정규화 ROI 시작 y |
+| roi_width | DECIMAL(8,6) | 정규화 ROI 너비 |
+| roi_height | DECIMAL(8,6) | 정규화 ROI 높이 |
+| sampling_fps | DECIMAL(5,2) | 영상/실시간 분석 FPS |
+| max_frames | INT | 영상 분석 최대 프레임 수 |
+| quality_gate_enabled | BOOLEAN | 입력 품질 검사 사용 여부 |
 
-### INSPECTION_RESULT 상세 타입
+---
 
-| 컬럼 | 기존 | 수정 |
+### INSPECTION_RESULT 상세 컬럼
+
+| 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
-| threshold_version | `VARCHAR(50)` | `VARCHAR(int)` |
+| threshold_version | INT | 적용 임계값 버전 |
+| analyzed_frame_count | INT | 실제 추론한 프레임 수 |
+| skipped_frame_count | INT | 건너뛴 프레임 수 |
+| defect_frame_count | INT | 이상 판정 프레임 수 |
+| recheck_frame_count | INT | 재검사 판정 프레임 수 |
+| max_frame_score | DECIMAL(8,4) | 최대 프레임 이상 점수 |
+| avg_frame_score | DECIMAL(8,4) | 평균 프레임 이상 점수 |
+| representative_frame_seq | INT | 대표 프레임 번호 |
+| input_quality_status | VARCHAR(30) | 입력 품질 요약 상태 |
+| input_quality_reason | VARCHAR(100) | 입력 품질 대표 사유 |
+
+---
 
 # ✅ 3. REVIEW DOMAIN
 
@@ -89,12 +117,22 @@ constraint: uk_inspection_run_org_user_idempotency |
 
 | Table | Columns | Description |
 | --- | --- | --- |
-| DOCUMENT | document_id (PK), organization_id (FK), owner_user_id (FK), title, document_type, category, equipment_type, description, current_status, created_at, updated_at, deleted_at | 문서 기본 정보 및 문서 메타데이터 |
-| DOCUMENT_TAG | document_tag_id (PK), document_id (FK), tag_name, created_at | 문서별 태그. DOCUMENT 1건에 여러 태그를 연결 |
-| DOCUMENT_VERSION | document_version_id (PK), document_id (FK), version_no, file_id (FK), file_hash, indexing_status, indexed_chunk_count, index_error_message, indexed_at, created_at | 문서 파일 버전 및 인덱싱 상태 |
+| DOCUMENT | document_id (PK), organization_id (FK), owner_user_id (FK), title, document_type, category, equipment_type, description, current_status, created_at, updated_at, deleted_at | 문서 기본 정보 |
+| DOCUMENT_TAG | document_tag_id (PK), document_id (FK), tag_name, created_at | 문서 태그 |
+| DOCUMENT_VERSION | document_version_id (PK), document_id (FK), version_no, file_id (FK), file_hash, indexing_status, indexed_chunk_count, index_error_message, indexed_at, created_at | 문서 버전 |
 | DOCUMENT_INDEX_JOB | job_id (PK), document_version_id (FK), job_status, error_message, started_at, completed_at | 인덱싱 작업 |
 | CHUNK | chunk_id (PK), document_version_id (FK), sequence_no, content, created_at | 문서 청크 |
-| VECTOR_INDEX | vector_id (PK), chunk_id (FK), embedding_model, vector_ref, created_at | 벡터 데이터 |
+| VECTOR_INDEX | vector_id (PK), chunk_id (FK), embedding_model, vector_ref, created_at | 벡터 인덱스 |
+
+---
+
+### DOCUMENT_VERSION 상세 컬럼
+
+| 컬럼 | 타입 | 설명 |
+| --- | --- | --- |
+| indexing_status | VARCHAR(30) | PENDING / PROCESSING / COMPLETED / FAILED |
+| indexed_chunk_count | INT | 인덱싱된 청크 수 |
+| index_error_message | TEXT | 인덱싱 실패 사유 |
 
 ---
 
@@ -103,34 +141,34 @@ constraint: uk_inspection_run_org_user_idempotency |
 | Table | Columns | Description |
 | --- | --- | --- |
 | CHAT_CONVERSATION | conversation_id (PK), user_id (FK), title, created_at, updated_at, deleted_at | 챗봇 대화 |
-| CHAT_MESSAGE | message_id (PK), conversation_id (FK), role, message_text, message_status, answer_status, error_code, model_name, created_at, updated_at | 메시지 |
+| CHAT_MESSAGE | message_id (PK), conversation_id (FK), role, message_text, message_status, answer_status, error_code, model_name, created_at, updated_at | 챗봇 메시지 |
 | CHAT_SOURCE | chat_source_id (PK), message_id (FK), source_type, source_id, document_id (FK), document_title, document_type, chunk_id (FK), page_no, section, source_snippet, score, created_at | 답변 출처 |
 
 ---
 
 ### CHAT_MESSAGE 상세 컬럼
 
-| 컬럼 | 타입 제안 | 설명 |
+| 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
-| `message_status` | `VARCHAR(20)` | 메시지 처리 상태. `SUCCESS / FAILED` |
-| `answer_status` | `VARCHAR(50)` | RAG 답변 상태. `ANSWERED / NO_RELEVANT_SOURCE / LLM_FAILED / VECTOR_STORE_FAILED / DOCUMENT_SCOPE_FORBIDDEN / VALIDATION_FAILED` |
-| `error_code` | `VARCHAR(50)` | 답변 생성 실패 시 에러 코드 |
-| `model_name` | `VARCHAR(100)` | 답변 생성에 사용한 모델명 |
-| `updated_at` | `TIMESTAMP` | 메시지 상태 변경 시각 |
+| message_status | VARCHAR(20) | SUCCESS / FAILED |
+| answer_status | VARCHAR(50) | ANSWERED / NO_RELEVANT_SOURCE / LLM_FAILED / VECTOR_STORE_FAILED / DOCUMENT_SCOPE_FORBIDDEN / VALIDATION_FAILED |
+| error_code | VARCHAR(50) | 답변 생성 실패 코드 |
+| model_name | VARCHAR(100) | 사용 모델명 |
+
+---
 
 ### CHAT_SOURCE 상세 컬럼
 
-| 컬럼 | 타입 제안 | 설명 |
+| 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
-| `document_id` | `BIGINT` | 출처 문서 ID |
-| `document_title` | `VARCHAR(255)` | 답변 생성 당시 문서 제목 스냅샷 |
-| `document_type` | `VARCHAR(50)` | PDF, DOCX, XLSX 등 문서 타입 |
-| `chunk_id` | `BIGINT` | 검색된 문서 청크 ID |
-| `page_no` | `INT` | 출처 페이지 번호 |
-| `section` | `VARCHAR(255)` | 출처 섹션명 |
-| `source_snippet` | `TEXT` | 출처 본문 일부 |
-| `score` | `DECIMAL(5,4)` | RAG 검색 유사도 또는 신뢰도 점수 |
-| `created_at` | `TIMESTAMP` | 출처 저장 시각 |
+| document_id | BIGINT | 출처 문서 ID |
+| document_title | VARCHAR(255) | 답변 생성 당시 문서 제목 |
+| document_type | VARCHAR(50) | 문서 타입 |
+| chunk_id | BIGINT | 검색된 청크 ID |
+| page_no | INT | 출처 페이지 |
+| section | VARCHAR(255) | 출처 섹션 |
+| source_snippet | TEXT | 출처 본문 일부 |
+| score | DECIMAL(5,4) | 검색 유사도 또는 신뢰도 |
 
 ---
 
@@ -150,51 +188,51 @@ constraint: uk_inspection_run_org_user_idempotency |
 | Table | Columns | Description |
 | --- | --- | --- |
 | AUDIT_LOG | audit_log_id (PK), actor_user_id (FK), action_type, target_type, target_id, before_json, after_json, created_at | 감사 로그 |
-| ADMIN_ACTION_LOG | admin_action_id (PK), actor_user_id (FK), action_type, target_type, target_id, reason, created_at | 관리자 작업 |
+| ADMIN_ACTION_LOG | admin_action_id (PK), actor_user_id (FK), action_type, target_type, target_id, reason, created_at | 관리자 작업 로그 |
 | OPERATION_LOG | operation_log_id (PK), event_type, event_status, log_level, source_component, request_id, actor_user_id (FK), detail_message, related_path, created_at | 운영 로그 |
 | SYSTEM_STATUS_SNAPSHOT | snapshot_id (PK), cpu_usage, memory_usage, disk_usage, response_time_ms, created_at | 시스템 상태 스냅샷 |
-| SYSTEM_COMPONENT_STATUS | component_status_id (PK), component_type, component_name, status, message, cpu_usage, memory_usage, disk_usage, host_name, instance_id, response_time_ms, checked_at, created_at | 시스템 컴포넌트별 상태 |
+| SYSTEM_COMPONENT_STATUS | component_status_id (PK), component_type, component_name, status, message, cpu_usage, memory_usage, disk_usage, host_name, instance_id, response_time_ms, checked_at, created_at | 컴포넌트 상태 |
 | OPERATION_POLICY | operation_policy_id (PK), policy_category, policy_key, policy_name, policy_value, value_type, description, is_active, updated_at, updated_by (FK) | 운영 정책 |
 | ASYNC_JOB | job_id (PK), job_type, job_status, target_type, target_id, error_message, created_at, completed_at | 비동기 작업 |
 
 ---
 
-### OPERATION_LOG 상세 컬럼 추가
+### OPERATION_LOG 상세 컬럼
 
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
-| `log_level` | `VARCHAR(20)` | 로그 레벨. 예: `INFO / WARN / ERROR` |
-| `source_component` | `VARCHAR(50)` | 로그 발생 컴포넌트. 예: `SPRING_API / AI_SERVER / MARIADB / REDIS / MINIO` |
-| `request_id` | `VARCHAR(100)` | 요청 추적 ID |
-| `actor_user_id` | `BIGINT` | 관련 사용자 ID. 없을 수 있음 |
+| log_level | VARCHAR(20) | INFO / WARN / ERROR |
+| source_component | VARCHAR(50) | SPRING_API / AI_SERVER / MARIADB / REDIS / MINIO |
+| request_id | VARCHAR(100) | 요청 추적 ID |
+| actor_user_id | BIGINT | 관련 사용자 ID |
 
-### SYSTEM_COMPONENT_STATUS 상세 테이블 추가
+---
+
+### SYSTEM_COMPONENT_STATUS 상세 컬럼
 
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
-| `component_status_id` | `BIGINT` | PK |
-| `component_type` | `VARCHAR(50)` | 컴포넌트 타입. 예: `SPRING_API / AI_SERVER / MARIADB / REDIS / MINIO / CHROMA / STREAM_SERVER / STORAGE` |
-| `component_name` | `VARCHAR(100)` | 화면 표시명. 예: Spring API 서버 |
-| `status` | `VARCHAR(20)` | 상태. 예: `NORMAL / WARNING / ERROR / UNKNOWN` |
-| `message` | `VARCHAR(255)` | 상태 설명 |
-| `cpu_usage` | `DECIMAL(5,2)` | Spring/AI 서버 등 노드 CPU 사용률. 수집 불가 시 NULL |
-| `memory_usage` | `DECIMAL(5,2)` | Spring/AI 서버 등 노드 메모리 사용률. 수집 불가 시 NULL |
-| `disk_usage` | `DECIMAL(5,2)` | Spring/AI 서버 등 노드 디스크 사용률. 수집 불가 시 NULL |
-| `host_name` | `VARCHAR(100)` | 상태를 수집한 호스트명 |
-| `instance_id` | `VARCHAR(100)` | 상태를 수집한 인스턴스 식별자 |
-| `response_time_ms` | `INT` | 응답 시간 |
-| `checked_at` | `TIMESTAMP` | 점검 시각 |
-| `created_at` | `TIMESTAMP` | 생성 시각 |
+| component_type | VARCHAR(50) | SPRING_API / AI_SERVER / MARIADB / REDIS / MINIO / CHROMA / STORAGE |
+| status | VARCHAR(20) | NORMAL / WARNING / ERROR / UNKNOWN |
+| cpu_usage | DECIMAL(5,2) | CPU 사용률 |
+| memory_usage | DECIMAL(5,2) | 메모리 사용률 |
+| disk_usage | DECIMAL(5,2) | 디스크 사용률 |
+| response_time_ms | INT | 응답 시간 |
+| checked_at | TIMESTAMP | 점검 시각 |
 
-### OPERATION_POLICY 상세 컬럼 변경
+---
 
-| 컬럼 | 기존 | 수정 |
+### OPERATION_POLICY 상세 컬럼
+
+| 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
-| `policy_type` | `VARCHAR` | `policy_category VARCHAR(50)`, `policy_key VARCHAR(100)`, `policy_name VARCHAR(100)`로 분리 |
-| `policy_value` | `TEXT` | 유지 |
-| 없음 | - | `value_type VARCHAR(20)` 추가 |
-| 없음 | - | `description VARCHAR(255)` 추가 |
-| 없음 | - | `is_active BOOLEAN` 추가 |
+| policy_category | VARCHAR(50) | 정책 카테고리 |
+| policy_key | VARCHAR(100) | 정책 키 |
+| policy_name | VARCHAR(100) | 정책명 |
+| policy_value | TEXT | 정책 값 |
+| value_type | VARCHAR(20) | STRING / NUMBER / BOOLEAN 등 |
+| description | VARCHAR(255) | 정책 설명 |
+| is_active | BOOLEAN | 활성 여부 |
 
 ---
 
@@ -208,3 +246,13 @@ constraint: uk_inspection_run_org_user_idempotency |
 | MODEL_DEPLOYMENT | deployment_id (PK), model_version_id (FK), deployed_at, rollback_flag, deploy_status | 모델 배포 |
 
 ---
+
+### MODEL_VERSION 상세 컬럼
+
+| 컬럼 | 타입 | 설명 |
+| --- | --- | --- |
+| accuracy | DECIMAL 또는 FLOAT | 모델 정확도 |
+| precision_score | DECIMAL 또는 FLOAT | 정밀도 |
+| recall_score | DECIMAL 또는 FLOAT | 재현율 |
+| deploy_status | VARCHAR(30) | 배포 상태 |
+| is_active | BOOLEAN | 활성 모델 여부 |
