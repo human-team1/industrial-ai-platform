@@ -12,12 +12,6 @@
 | 날짜 형식 | ISO-8601 |
 | 페이지네이션 | `page`, `size`, `sort` |
 
-권한 표기 규칙:
-
-- 본 문서의 관리자 권한은 `ROLE_SITE_ADMIN`을 기본값으로 표기한다.
-- 정책명/화면 문구는 "사이트 관리자"를 사용한다.
-- 상세 권한 매트릭스(회사 관리자/작업자 포함)는 `docs/auth/api-authority-matrix.md`를 단일 기준으로 본다.
-
 ## 성공 응답 예시
 
 ```json
@@ -60,14 +54,14 @@
 | GET | `/auth/me` | 내 로그인 정보 조회 | USER |
 | GET | `/signup-requests/organizations/public` | 회원가입용 조직 목록 조회 (이름 위주) | Public |
 | POST | `/signup-requests` | 회원가입 신청 | Public |
-| GET | `/signup-requests` | 가입 신청 목록 조회 | ROLE_SITE_ADMIN |
-| PATCH | `/signup-requests/{requestId}/approve` | 가입 승인 | ROLE_SITE_ADMIN |
-| PATCH | `/signup-requests/{requestId}/reject` | 가입 거절 | ROLE_SITE_ADMIN |
+| GET | `/signup-requests` | 가입 신청 목록 조회 | ADMIN |
+| PATCH | `/signup-requests/{requestId}/approve` | 가입 승인 | ADMIN |
+| PATCH | `/signup-requests/{requestId}/reject` | 가입 거절 | ADMIN |
 | GET | `/users/me` | 내 정보 조회 | USER |
 | PATCH | `/users/me` | 내 정보 수정 | USER |
-| GET | `/users` | 사용자 목록 조회 | ROLE_SITE_ADMIN |
-| GET | `/users/{userId}` | 사용자 상세 조회 | ROLE_SITE_ADMIN |
-| PATCH | `/users/{userId}/status` | 사용자 상태 변경 | ROLE_SITE_ADMIN |
+| GET | `/users` | 사용자 목록 조회 | ADMIN |
+| GET | `/users/{userId}` | 사용자 상세 조회 | ADMIN |
+| PATCH | `/users/{userId}/status` | 사용자 상태 변경 | ADMIN |
 
 ## POST `/auth/login`
 
@@ -138,11 +132,11 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/organizations` | 조직 목록 조회 | ROLE_SITE_ADMIN |
-| POST | `/organizations` | 조직 생성 | ROLE_SITE_ADMIN |
-| GET | `/organizations/{organizationId}` | 조직 상세 조회 | ROLE_SITE_ADMIN |
-| PATCH | `/organizations/{organizationId}` | 조직 수정 | ROLE_SITE_ADMIN |
-| PATCH | `/organizations/{organizationId}/status` | 조직 상태 변경 | ROLE_SITE_ADMIN |
+| GET | `/organizations` | 조직 목록 조회 | ADMIN |
+| POST | `/organizations` | 조직 생성 | ADMIN |
+| GET | `/organizations/{organizationId}` | 조직 상세 조회 | ADMIN |
+| PATCH | `/organizations/{organizationId}` | 조직 수정 | ADMIN |
+| PATCH | `/organizations/{organizationId}/status` | 조직 상태 변경 | ADMIN |
 
 ---
 
@@ -183,6 +177,54 @@
 | POST | `/camera-sources` | 카메라 등록 | USER |
 | PATCH | `/camera-sources/{cameraId}` | 카메라 수정 | USER |
 | DELETE | `/camera-sources/{cameraId}` | 카메라 삭제 | USER |
+
+## POST `/analysis-targets`
+
+### Request
+
+```json
+{
+  "targetName": "프레스 검사 대상",
+  "equipmentName": "프레스 #1",
+  "productName": "금속 부품",
+  "locationName": "라인 A-1",
+  "targetType": "EQUIPMENT",
+  "targetStatus": "ACTIVE"
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "targetId": 1,
+    "targetName": "프레스 검사 대상",
+    "equipmentName": "프레스 #1",
+    "productName": "금속 부품",
+    "locationName": "라인 A-1",
+    "targetType": "EQUIPMENT",
+    "targetStatus": "ACTIVE"
+  },
+  "message": "검사 대상이 등록되었습니다."
+}
+```
+
+## PATCH `/analysis-targets/{targetId}`
+
+### Request
+
+```json
+{
+  "targetName":"프레스 검사 대상",
+  "equipmentName":"프레스 #1",
+  "productName":"금속 부품",
+  "locationName":"라인 A-1",
+  "targetType":"EQUIPMENT",
+  "targetStatus":"ACTIVE"
+}
+```
 
 ---
 
@@ -263,11 +305,11 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/reviews` | 재검토 큐 목록 조회 | ROLE_SITE_ADMIN |
-| GET | `/reviews/{reviewQueueId}` | 재검토 상세 조회 | ROLE_SITE_ADMIN |
-| PATCH | `/reviews/{reviewQueueId}` | 재검토 처리 | ROLE_SITE_ADMIN |
-| GET | `/results/{resultId}/review-histories` | 결과별 재검토 이력 조회 | ROLE_SITE_ADMIN |
-| POST | `/results/{resultId}/learning-candidates` | 학습 후보 등록 | ROLE_SITE_ADMIN |
+| GET | `/reviews` | 재검토 큐 목록 조회 | ADMIN |
+| GET | `/reviews/{reviewQueueId}` | 재검토 상세 조회 | ADMIN |
+| PATCH | `/reviews/{reviewQueueId}` | 재검토 처리 | ADMIN |
+| GET | `/results/{resultId}/review-histories` | 결과별 재검토 이력 조회 | ADMIN |
+| POST | `/results/{resultId}/learning-candidates` | 학습 후보 등록 | ADMIN |
 
 ## PATCH `/reviews/{reviewQueueId}`
 
@@ -338,12 +380,12 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/reports` | 보고서 목록 조회 | ROLE_SITE_ADMIN |
-| POST | `/reports` | 보고서 생성 요청 | ROLE_SITE_ADMIN |
-| GET | `/reports/{reportId}` | 보고서 상세 조회 | ROLE_SITE_ADMIN |
-| GET | `/reports/{reportId}/items` | 보고서 항목 조회 | ROLE_SITE_ADMIN |
-| GET | `/reports/{reportId}/files` | 보고서 파일 조회 | ROLE_SITE_ADMIN |
-| GET | `/reports/{reportId}/download` | 보고서 다운로드 | ROLE_SITE_ADMIN |
+| GET | `/reports` | 보고서 목록 조회 | ADMIN |
+| POST | `/reports` | 보고서 생성 요청 | ADMIN |
+| GET | `/reports/{reportId}` | 보고서 상세 조회 | ADMIN |
+| GET | `/reports/{reportId}/items` | 보고서 항목 조회 | ADMIN |
+| GET | `/reports/{reportId}/files` | 보고서 파일 조회 | ADMIN |
+| GET | `/reports/{reportId}/download` | 보고서 다운로드 | ADMIN |
 
 ---
 
@@ -351,14 +393,14 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/admin/audit-logs` | 감사 로그 조회 | ROLE_SITE_ADMIN |
-| GET | `/admin/action-logs` | 관리자 작업 로그 조회 | ROLE_SITE_ADMIN |
-| GET | `/admin/operation-logs` | 운영 로그 조회 | ROLE_SITE_ADMIN |
-| GET | `/admin/system-status` | 시스템 상태 조회 | ROLE_SITE_ADMIN |
-| GET | `/admin/operation-policies` | 운영 정책 조회 | ROLE_SITE_ADMIN |
-| PATCH | `/admin/operation-policies/{policyId}` | 운영 정책 수정 | ROLE_SITE_ADMIN |
-| GET | `/admin/async-jobs` | 비동기 작업 목록 조회 | ROLE_SITE_ADMIN |
-| GET | `/admin/async-jobs/{jobId}` | 비동기 작업 상세 조회 | ROLE_SITE_ADMIN |
+| GET | `/admin/audit-logs` | 감사 로그 조회 | ADMIN |
+| GET | `/admin/action-logs` | 관리자 작업 로그 조회 | ADMIN |
+| GET | `/admin/operation-logs` | 운영 로그 조회 | ADMIN |
+| GET | `/admin/system-status` | 시스템 상태 조회 | ADMIN |
+| GET | `/admin/operation-policies` | 운영 정책 조회 | ADMIN |
+| PATCH | `/admin/operation-policies/{policyId}` | 운영 정책 수정 | ADMIN |
+| GET | `/admin/async-jobs` | 비동기 작업 목록 조회 | ADMIN |
+| GET | `/admin/async-jobs/{jobId}` | 비동기 작업 상세 조회 | ADMIN |
 
 ---
 
@@ -376,13 +418,13 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/models` | 모델 목록 조회 | ROLE_SITE_ADMIN |
-| POST | `/models` | 모델 등록 | ROLE_SITE_ADMIN |
-| GET | `/models/{modelId}/versions` | 모델 버전 목록 조회 | ROLE_SITE_ADMIN |
-| POST | `/models/{modelId}/versions` | 모델 버전 등록 | ROLE_SITE_ADMIN |
-| PATCH | `/model-versions/{versionId}/activate` | 모델 버전 활성화 | ROLE_SITE_ADMIN |
-| POST | `/model-versions/{versionId}/deployments` | 모델 배포 | ROLE_SITE_ADMIN |
-| PATCH | `/model-deployments/{deploymentId}/rollback` | 모델 롤백 | ROLE_SITE_ADMIN |
+| GET | `/models` | 모델 목록 조회 | ADMIN |
+| POST | `/models` | 모델 등록 | ADMIN |
+| GET | `/models/{modelId}/versions` | 모델 버전 목록 조회 | ADMIN |
+| POST | `/models/{modelId}/versions` | 모델 버전 등록 | ADMIN |
+| PATCH | `/model-versions/{versionId}/activate` | 모델 버전 활성화 | ADMIN |
+| POST | `/model-versions/{versionId}/deployments` | 모델 배포 | ADMIN |
+| PATCH | `/model-deployments/{deploymentId}/rollback` | 모델 롤백 | ADMIN |
 
 ---
 
@@ -390,10 +432,115 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| GET | `/dashboard/summary` | KPI 요약 조회 | USER |
-| GET | `/dashboard/recent-results` | 최근 검사 결과 조회 | USER |
-| GET | `/dashboard/statistics/decision-trend` | 판정 추이 조회 | USER |
-| GET | `/dashboard/statistics/defect-types` | 불량 유형 통계 조회 | USER |
-| GET | `/dashboard/statistics/targets` | 설비/대상별 통계 조회 | USER |
+| GET | `/dashboard/overview` | 대시보드 전체 요약 조회 | USER |
 
----
+## GET `/dashboard/overview`
+
+대시보드 화면에 필요한 KPI, 추이 차트, 설비별 이상률, 최근 결과, 최근 알림, 요약 정보, 시스템 상태를 한 번에 조회한다.
+
+### Query
+
+| Query | Type | Required | 설명 |
+| --- | --- | --- | --- |
+| `startDate` | `yyyy-MM-dd` | N | 조회 시작일. 없으면 최근 7일 기준 |
+| `endDate` | `yyyy-MM-dd` | N | 조회 종료일. 없으면 오늘 기준 |
+| `organizationId` | `Long` | N | 관리자 전용 조직 필터. 일반 사용자는 자기 조직 기준으로 조회 |
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "period": {
+      "startDate": "2025-05-14",
+      "endDate": "2025-05-20"
+    },
+    "kpis": {
+      "totalInspectionCount": 12842,
+      "totalInspectionChangeRate": 15.6,
+      "anomalyCount": 386,
+      "anomalyChangeRate": 22.1,
+      "normalCount": 12456,
+      "normalChangeRate": 14.3,
+      "anomalyRate": 3.01,
+      "anomalyRateChangePoint": 0.48
+    },
+    "trend": [
+      {
+        "date": "2025-05-14",
+        "normalCount": 1540,
+        "anomalyCount": 60,
+        "recheckCount": 12,
+        "anomalyRate": 3.7
+      }
+    ],
+    "topEquipmentAnomalyRates": [
+      {
+        "targetId": 1,
+        "equipmentName": "프레스 #1",
+        "inspectionCount": 230,
+        "anomalyCount": 10,
+        "anomalyRate": 4.35
+      }
+    ],
+    "recentResults": [
+      {
+        "resultId": 1001,
+        "inspectionId": 2001,
+        "inspectedAt": "2025-05-20T09:28:34",
+        "equipmentName": "프레스 #1",
+        "inspectionType": "실시간 탐지",
+        "decision": "DEFECT",
+        "decisionLabel": "이상",
+        "anomalyScore": 0.924,
+        "locationName": "라인 A-1"
+      }
+    ],
+    "recentNotifications": [
+      {
+        "notificationId": 10,
+        "severity": "WARNING",
+        "title": "프레스 #1에서 이상이 감지되었습니다.",
+        "createdAt": "2025-05-20T09:28:00",
+        "targetUrl": "/results/1001"
+      }
+    ],
+    "summary": {
+      "registeredTargetCount": 32,
+      "activeModelCount": 8,
+      "totalDataSizeBytes": 1451355348664,
+      "latestTrainingDate": "2025-05-18"
+    },
+    "systemStatus": {
+      "overallStatus": "NORMAL",
+      "modelServerStatus": "NORMAL",
+      "streamServerStatus": "NORMAL",
+      "storageStatus": "NORMAL",
+      "lastUpdatedAt": "2025-05-20T09:30:00"
+    }
+  },
+  "message": "대시보드 요약 정보를 조회했습니다."
+}
+```
+### KPI 계산 기준
+
+| Field | 기준 |
+| --- | --- |
+| `totalInspectionCount` | 기간 내 `INSPECTION_RUN.run_status = COMPLETED` 검사 수 |
+| `anomalyCount` | `final_decision_code`가 있으면 `final_decision_code = DEFECT`, 없으면 `decision_code = DEFECT` 기준 |
+| `normalCount` | `final_decision_code`가 있으면 `final_decision_code = NORMAL`, 없으면 `decision_code = NORMAL` 기준 |
+| `recheckCount` | `final_decision_code`가 있으면 `final_decision_code = RECHECK`, 없으면 `decision_code = RECHECK` 기준 |
+| `anomalyRate` | `anomalyCount / totalInspectionCount * 100` |
+| ChangeRate 계열 | 현재 조회 기간과 직전 동일 기간 비교. 직전 기간 값이 0이면 `0.0` |
+| `anomalyRateChangePoint` | 현재 기간 이상률 - 직전 동일 기간 이상률 |
+| `trend` | 일자별 정상/이상/재검사 건수와 이상률 |
+| `topEquipmentAnomalyRates` | 설비별 이상률 상위 5개 |
+| `recentResults` | 최신 검사 결과 5건 |
+| `recentNotifications` | 최신 알림 3건 |
+| `registeredTargetCount` | `ANALYSIS_TARGET.target_status = ACTIVE` 수 |
+| `activeModelCount` | `MODEL_VERSION.is_active = true` 수 |
+| `totalDataSizeBytes` | `FILE.file_size` 합계 |
+| `latestTrainingDate` | `MODEL_VERSION.validated_at` 최신값 우선 |
+
+날짜 기준은 `inspection_run.completed_at`을 우선 사용하고, 없으면 `inspection_result.created_at`을 사용한다.

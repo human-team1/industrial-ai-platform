@@ -1,4 +1,9 @@
 
+ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
+실제 MariaDB init SQL의 물리 테이블명 및 FK 참조는 소문자로 통일한다.
+
+---
+
 # ✅ 1. ORGANIZATION / USER
 
 | Table | Columns | Description |
@@ -14,7 +19,7 @@
 
 ---
 
-### USER_THRESHOLD_HISTORY 상세 타입 변경 ⇒ erd 페이지에서 수정예정
+### USER_THRESHOLD_HISTORY 상세 타입 변경 ⇒ erd 페이지에서 수정 예정
 
 | 컬럼 | 기존 | 수정 |
 | --- | --- | --- |
@@ -27,7 +32,7 @@
 
 | Table | Columns | Description | 비고 |
 | --- | --- | --- | --- |
-| ANALYSIS_TARGET | target_id (PK), organization_id (FK), target_name, equipment_name, product_name, target_type, target_status, created_by (FK), created_at, updated_at | 검사 대상 |  |
+| ANALYSIS_TARGET | target_id (PK), organization_id (FK), target_name, equipment_name, product_name, location_name, target_type, target_status, created_by (FK), created_at, updated_at | 검사 대상 |  |
 | CAMERA_SOURCE | camera_id (PK), organization_id (FK), user_id (FK), camera_name, stream_url, status, created_at, updated_at | 카메라/스트림 입력 |  |
 | INSPECTION_RUN | inspection_id (PK), organization_id (FK), user_id (FK), target_id (FK),run_type, input_type, source_type, source_id, run_status,applied_threshold, idempotency_key, payload_fingerprint,error_code, started_at, completed_at | 검사 실행 | UK: (organization_id, user_id, idempotency_key)
 constraint: uk_inspection_run_org_user_idempotency |
@@ -39,6 +44,12 @@ constraint: uk_inspection_run_org_user_idempotency |
 | ANOMALY_REGION | region_id (PK), image_id (FK), label_code, bbox_x, bbox_y, bbox_w, bbox_h, score, created_at | 이상 영역 |  |
 
 ---
+
+### ANALYSIS_TARGET 상세 컬럼 추가
+
+| 컬럼 | 타입 | 설명 |
+| --- | --- | --- |
+| `location_name` | `VARCHAR(100)` | 대시보드 및 결과 목록에서 표시할 설비/검사 위치명. 예: 라인 A-1, 라인 B-2 |
 
 ### INSPECTION_RUN 상세 타입 변경
 

@@ -9,6 +9,7 @@ import { InspectionPage } from '../pages/InspectionPage'
 import { UploadInspectionPage } from '../pages/UploadInspectionPage'
 import { ResultPage } from '../pages/ResultPage'
 import { ResultDetailPage } from '../pages/ResultDetailPage'
+import { NotificationPage } from '../pages/NotificationPage'
 import { AdminSignupRequestsPage } from '../pages/AdminSignupRequestsPage'
 import { MyPage } from '../pages/MyPage'
 import { UserSettingsPage } from '../pages/UserSettingsPage'
@@ -42,6 +43,7 @@ export function AppRouter() {
             <Route path="/inspections/upload" element={<UploadInspectionPage />} />
             <Route path="/results" element={<ResultPage />} />
             <Route path="/results/:resultId" element={<ResultDetailPage />} />
+            <Route path="/notifications" element={<NotificationPage />} />
             <Route path="/documents" element={<DocumentListPage />} />
             <Route path="/documents/new" element={<DocumentFormPage />} />
             <Route path="/documents/:documentId/edit" element={<DocumentFormPage />} />
