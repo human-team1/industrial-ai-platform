@@ -241,14 +241,15 @@ SITE_ADMIN이 전체 사용자 소유 데이터에 접근해야 하는 경우 �
 
 | Method | Endpoint | Scope | SITE_ADMIN | COMPANY_ADMIN | COMPANY_WORKER | 상태 | 비고 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| GET | `/admin/audit-logs` | GLOBAL | ✅ | ❌ | ❌ | 🟡 부분 | `SecurityConfig`에 `/admin/**` SITE_ADMIN 매처 적용. 컨트롤러 미구현 |
-| GET | `/admin/action-logs` | GLOBAL | ✅ | ❌ | ❌ | 🟡 부분 | 동일 |
-| GET | `/admin/operation-logs` | GLOBAL | ✅ | ❌ | ❌ | 🟡 부분 | 동일 |
-| GET | `/admin/system-status` | GLOBAL | ✅ | ❌ | ❌ | 🟡 부분 | 동일 |
-| GET | `/admin/operation-policies` | GLOBAL | ✅ | ❌ | ❌ | 🟡 부분 | 동일 |
-| PATCH | `/admin/operation-policies/{policyId}` | GLOBAL | ✅ | ❌ | ❌ | 🟡 부분 | 동일 |
-| GET | `/admin/async-jobs` | GLOBAL | ✅ | ❌ | ❌ | 🟡 부분 | 동일 |
-| GET | `/admin/async-jobs/{jobId}` | GLOBAL | ✅ | ❌ | ❌ | 🟡 부분 | 동일 |
+| GET | `/admin/audit-logs` | GLOBAL | ✅ | ❌ | ❌ | ✅ 구현 | `/admin/**` SITE_ADMIN 매처 적용 |
+| GET | `/admin/action-logs` | GLOBAL | ✅ | ❌ | ❌ | ✅ 구현 | 동일 |
+| GET | `/admin/operation-logs` | GLOBAL | ✅ | ❌ | ❌ | ✅ 구현 | 동일 |
+| GET | `/admin/system-status` | GLOBAL | ✅ | ❌ | ❌ | ✅ 구현 | 동일 |
+| GET | `/admin/system-components` | GLOBAL | ✅ | ❌ | ❌ | ✅ 구현 | 동일 |
+| GET | `/admin/operation-policies` | GLOBAL | ✅ | ❌ | ❌ | ✅ 구현 | 동일 |
+| PATCH | `/admin/operation-policies/{policyId}` | GLOBAL | ✅ | ❌ | ❌ | ✅ 구현 | 정책 수정 시 감사/관리자 작업/운영 로그 기록 |
+| GET | `/admin/async-jobs` | GLOBAL | ✅ | ❌ | ❌ | ✅ 구현 | 동일 |
+| GET | `/admin/async-jobs/{jobId}` | GLOBAL | ✅ | ❌ | ❌ | ✅ 구현 | 동일 |
 | (`/operations/**`) | (api.txt 외 운영 영역) | GLOBAL | ✅ | ❌ | ❌ | 🟡 부분 | `SecurityConfig`에 `/operations/**` SITE_ADMIN 매처 적용 |
 
 ---

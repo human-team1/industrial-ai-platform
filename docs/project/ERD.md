@@ -153,7 +153,7 @@ constraint: uk_inspection_run_org_user_idempotency |
 | ADMIN_ACTION_LOG | admin_action_id (PK), actor_user_id (FK), action_type, target_type, target_id, reason, created_at | 관리자 작업 |
 | OPERATION_LOG | operation_log_id (PK), event_type, event_status, log_level, source_component, request_id, actor_user_id (FK), detail_message, related_path, created_at | 운영 로그 |
 | SYSTEM_STATUS_SNAPSHOT | snapshot_id (PK), cpu_usage, memory_usage, disk_usage, response_time_ms, created_at | 시스템 상태 스냅샷 |
-| SYSTEM_COMPONENT_STATUS | component_status_id (PK), component_type, component_name, status, message, response_time_ms, checked_at, created_at | 시스템 컴포넌트별 상태 |
+| SYSTEM_COMPONENT_STATUS | component_status_id (PK), component_type, component_name, status, message, cpu_usage, memory_usage, disk_usage, host_name, instance_id, response_time_ms, checked_at, created_at | 시스템 컴포넌트별 상태 |
 | OPERATION_POLICY | operation_policy_id (PK), policy_category, policy_key, policy_name, policy_value, value_type, description, is_active, updated_at, updated_by (FK) | 운영 정책 |
 | ASYNC_JOB | job_id (PK), job_type, job_status, target_type, target_id, error_message, created_at, completed_at | 비동기 작업 |
 
@@ -177,6 +177,11 @@ constraint: uk_inspection_run_org_user_idempotency |
 | `component_name` | `VARCHAR(100)` | 화면 표시명. 예: Spring API 서버 |
 | `status` | `VARCHAR(20)` | 상태. 예: `NORMAL / WARNING / ERROR / UNKNOWN` |
 | `message` | `VARCHAR(255)` | 상태 설명 |
+| `cpu_usage` | `DECIMAL(5,2)` | Spring/AI 서버 등 노드 CPU 사용률. 수집 불가 시 NULL |
+| `memory_usage` | `DECIMAL(5,2)` | Spring/AI 서버 등 노드 메모리 사용률. 수집 불가 시 NULL |
+| `disk_usage` | `DECIMAL(5,2)` | Spring/AI 서버 등 노드 디스크 사용률. 수집 불가 시 NULL |
+| `host_name` | `VARCHAR(100)` | 상태를 수집한 호스트명 |
+| `instance_id` | `VARCHAR(100)` | 상태를 수집한 인스턴스 식별자 |
 | `response_time_ms` | `INT` | 응답 시간 |
 | `checked_at` | `TIMESTAMP` | 점검 시각 |
 | `created_at` | `TIMESTAMP` | 생성 시각 |

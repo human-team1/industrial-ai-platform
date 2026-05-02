@@ -95,6 +95,8 @@ const navItems: NavItem[] = [
   { label: '챗봇 히스토리', icon: <IconChat />, to: '/chatbot/history' },
   { label: '설정', icon: <IconSettings />, to: '/settings' },
   { label: '가입 신청 관리', icon: <IconSettings />, to: '/admin/signup-requests', roles: ['ROLE_SITE_ADMIN'] },
+  { label: '운영 모니터링', icon: <IconRadar />, to: '/admin/operation-monitoring', roles: ['ROLE_SITE_ADMIN'] },
+  { label: '사이트 관리자 설정', icon: <IconSettings />, to: '/admin/site-settings', roles: ['ROLE_SITE_ADMIN'] },
 ]
 
 export function AppSidebar({

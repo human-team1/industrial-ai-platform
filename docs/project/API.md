@@ -391,6 +391,8 @@
 
 # 12. Operation / Admin
 
+운영 관리 API는 `ROLE_SITE_ADMIN` 전용이다. `ROLE_COMPANY_ADMIN`, `ROLE_COMPANY_WORKER`는 접근할 수 없다.
+
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
 | GET | `/admin/audit-logs` | 감사 로그 조회 | ADMIN |
@@ -406,6 +408,7 @@
 ## GET `/admin/system-status`
 
 운영 모니터링 화면의 시스템 리소스 상태 요약을 조회한다.
+Redis 최신 상태 캐시(`operation:system-status:spring:latest`)를 우선 사용하고, 없거나 장애가 있으면 MariaDB `system_status_snapshot` 최신 이력으로 fallback한다.
 
 ### Response
 
@@ -428,6 +431,7 @@
 ## GET `/admin/system-components`
 
 운영 모니터링 화면의 컴포넌트별 상태를 조회한다.
+Redis 최신 컴포넌트 캐시(`operation:component-status:{componentType}`)를 우선 사용하고, 없으면 MariaDB `system_component_status`의 컴포넌트별 최신 이력으로 fallback한다.
 
 ### Response
 
@@ -441,6 +445,11 @@
       "componentName": "Spring API 서버",
       "status": "NORMAL",
       "message": "정상 응답 중",
+      "cpuUsage": 42.5,
+      "memoryUsage": 68.1,
+      "diskUsage": 73.4,
+      "hostName": "spring-host",
+      "instanceId": "spring-local-1",
       "responseTimeMs": 42,
       "checkedAt": "2025-05-20T09:30:00",
       "createdAt": "2025-05-20T09:30:00"
@@ -451,6 +460,11 @@
       "componentName": "AI 모델 서버",
       "status": "WARNING",
       "message": "응답 지연 발생",
+      "cpuUsage": null,
+      "memoryUsage": null,
+      "diskUsage": 71.2,
+      "hostName": "ai-server-local",
+      "instanceId": "ai-server",
       "responseTimeMs": 850,
       "checkedAt": "2025-05-20T09:30:00",
       "createdAt": "2025-05-20T09:30:00"
@@ -463,6 +477,34 @@
 ## GET `/admin/operation-logs`
 
 운영 로그 목록을 조회한다.
+
+## Internal AI Server Status API
+
+Spring 운영 모니터링 스케줄러가 AI 서버 컴퓨터 상태를 수집하기 위해 호출한다.
+
+### GET `/ai/v1/internal/system-status`
+
+```json
+{
+  "success": true,
+  "data": {
+    "nodeType": "AI_SERVER",
+    "nodeName": "AI 모델 서버",
+    "hostName": "ai-server-local",
+    "instanceId": "ai-server",
+    "status": "NORMAL",
+    "cpuUsage": null,
+    "memoryUsage": null,
+    "diskUsage": 70.1,
+    "responseTimeMs": 48,
+    "message": "AI 서버 상태 조회 정상",
+    "checkedAt": "2026-05-02T12:00:00"
+  },
+  "message": "AI 서버 상태를 조회했습니다."
+}
+```
+
+현재 AI 서버는 별도 의존성 추가 없이 표준 라이브러리로 디스크 사용률과 응답 시간을 반환한다. CPU/Memory는 수집 불가 시 `null`이다.
 
 ### Query
 

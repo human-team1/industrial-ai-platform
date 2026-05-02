@@ -1,6 +1,5 @@
 package com.example.factoryguard.application.dto.operation;
 
-import com.example.factoryguard.domain.operation.vo.AuditActionType;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -12,7 +11,7 @@ public class AuditLogResult {
 
     private final Long auditLogId;
     private final Long actorUserId;
-    private final AuditActionType actionType;
+    private final String actionType;
     private final String targetType;
     private final Long targetId;
     private final LocalDateTime createdAt;

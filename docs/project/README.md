@@ -25,3 +25,5 @@
 
 - 대시보드 API는 `API.md`의 `GET /dashboard/overview`를 기준으로 한다.
 - `ANALYSIS_TARGET.location_name`은 `ERD.md`, init SQL, migration, seed에 반영되어 있다.
+- 운영 관리 API는 `API.md`의 Operation/Admin 섹션을 기준으로 하며 `/api/v1/admin/**`는 SITE_ADMIN 전용이다.
+- 운영 관리 스키마 확장은 `V20260502_002__extend_operation_admin_schema.sql`, 시연 seed는 `seed-sample-operation-admin.sql`을 적용한다.
