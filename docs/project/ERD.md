@@ -151,10 +151,45 @@ constraint: uk_inspection_run_org_user_idempotency |
 | --- | --- | --- |
 | AUDIT_LOG | audit_log_id (PK), actor_user_id (FK), action_type, target_type, target_id, before_json, after_json, created_at | 감사 로그 |
 | ADMIN_ACTION_LOG | admin_action_id (PK), actor_user_id (FK), action_type, target_type, target_id, reason, created_at | 관리자 작업 |
-| OPERATION_LOG | operation_log_id (PK), event_type, event_status, detail_message, related_path, created_at | 운영 로그 |
-| SYSTEM_STATUS_SNAPSHOT | snapshot_id (PK), cpu_usage, memory_usage, disk_usage, response_time_ms, created_at | 시스템 상태 |
-| OPERATION_POLICY | operation_policy_id (PK), policy_type, policy_value, updated_at, updated_by (FK) | 운영 정책 |
+| OPERATION_LOG | operation_log_id (PK), event_type, event_status, log_level, source_component, request_id, actor_user_id (FK), detail_message, related_path, created_at | 운영 로그 |
+| SYSTEM_STATUS_SNAPSHOT | snapshot_id (PK), cpu_usage, memory_usage, disk_usage, response_time_ms, created_at | 시스템 상태 스냅샷 |
+| SYSTEM_COMPONENT_STATUS | component_status_id (PK), component_type, component_name, status, message, response_time_ms, checked_at, created_at | 시스템 컴포넌트별 상태 |
+| OPERATION_POLICY | operation_policy_id (PK), policy_category, policy_key, policy_name, policy_value, value_type, description, is_active, updated_at, updated_by (FK) | 운영 정책 |
 | ASYNC_JOB | job_id (PK), job_type, job_status, target_type, target_id, error_message, created_at, completed_at | 비동기 작업 |
+
+---
+
+### OPERATION_LOG 상세 컬럼 추가
+
+| 컬럼 | 타입 | 설명 |
+| --- | --- | --- |
+| `log_level` | `VARCHAR(20)` | 로그 레벨. 예: `INFO / WARN / ERROR` |
+| `source_component` | `VARCHAR(50)` | 로그 발생 컴포넌트. 예: `SPRING_API / AI_SERVER / MARIADB / REDIS / MINIO` |
+| `request_id` | `VARCHAR(100)` | 요청 추적 ID |
+| `actor_user_id` | `BIGINT` | 관련 사용자 ID. 없을 수 있음 |
+
+### SYSTEM_COMPONENT_STATUS 상세 테이블 추가
+
+| 컬럼 | 타입 | 설명 |
+| --- | --- | --- |
+| `component_status_id` | `BIGINT` | PK |
+| `component_type` | `VARCHAR(50)` | 컴포넌트 타입. 예: `SPRING_API / AI_SERVER / MARIADB / REDIS / MINIO / CHROMA / STREAM_SERVER / STORAGE` |
+| `component_name` | `VARCHAR(100)` | 화면 표시명. 예: Spring API 서버 |
+| `status` | `VARCHAR(20)` | 상태. 예: `NORMAL / WARNING / ERROR / UNKNOWN` |
+| `message` | `VARCHAR(255)` | 상태 설명 |
+| `response_time_ms` | `INT` | 응답 시간 |
+| `checked_at` | `TIMESTAMP` | 점검 시각 |
+| `created_at` | `TIMESTAMP` | 생성 시각 |
+
+### OPERATION_POLICY 상세 컬럼 변경
+
+| 컬럼 | 기존 | 수정 |
+| --- | --- | --- |
+| `policy_type` | `VARCHAR` | `policy_category VARCHAR(50)`, `policy_key VARCHAR(100)`, `policy_name VARCHAR(100)`로 분리 |
+| `policy_value` | `TEXT` | 유지 |
+| 없음 | - | `value_type VARCHAR(20)` 추가 |
+| 없음 | - | `description VARCHAR(255)` 추가 |
+| 없음 | - | `is_active BOOLEAN` 추가 |
 
 ---
 

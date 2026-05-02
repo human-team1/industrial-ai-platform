@@ -397,10 +397,181 @@
 | GET | `/admin/action-logs` | 관리자 작업 로그 조회 | ADMIN |
 | GET | `/admin/operation-logs` | 운영 로그 조회 | ADMIN |
 | GET | `/admin/system-status` | 시스템 상태 조회 | ADMIN |
+| GET | `/admin/system-components` | 시스템 컴포넌트별 상태 조회 | ADMIN |
 | GET | `/admin/operation-policies` | 운영 정책 조회 | ADMIN |
 | PATCH | `/admin/operation-policies/{policyId}` | 운영 정책 수정 | ADMIN |
 | GET | `/admin/async-jobs` | 비동기 작업 목록 조회 | ADMIN |
 | GET | `/admin/async-jobs/{jobId}` | 비동기 작업 상세 조회 | ADMIN |
+
+## GET `/admin/system-status`
+
+운영 모니터링 화면의 시스템 리소스 상태 요약을 조회한다.
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "snapshotId": 1,
+    "cpuUsage": 42.5,
+    "memoryUsage": 68.1,
+    "diskUsage": 73.4,
+    "responseTimeMs": 128,
+    "overallStatus": "NORMAL",
+    "createdAt": "2025-05-20T09:30:00"
+  },
+  "message": "시스템 상태를 조회했습니다."
+}
+```
+
+## GET `/admin/system-components`
+
+운영 모니터링 화면의 컴포넌트별 상태를 조회한다.
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "componentStatusId": 1,
+      "componentType": "SPRING_API",
+      "componentName": "Spring API 서버",
+      "status": "NORMAL",
+      "message": "정상 응답 중",
+      "responseTimeMs": 42,
+      "checkedAt": "2025-05-20T09:30:00",
+      "createdAt": "2025-05-20T09:30:00"
+    },
+    {
+      "componentStatusId": 2,
+      "componentType": "AI_SERVER",
+      "componentName": "AI 모델 서버",
+      "status": "WARNING",
+      "message": "응답 지연 발생",
+      "responseTimeMs": 850,
+      "checkedAt": "2025-05-20T09:30:00",
+      "createdAt": "2025-05-20T09:30:00"
+    }
+  ],
+  "message": "시스템 컴포넌트 상태를 조회했습니다."
+}
+```
+
+## GET `/admin/operation-logs`
+
+운영 로그 목록을 조회한다.
+
+### Query
+
+| Query | Type | Required | 설명 |
+| --- | --- | --- | --- |
+| `level` | `String` | N | 로그 레벨. `INFO / WARN / ERROR` |
+| `sourceComponent` | `String` | N | 발생 컴포넌트. 예: `SPRING_API / AI_SERVER / MARIADB / REDIS / MINIO` |
+| `eventStatus` | `String` | N | 이벤트 상태. 예: `SUCCESS / FAILED / PROCESSING` |
+| `startDate` | `yyyy-MM-dd` | N | 조회 시작일 |
+| `endDate` | `yyyy-MM-dd` | N | 조회 종료일 |
+| `page` | `int` | N | 페이지 번호 |
+| `size` | `int` | N | 페이지 크기 |
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "content": [
+      {
+        "operationLogId": 1,
+        "eventType": "INSPECTION_FAILED",
+        "eventStatus": "FAILED",
+        "logLevel": "ERROR",
+        "sourceComponent": "AI_SERVER",
+        "requestId": "req-20250520-0001",
+        "actorUserId": 10,
+        "detailMessage": "AI 서버 응답 지연으로 검사 요청이 실패했습니다.",
+        "relatedPath": "/api/v1/inspections/upload",
+        "createdAt": "2025-05-20T09:28:00"
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1
+  },
+  "message": "운영 로그 목록을 조회했습니다."
+}
+```
+
+## GET `/admin/operation-policies`
+
+사이트 관리자 설정 화면의 운영 정책 목록을 조회한다.
+
+### Query
+
+| Query | Type | Required | 설명 |
+| --- | --- | --- | --- |
+| `category` | `String` | N | 정책 카테고리. `INSPECTION / NOTIFICATION / SECURITY / RETENTION / SYSTEM` |
+| `activeOnly` | `Boolean` | N | 활성 정책만 조회 여부 |
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "operationPolicyId": 1,
+      "policyCategory": "INSPECTION",
+      "policyKey": "default_anomaly_threshold",
+      "policyName": "기본 이상 판정 임계값",
+      "policyValue": "0.75",
+      "valueType": "NUMBER",
+      "description": "사용자 임계값이 없을 때 적용되는 기본 이상 판정 기준입니다.",
+      "isActive": true,
+      "updatedAt": "2025-05-20T09:30:00",
+      "updatedBy": 1
+    }
+  ],
+  "message": "운영 정책 목록을 조회했습니다."
+}
+```
+
+## PATCH `/admin/operation-policies/{policyId}`
+
+사이트 관리자 설정 화면에서 운영 정책 값을 수정한다.
+
+### Request
+
+```json
+{
+  "policyValue": "0.80",
+  "isActive": true
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "operationPolicyId": 1,
+    "policyCategory": "INSPECTION",
+    "policyKey": "default_anomaly_threshold",
+    "policyName": "기본 이상 판정 임계값",
+    "policyValue": "0.80",
+    "valueType": "NUMBER",
+    "description": "사용자 임계값이 없을 때 적용되는 기본 이상 판정 기준입니다.",
+    "isActive": true,
+    "updatedAt": "2025-05-20T09:35:00",
+    "updatedBy": 1
+  },
+  "message": "운영 정책을 수정했습니다."
+}
+```
 
 ---
 
@@ -523,24 +694,3 @@
   "message": "대시보드 요약 정보를 조회했습니다."
 }
 ```
-### KPI 계산 기준
-
-| Field | 기준 |
-| --- | --- |
-| `totalInspectionCount` | 기간 내 `INSPECTION_RUN.run_status = COMPLETED` 검사 수 |
-| `anomalyCount` | `final_decision_code`가 있으면 `final_decision_code = DEFECT`, 없으면 `decision_code = DEFECT` 기준 |
-| `normalCount` | `final_decision_code`가 있으면 `final_decision_code = NORMAL`, 없으면 `decision_code = NORMAL` 기준 |
-| `recheckCount` | `final_decision_code`가 있으면 `final_decision_code = RECHECK`, 없으면 `decision_code = RECHECK` 기준 |
-| `anomalyRate` | `anomalyCount / totalInspectionCount * 100` |
-| ChangeRate 계열 | 현재 조회 기간과 직전 동일 기간 비교. 직전 기간 값이 0이면 `0.0` |
-| `anomalyRateChangePoint` | 현재 기간 이상률 - 직전 동일 기간 이상률 |
-| `trend` | 일자별 정상/이상/재검사 건수와 이상률 |
-| `topEquipmentAnomalyRates` | 설비별 이상률 상위 5개 |
-| `recentResults` | 최신 검사 결과 5건 |
-| `recentNotifications` | 최신 알림 3건 |
-| `registeredTargetCount` | `ANALYSIS_TARGET.target_status = ACTIVE` 수 |
-| `activeModelCount` | `MODEL_VERSION.is_active = true` 수 |
-| `totalDataSizeBytes` | `FILE.file_size` 합계 |
-| `latestTrainingDate` | `MODEL_VERSION.validated_at` 최신값 우선 |
-
-날짜 기준은 `inspection_run.completed_at`을 우선 사용하고, 없으면 `inspection_result.created_at`을 사용한다.
