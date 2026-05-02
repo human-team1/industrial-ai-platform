@@ -5,12 +5,69 @@ AI 기반 설비 점검 보조 시스템 프로젝트입니다.
 
 ## 빠른 시작
 
-1. 환경 변수 파일 준비: 각 시스템 README 참고
-2. 인프라 실행: `infra/README.md`
-3. 서비스 실행:
-   - Backend: `backend-spring/README.md`
-   - Frontend: `frontend/README.md`
-   - AI Server: `ai-server/README.md`
+처음 clone 받은 뒤에는 아래 순서로 한 번에 준비하면 됩니다.
+
+### 1. 환경 변수 파일 만들기
+
+```powershell
+Copy-Item .\infra\.env.example .\infra\.env
+Copy-Item .\backend-spring\.env.example .\backend-spring\.env
+Copy-Item .\frontend\.env.example .\frontend\.env
+Copy-Item .\ai-server\.env.example .\ai-server\.env
+```
+
+### 2. 인프라 실행 + DB 준비
+
+```powershell
+cd .\infra
+docker compose --env-file .env up -d
+.\scripts\db-migrate.ps1
+.\scripts\db-seed.ps1
+docker compose ps
+cd ..
+```
+
+`docker-compose`는 DB를 자동 생성하지 않으므로 처음 실행 시 `db-migrate.ps1`과 `db-seed.ps1`까지 같이 실행하는 것을 권장합니다.
+
+한글 시드 데이터가 프론트에서 깨져 보이면, 예전에 잘못된 문자셋으로 들어간 데이터가 남아 있는 경우가 많습니다. 이때는 아래 순서로 DB를 다시 만든 뒤 시드를 재적용합니다.
+
+```powershell
+cd .\infra
+.\scripts\db-reset.ps1 -Force
+.\scripts\db-migrate.ps1
+.\scripts\db-seed.ps1
+docker compose ps
+cd ..
+```
+
+주의: `db-reset.ps1 -Force`는 현재 로컬 DB 데이터를 삭제합니다.
+
+### 3. 각 시스템 실행 예시
+
+Backend(Spring):
+
+```powershell
+cd .\backend-spring
+.\gradlew.bat bootRun --args="--spring.profiles.active=local"
+```
+
+Frontend:
+
+```powershell
+cd .\frontend
+npm install
+npm run dev
+```
+
+AI Server(FastAPI):
+
+```powershell
+cd .\ai-server
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn main:app --reload --host 0.0.0.0 --port 8001
+```
 
 ## 시스템별 실행 문서
 

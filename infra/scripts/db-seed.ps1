@@ -17,7 +17,8 @@ $seedOrder = @(
     "seed-sample-organizations.sql",
     "seed-sample-users.sql",
     "seed-sample-documents.sql",
-    "seed-sample-inspections.sql"
+    "seed-sample-inspections.sql",
+    "seed-sample-operation-admin.sql"
 )
 
 foreach ($seed in $seedOrder) {

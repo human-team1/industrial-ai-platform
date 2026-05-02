@@ -41,7 +41,7 @@ VALUES
   (99303, 'DOCUMENT_INDEX', 'FAILED', 'ERROR', 'CHROMA', 'seed-req-003', 91002, '[seed fallback] 문서 인덱싱 실패', '/api/v1/document-versions/12/index-jobs', '2025-05-20 09:30:00'),
   (99304, 'INSPECTION_REQUEST', 'SUCCESS', 'INFO', 'SPRING_API', 'seed-req-004', 91003, '검사 요청 접수', '/api/v1/inspections/upload', '2025-05-20 09:20:00'),
   (99305, 'STORAGE_WRITE', 'SUCCESS', 'INFO', 'MINIO', 'seed-req-005', 91003, '검사 이미지 저장 완료', '/api/v1/files/92001', '2025-05-20 09:10:00'),
-  (99306, 'CACHE_ACCESS', 'SUCCESS', 'INFO', 'REDIS', 'seed-req-006', 91001, '세션 캐시 접근 정상', '/api/v1/auth/me', '2025-05-20 09:00:00'),
+  (99306, 'CACHE_ACCESS', 'SUCCESS', 'INFO', 'REDIS', 'seed-req-006', 91001, '인증 캐시 접근 정상', '/api/v1/auth/me', '2025-05-20 09:00:00'),
   (99307, 'DB_QUERY', 'SUCCESS', 'INFO', 'MARIADB', 'seed-req-007', 91001, '대시보드 집계 조회 완료', '/api/v1/dashboard/overview', '2025-05-20 08:50:00'),
   (99308, 'ASYNC_JOB', 'FAILED', 'ERROR', 'SPRING_API', 'seed-req-008', 91001, '비동기 보고서 생성 실패', '/api/v1/admin/async-jobs/99402', '2025-05-20 08:40:00'),
   (99309, 'STREAM_CHECK', 'UNKNOWN', 'WARN', 'STREAM_SERVER', 'seed-req-009', 91001, '스트림 서버 상태 수집 대기', '/api/v1/admin/system-components', '2025-05-20 08:30:00'),
@@ -74,8 +74,8 @@ INSERT INTO operation_policy (
   policy_value, value_type, description, is_active, updated_at, updated_by
 )
 VALUES
-  (99501, 'DEFAULT_ANOMALY_THRESHOLD', 'INSPECTION', 'default_anomaly_threshold', '기본 이상 임계값', '0.70', 'NUMBER', '회사 기본값이 없을 때 적용되는 이상 판정 기준', TRUE, '2025-05-20 08:20:00', 91001),
-  (99502, 'LOW_CONFIDENCE_THRESHOLD', 'INSPECTION', 'low_confidence_threshold', '저신뢰 임계값', '0.55', 'NUMBER', '재검사 분류에 활용하는 신뢰도 기준', TRUE, '2025-05-20 08:20:00', 91001),
+  (99501, 'DEFAULT_ANOMALY_THRESHOLD', 'INSPECTION', 'default_anomaly_threshold', '기본 이상 임계값', '0.70', 'NUMBER', '회사 기본값이 없을 때 적용하는 이상 판정 기준', TRUE, '2025-05-20 08:20:00', 91001),
+  (99502, 'LOW_CONFIDENCE_THRESHOLD', 'INSPECTION', 'low_confidence_threshold', '저신뢰 임계값', '0.55', 'NUMBER', '재검사 분류에 사용하는 저신뢰도 기준', TRUE, '2025-05-20 08:20:00', 91001),
   (99503, 'ANOMALY_ALERT_ENABLED', 'NOTIFICATION', 'anomaly_alert_enabled', '이상 알림 사용', 'true', 'BOOLEAN', '이상 탐지 알림 발송 여부', TRUE, '2025-05-20 08:20:00', 91001),
   (99504, 'SYSTEM_ERROR_ALERT_ENABLED', 'NOTIFICATION', 'system_error_alert_enabled', '시스템 오류 알림 사용', 'true', 'BOOLEAN', '운영 오류 알림 발송 여부', TRUE, '2025-05-20 08:20:00', 91001),
   (99505, 'SESSION_TIMEOUT_MINUTES', 'SECURITY', 'session_timeout_minutes', '세션 만료 시간', '60', 'NUMBER', '관리자 세션 만료 시간(분)', TRUE, '2025-05-20 08:20:00', 91001),
