@@ -1,3 +1,5 @@
+export type { SignupStatus } from './signupStatus'
+
 export type AuthStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'INACTIVE'
 export type AuthRole = 'ROLE_SITE_ADMIN' | 'ROLE_COMPANY_ADMIN' | 'ROLE_COMPANY_WORKER'
 
