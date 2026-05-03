@@ -6,9 +6,36 @@ import com.example.factoryguard.adapter.out.persistence.model.ModelJpaEntity;
 import com.example.factoryguard.adapter.out.persistence.model.ModelVersionJpaEntity;
 import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
 import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
-import com.example.factoryguard.application.dto.model.*;
+import com.example.factoryguard.application.dto.model.CreateModelCommand;
+import com.example.factoryguard.application.dto.model.DeactivateModelDeploymentCommand;
+import com.example.factoryguard.application.dto.model.DeployModelVersionCommand;
+import com.example.factoryguard.application.dto.model.ListModelDeploymentsQuery;
+import com.example.factoryguard.application.dto.model.ListModelVersionsQuery;
+import com.example.factoryguard.application.dto.model.ListModelsQuery;
+import com.example.factoryguard.application.dto.model.ModelArtifactResponse;
+import com.example.factoryguard.application.dto.model.ModelDeploymentResponse;
+import com.example.factoryguard.application.dto.model.ModelDetailResponse;
+import com.example.factoryguard.application.dto.model.ModelPageResponse;
+import com.example.factoryguard.application.dto.model.ModelSummaryResponse;
+import com.example.factoryguard.application.dto.model.ModelVersionDetailResponse;
+import com.example.factoryguard.application.dto.model.ModelVersionStatusCommand;
+import com.example.factoryguard.application.dto.model.ModelVersionSummaryResponse;
+import com.example.factoryguard.application.dto.model.RollbackModelDeploymentCommand;
+import com.example.factoryguard.application.dto.model.UploadModelVersionCommand;
+import com.example.factoryguard.application.port.in.model.ActivateModelVersionUseCase;
 import com.example.factoryguard.application.dto.operation.RecordAdminActionLogCommand;
-import com.example.factoryguard.application.port.in.model.*;
+import com.example.factoryguard.application.port.in.model.CreateModelUseCase;
+import com.example.factoryguard.application.port.in.model.DeactivateModelDeploymentUseCase;
+import com.example.factoryguard.application.port.in.model.DeprecateModelVersionUseCase;
+import com.example.factoryguard.application.port.in.model.DeployModelVersionUseCase;
+import com.example.factoryguard.application.port.in.model.GetModelUseCase;
+import com.example.factoryguard.application.port.in.model.GetModelVersionUseCase;
+import com.example.factoryguard.application.port.in.model.ListModelArtifactsUseCase;
+import com.example.factoryguard.application.port.in.model.ListModelDeploymentsUseCase;
+import com.example.factoryguard.application.port.in.model.ListModelVersionsUseCase;
+import com.example.factoryguard.application.port.in.model.ListModelsUseCase;
+import com.example.factoryguard.application.port.in.model.RollbackModelDeploymentUseCase;
+import com.example.factoryguard.application.port.in.model.UploadModelVersionUseCase;
 import com.example.factoryguard.application.port.in.operation.RecordAdminActionLogUseCase;
 import com.example.factoryguard.application.port.out.file.PersistUploadedFilePort;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
@@ -82,11 +109,13 @@ public class ModelManagementService implements
         if (modelManagementPort.existsModelByNameAndType(modelName, modelType)) {
             throw new BusinessException(ErrorCode.MODEL_CONFLICT, "같은 modelName + modelType 조합이 이미 존재합니다.");
         }
-        ModelJpaEntity saved = modelManagementPort.saveModel(ModelJpaEntity.builder()
-                .modelName(modelName)
-                .modelType(modelType)
-                .description(blankToNull(command.getDescription()))
-                .build());
+        ModelJpaEntity saved = modelManagementPort.saveModel(
+                ModelJpaEntity.builder()
+                        .modelName(modelName)
+                        .modelType(modelType)
+                        .description(blankToNull(command.getDescription()))
+                        .build()
+        );
         recordAction("MODEL_CREATED", saved.getModelId(), "MODEL", "모델 등록");
         return toModelDetail(saved);
     }
@@ -113,26 +142,35 @@ public class ModelManagementService implements
             throw new BusinessException(ErrorCode.MODEL_VERSION_CONFLICT, "같은 모델에 동일한 versionName이 이미 존재합니다.");
         }
 
-        ModelVersionJpaEntity version = modelManagementPort.saveModelVersion(ModelVersionJpaEntity.builder()
-                .modelId(model.getModelId())
-                .versionName(command.getVersionName().trim())
-                .modelCategory(command.getModelCategory())
-                .modelProfile(command.getModelProfile())
-                .framework(blankToNull(command.getFramework()))
-                .inputSize(blankToNull(command.getInputSize()))
-                .thresholdDefault(command.getThresholdDefault())
-                .accuracy(command.getAccuracy())
-                .precisionScore(command.getPrecisionScore())
-                .recallScore(command.getRecallScore())
-                .f1Score(command.getF1Score())
-                .aurocScore(command.getAurocScore())
-                .deployStatus(ModelDeployStatus.REGISTERED)
-                .isActive(false)
-                .build());
+        ModelVersionJpaEntity version = modelManagementPort.saveModelVersion(
+                ModelVersionJpaEntity.builder()
+                        .modelId(model.getModelId())
+                        .versionName(command.getVersionName().trim())
+                        .modelCategory(command.getModelCategory())
+                        .modelProfile(command.getModelProfile())
+                        .framework(blankToNull(command.getFramework()))
+                        .inputSize(blankToNull(command.getInputSize()))
+                        .thresholdDefault(command.getThresholdDefault())
+                        .accuracy(command.getAccuracy())
+                        .precisionScore(command.getPrecisionScore())
+                        .recallScore(command.getRecallScore())
+                        .f1Score(command.getF1Score())
+                        .aurocScore(command.getAurocScore())
+                        .deployStatus(ModelDeployStatus.REGISTERED)
+                        .isActive(false)
+                        .build()
+        );
 
         List<ModelArtifactJpaEntity> artifacts = new ArrayList<>();
         artifacts.add(uploadArtifact(model.getModelId(), version.getModelVersionId(), command.getCkptFile(), "model.ckpt", ModelArtifactType.CKPT));
         artifacts.add(uploadArtifact(model.getModelId(), version.getModelVersionId(), command.getConfigFile(), "config.json", ModelArtifactType.CONFIG));
+        artifacts.add(uploadArtifact(
+                model.getModelId(),
+                version.getModelVersionId(),
+                command.getMemoryBankFile(),
+                buildMemoryBankFileName(command.getMemoryBankFile()),
+                ModelArtifactType.MEMORY_BANK
+        ));
         if (command.getLabelsFile() != null && !command.getLabelsFile().isEmpty()) {
             String labelsExt = extension(command.getLabelsFile().getOriginalFilename());
             String labelsName = labelsExt == null ? "labels" : "labels." + labelsExt;
@@ -162,8 +200,9 @@ public class ModelManagementService implements
     public ModelVersionDetailResponse activateModelVersion(ModelVersionStatusCommand command) {
         ModelVersionJpaEntity version = loadVersion(command.getVersionId());
         if (!modelManagementPort.hasArtifact(version.getModelVersionId(), ModelArtifactType.CKPT)
-                || !modelManagementPort.hasArtifact(version.getModelVersionId(), ModelArtifactType.CONFIG)) {
-            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "CKPT와 CONFIG artifact가 모두 있어야 활성화할 수 있습니다.");
+                || !modelManagementPort.hasArtifact(version.getModelVersionId(), ModelArtifactType.CONFIG)
+                || !modelManagementPort.hasArtifact(version.getModelVersionId(), ModelArtifactType.MEMORY_BANK)) {
+            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "모델 버전 활성화에는 CKPT, CONFIG, MEMORY_BANK 산출물이 모두 필요합니다.");
         }
         version.activate(LocalDateTime.now(), securityUtils.getCurrentUserId());
         ModelVersionJpaEntity saved = modelManagementPort.saveModelVersion(version);
@@ -204,18 +243,20 @@ public class ModelManagementService implements
             activeDeployment.deactivate("신규 배포로 인한 자동 비활성화");
             modelManagementPort.saveDeployment(activeDeployment);
         }
-        ModelDeploymentJpaEntity deployment = modelManagementPort.saveDeployment(ModelDeploymentJpaEntity.builder()
-                .organizationId(command.getOrganizationId())
-                .targetId(command.getDeploymentScope() == DeploymentScope.TARGET ? command.getTargetId() : null)
-                .modelVersionId(version.getModelVersionId())
-                .deploymentScope(command.getDeploymentScope())
-                .deployStatus(DeploymentStatus.DEPLOYED)
-                .isActive(true)
-                .deployedAt(LocalDateTime.now())
-                .deployedBy(securityUtils.getCurrentUserId())
-                .reason(blankToNull(command.getReason()))
-                .rollbackFlag(false)
-                .build());
+        ModelDeploymentJpaEntity deployment = modelManagementPort.saveDeployment(
+                ModelDeploymentJpaEntity.builder()
+                        .organizationId(command.getOrganizationId())
+                        .targetId(command.getDeploymentScope() == DeploymentScope.TARGET ? command.getTargetId() : null)
+                        .modelVersionId(version.getModelVersionId())
+                        .deploymentScope(command.getDeploymentScope())
+                        .deployStatus(DeploymentStatus.DEPLOYED)
+                        .isActive(true)
+                        .deployedAt(LocalDateTime.now())
+                        .deployedBy(securityUtils.getCurrentUserId())
+                        .reason(blankToNull(command.getReason()))
+                        .rollbackFlag(false)
+                        .build()
+        );
         version.markDeployed();
         modelManagementPort.saveModelVersion(version);
         recordAction("MODEL_DEPLOYED", deployment.getDeploymentId(), "MODEL_DEPLOYMENT", blankToNull(command.getReason()));
@@ -248,19 +289,21 @@ public class ModelManagementService implements
         }
         current.deactivate(blankToNull(command.getReason()));
         modelManagementPort.saveDeployment(current);
-        ModelDeploymentJpaEntity restored = modelManagementPort.saveDeployment(ModelDeploymentJpaEntity.builder()
-                .organizationId(current.getOrganizationId())
-                .targetId(current.getTargetId())
-                .modelVersionId(rollbackTarget.getModelVersionId())
-                .deploymentScope(current.getDeploymentScope())
-                .deployStatus(DeploymentStatus.DEPLOYED)
-                .isActive(true)
-                .deployedAt(LocalDateTime.now())
-                .deployedBy(securityUtils.getCurrentUserId())
-                .rollbackFromDeploymentId(current.getDeploymentId())
-                .reason(blankToNull(command.getReason()))
-                .rollbackFlag(true)
-                .build());
+        ModelDeploymentJpaEntity restored = modelManagementPort.saveDeployment(
+                ModelDeploymentJpaEntity.builder()
+                        .organizationId(current.getOrganizationId())
+                        .targetId(current.getTargetId())
+                        .modelVersionId(rollbackTarget.getModelVersionId())
+                        .deploymentScope(current.getDeploymentScope())
+                        .deployStatus(DeploymentStatus.DEPLOYED)
+                        .isActive(true)
+                        .deployedAt(LocalDateTime.now())
+                        .deployedBy(securityUtils.getCurrentUserId())
+                        .rollbackFromDeploymentId(current.getDeploymentId())
+                        .reason(blankToNull(command.getReason()))
+                        .rollbackFlag(true)
+                        .build()
+        );
         recordAction("MODEL_ROLLED_BACK", restored.getDeploymentId(), "MODEL_DEPLOYMENT", blankToNull(command.getReason()));
         return toDeploymentResponse(restored);
     }
@@ -278,6 +321,9 @@ public class ModelManagementService implements
         }
         if (command.getConfigFile() == null || command.getConfigFile().isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "configFile은 필수입니다.");
+        }
+        if (command.getMemoryBankFile() == null || command.getMemoryBankFile().isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "memoryBankFile은 필수입니다.");
         }
         validateThreshold(command.getThresholdDefault());
     }
@@ -326,25 +372,32 @@ public class ModelManagementService implements
             log.error("Failed to upload model artifact, modelId={}, versionId={}, fileName={}", modelId, versionId, fileName, exception);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "모델 artifact 저장 중 오류가 발생했습니다.");
         }
-        StoredFile storedFile = persistUploadedFilePort.save(StoredFile.builder()
-                .storageType(StorageType.MINIO)
-                .bucketName(minioProperties.getBucketModels())
-                .objectKey(objectKey)
-                .filePath(null)
-                .fileName(fileName)
-                .fileExt(extension(fileName))
-                .mimeType(file.getContentType())
-                .fileSize(file.getSize())
-                .checksum(checksum)
-                .createdAt(LocalDateTime.now())
-                .createdBy(securityUtils.getCurrentUserId())
-                .build());
+        StoredFile storedFile = persistUploadedFilePort.save(
+                StoredFile.builder()
+                        .storageType(StorageType.MINIO)
+                        .bucketName(minioProperties.getBucketModels())
+                        .objectKey(objectKey)
+                        .filePath(null)
+                        .fileName(fileName)
+                        .fileExt(extension(fileName))
+                        .mimeType(file.getContentType())
+                        .fileSize(file.getSize())
+                        .checksum(checksum)
+                        .createdAt(LocalDateTime.now())
+                        .createdBy(securityUtils.getCurrentUserId())
+                        .build()
+        );
         return ModelArtifactJpaEntity.builder()
                 .modelVersionId(versionId)
                 .fileId(storedFile.getFileId())
                 .artifactType(artifactType)
                 .checksum(checksum)
                 .build();
+    }
+
+    private String buildMemoryBankFileName(MultipartFile file) {
+        String ext = extension(file.getOriginalFilename());
+        return ext == null ? "memory_bank" : "memory_bank." + ext;
     }
 
     private String calculateChecksum(MultipartFile file) {
@@ -373,27 +426,29 @@ public class ModelManagementService implements
 
     private ModelVersionDetailResponse buildVersionDetail(ModelVersionJpaEntity version, String modelName) {
         return ModelVersionDetailResponse.builder()
-                .version(ModelVersionSummaryResponse.builder()
-                        .modelVersionId(version.getModelVersionId())
-                        .modelId(version.getModelId())
-                        .modelName(modelName)
-                        .versionName(version.getVersionName())
-                        .modelCategory(version.getModelCategory().name())
-                        .modelProfile(version.getModelProfile().name())
-                        .framework(version.getFramework())
-                        .inputSize(version.getInputSize())
-                        .thresholdDefault(version.getThresholdDefault())
-                        .accuracy(version.getAccuracy())
-                        .precisionScore(version.getPrecisionScore())
-                        .recallScore(version.getRecallScore())
-                        .f1Score(version.getF1Score())
-                        .aurocScore(version.getAurocScore())
-                        .deployStatus(version.getDeployStatus().name())
-                        .isActive(version.getIsActive())
-                        .validatedAt(version.getValidatedAt())
-                        .validatedBy(version.getValidatedBy())
-                        .createdAt(version.getCreatedAt())
-                        .build())
+                .version(
+                        ModelVersionSummaryResponse.builder()
+                                .modelVersionId(version.getModelVersionId())
+                                .modelId(version.getModelId())
+                                .modelName(modelName)
+                                .versionName(version.getVersionName())
+                                .modelCategory(version.getModelCategory().name())
+                                .modelProfile(version.getModelProfile().name())
+                                .framework(version.getFramework())
+                                .inputSize(version.getInputSize())
+                                .thresholdDefault(version.getThresholdDefault())
+                                .accuracy(version.getAccuracy())
+                                .precisionScore(version.getPrecisionScore())
+                                .recallScore(version.getRecallScore())
+                                .f1Score(version.getF1Score())
+                                .aurocScore(version.getAurocScore())
+                                .deployStatus(version.getDeployStatus().name())
+                                .isActive(version.getIsActive())
+                                .validatedAt(version.getValidatedAt())
+                                .validatedBy(version.getValidatedBy())
+                                .createdAt(version.getCreatedAt())
+                                .build()
+                )
                 .artifacts(modelManagementPort.findArtifactResponsesByVersionId(version.getModelVersionId()))
                 .build();
     }
@@ -446,13 +501,15 @@ public class ModelManagementService implements
 
     private void recordAction(String actionType, Long targetId, String targetType, String reason) {
         try {
-            recordAdminActionLogUseCase.recordAdminActionLog(RecordAdminActionLogCommand.builder()
-                    .actorUserId(securityUtils.getCurrentUserId())
-                    .actionType(actionType)
-                    .targetType(targetType)
-                    .targetId(targetId)
-                    .reason(reason)
-                    .build());
+            recordAdminActionLogUseCase.recordAdminActionLog(
+                    RecordAdminActionLogCommand.builder()
+                            .actorUserId(securityUtils.getCurrentUserId())
+                            .actionType(actionType)
+                            .targetType(targetType)
+                            .targetId(targetId)
+                            .reason(reason)
+                            .build()
+            );
         } catch (Exception exception) {
             log.warn("Failed to record model admin action, actionType={}, targetId={}", actionType, targetId, exception);
         }
@@ -460,7 +517,7 @@ public class ModelManagementService implements
 
     private String required(String value, String fieldName) {
         if (value == null || value.trim().isEmpty()) {
-            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, fieldName + "는 필수입니다.");
+            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, fieldName + "은 필수입니다.");
         }
         return value.trim();
     }

@@ -6,7 +6,6 @@ import type {
   ModelDeployment,
   ModelDeployStatus,
   ModelProfile,
-  ModelVersion,
   UploadModelVersionForm,
 } from '../../../entities/model'
 import { useModelManagement } from '../model/useModelManagement'
@@ -25,6 +24,7 @@ const EMPTY_VERSION_FORM: UploadModelVersionForm = {
   aurocScore: '',
   ckptFile: null,
   configFile: null,
+  memoryBankFile: null,
   labelsFile: null,
 }
 
@@ -79,17 +79,18 @@ export function ModelManagementPanel() {
   )
 
   const deployableVersions = useMemo(
-    () =>
-      versions.filter((version) => version.isActive === true && version.deployStatus !== 'DEPRECATED'),
+    () => versions.filter((version) => version.isActive === true && version.deployStatus !== 'DEPRECATED'),
     [versions],
   )
 
-  const activeDeployments = useMemo(
-    () =>
-      deployments.filter((deployment) =>
-        selectedModel ? deployment.modelId === selectedModel.modelId && deployment.isActive === true : deployment.isActive === true,
-      ),
+  const filteredDeployments = useMemo(
+    () => deployments.filter((deployment) => (selectedModel ? deployment.modelId === selectedModel.modelId : true)),
     [deployments, selectedModel],
+  )
+
+  const activeDeployments = useMemo(
+    () => filteredDeployments.filter((deployment) => deployment.isActive === true),
+    [filteredDeployments],
   )
 
   const canDeploy =
@@ -125,8 +126,16 @@ export function ModelManagementPanel() {
       window.alert('버전명은 필수입니다.')
       return
     }
-    if (!versionForm.ckptFile || !versionForm.configFile) {
-      window.alert('모델 가중치 파일과 모델 설정 파일은 필수입니다.')
+    if (!versionForm.ckptFile) {
+      window.alert('모델 가중치 파일을 선택하세요.')
+      return
+    }
+    if (!versionForm.configFile) {
+      window.alert('모델 설정 파일을 선택하세요.')
+      return
+    }
+    if (!versionForm.memoryBankFile) {
+      window.alert('메모리뱅크 파일을 선택하세요.')
       return
     }
     if (versionForm.thresholdDefault) {
@@ -179,7 +188,7 @@ export function ModelManagementPanel() {
         <div>
           <h2 className="text-xl font-bold text-slate-900">모델 관리</h2>
           <p className="mt-1 text-sm text-slate-500">
-            운영자가 모델을 등록하고, 버전을 활성화한 뒤 조직 또는 검사대상에 순서대로 배포할 수 있습니다.
+            운영자가 모델을 등록하고, 버전을 업로드한 뒤 활성화하고 조직 또는 검사대상에 순서대로 배포합니다.
           </p>
         </div>
         <button
@@ -265,7 +274,7 @@ export function ModelManagementPanel() {
       <StepSection
         step="3"
         title="모델 버전 업로드"
-        description="이미 생성된 model.ckpt와 config.json을 선택한 모델의 새 버전으로 등록합니다."
+        description="이미 생성된 model.ckpt, config.json, memory bank 파일을 선택한 모델의 새 버전으로 등록합니다."
         disabled={!selectedModel}
       >
         <SelectedModelNotice model={selectedModel} emptyText="모델을 먼저 선택하세요." />
@@ -273,6 +282,10 @@ export function ModelManagementPanel() {
           <Empty text="모델을 먼저 선택하면 버전 업로드와 배포를 진행할 수 있습니다." />
         ) : (
           <div className="grid gap-3">
+            <p className="rounded border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+              모델 가중치 파일, 설정 파일, 메모리뱅크 파일을 함께 등록합니다.
+            </p>
+
             <div className="grid gap-3 md:grid-cols-2">
               <Input
                 label="버전명"
@@ -354,7 +367,7 @@ export function ModelManagementPanel() {
               />
             </div>
 
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <FileInput
                 key={`ckpt-${fileInputKey}`}
                 label="모델 가중치 파일 *"
@@ -364,6 +377,12 @@ export function ModelManagementPanel() {
                 key={`config-${fileInputKey}`}
                 label="모델 설정 파일 *"
                 onChange={(file) => setVersionForm((prev) => ({ ...prev, configFile: file }))}
+              />
+              <FileInput
+                key={`memory-${fileInputKey}`}
+                label="메모리뱅크 파일 *"
+                description="PatchCore 추론에 사용하는 정상 feature memory bank 파일입니다. (.pt, .pth, .npy, .npz 등)"
+                onChange={(file) => setVersionForm((prev) => ({ ...prev, memoryBankFile: file }))}
               />
               <FileInput
                 key={`labels-${fileInputKey}`}
@@ -389,7 +408,7 @@ export function ModelManagementPanel() {
       <StepSection
         step="4"
         title="버전 활성화"
-        description="업로드된 버전을 검증 완료 상태로 전환합니다. 활성화된 버전만 배포할 수 있습니다."
+        description="업로드된 버전을 검증 완료 상태로 전환합니다. CKPT, CONFIG, MEMORY_BANK가 모두 등록된 버전만 활성화할 수 있습니다."
         disabled={!selectedModel}
       >
         <SelectedModelNotice model={selectedModel} emptyText="모델을 먼저 선택하세요." />
@@ -403,7 +422,11 @@ export function ModelManagementPanel() {
           <div className="space-y-3">
             {versions.map((version) => {
               const deployStatus = version.deployStatus ?? 'REGISTERED'
-              const canActivate = deployStatus !== 'DEPRECATED' && version.isActive !== true && deployStatus !== 'VALIDATED' && deployStatus !== 'DEPLOYED'
+              const canActivate =
+                deployStatus !== 'DEPRECATED' &&
+                version.isActive !== true &&
+                deployStatus !== 'VALIDATED' &&
+                deployStatus !== 'DEPLOYED'
               const canDeprecate = deployStatus !== 'DEPRECATED'
 
               return (
@@ -413,7 +436,9 @@ export function ModelManagementPanel() {
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="text-base font-semibold text-slate-900">{version.versionName}</h4>
                         <StatusBadge tone={deployStatusTone(deployStatus)}>{deployStatusLabel(deployStatus)}</StatusBadge>
-                        <StatusBadge tone={version.isActive ? 'success' : 'muted'}>{version.isActive ? 'ACTIVE' : 'INACTIVE'}</StatusBadge>
+                        <StatusBadge tone={version.isActive ? 'success' : 'muted'}>
+                          {version.isActive ? 'ACTIVE' : 'INACTIVE'}
+                        </StatusBadge>
                       </div>
                       <dl className="grid gap-2 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
                         <InfoRow label="카테고리" value={String(version.modelCategory)} />
@@ -460,7 +485,7 @@ export function ModelManagementPanel() {
         <SelectedModelNotice
           model={selectedModel}
           emptyText="모델을 먼저 선택하세요."
-          extraText={selectedModel ? `배포 가능한 버전 수: ${deployableVersions.length}` : undefined}
+          extraText={selectedModel ? `배포 가능 버전 수: ${deployableVersions.length}` : undefined}
         />
 
         {!selectedModel ? (
@@ -533,81 +558,77 @@ export function ModelManagementPanel() {
           <Empty text="모델을 먼저 선택하면 버전 업로드와 배포를 진행할 수 있습니다." />
         ) : deploymentsLoading ? (
           <Empty text="배포 이력을 불러오는 중입니다." />
-        ) : activeDeployments.length === 0 && deployments.filter((deployment) => deployment.modelId === selectedModel.modelId).length === 0 ? (
+        ) : filteredDeployments.length === 0 ? (
           <Empty text="배포 이력이 없습니다. 활성화된 버전을 먼저 배포하세요." />
         ) : (
           <div className="space-y-3">
-            {deployments
-              .filter((deployment) => deployment.modelId === selectedModel.modelId)
-              .map((deployment) => {
-                const isActive = deployment.isActive === true
-                return (
-                  <article
-                    key={deployment.deploymentId}
-                    className={`rounded border p-4 ${
-                      isActive ? 'border-[#109498] bg-[#109498]/5' : 'border-slate-200 bg-slate-50'
-                    }`}
-                  >
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="text-base font-semibold text-slate-900">
-                            {deployment.modelName || '-'} / {deployment.versionName || '-'}
-                          </h4>
-                          <StatusBadge tone={deploymentStatusTone(deployment)}>{deployment.deployStatus ?? '-'}</StatusBadge>
-                          <StatusBadge tone={isActive ? 'success' : 'muted'}>{isActive ? 'ACTIVE' : 'INACTIVE'}</StatusBadge>
-                        </div>
-                        <dl className="grid gap-2 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
-                          <InfoRow label="배포 범위" value={deployment.deploymentScope === 'TARGET' ? '검사대상 단위' : '조직 전체'} />
-                          <InfoRow label="조직 ID" value={String(deployment.organizationId)} />
-                          <InfoRow label="검사대상 ID" value={deployment.targetId != null ? String(deployment.targetId) : '-'} />
-                          <InfoRow label="배포 시각" value={formatDateTime(deployment.deployedAt)} />
-                          <InfoRow label="배포자" value={deployment.deployedBy != null ? String(deployment.deployedBy) : '-'} />
-                          <InfoRow label="현재 deploymentId" value={String(deployment.deploymentId)} />
-                          <InfoRow label="롤백 원본" value={deployment.rollbackFromDeploymentId != null ? String(deployment.rollbackFromDeploymentId) : '-'} />
-                          <InfoRow label="사유" value={deployment.reason || '-'} />
-                        </dl>
+            {filteredDeployments.map((deployment) => {
+              const isActive = deployment.isActive === true
+              return (
+                <article
+                  key={deployment.deploymentId}
+                  className={`rounded border p-4 ${isActive ? 'border-[#109498] bg-[#109498]/5' : 'border-slate-200 bg-slate-50'}`}
+                >
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-base font-semibold text-slate-900">
+                          {deployment.modelName || '-'} / {deployment.versionName || '-'}
+                        </h4>
+                        <StatusBadge tone={deploymentStatusTone(deployment)}>{deployment.deployStatus ?? '-'}</StatusBadge>
+                        <StatusBadge tone={isActive ? 'success' : 'muted'}>{isActive ? 'ACTIVE' : 'INACTIVE'}</StatusBadge>
                       </div>
+                      <dl className="grid gap-2 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
+                        <InfoRow label="배포 범위" value={deployment.deploymentScope === 'TARGET' ? '검사대상 단위' : '조직 전체'} />
+                        <InfoRow label="조직 ID" value={String(deployment.organizationId)} />
+                        <InfoRow label="검사대상 ID" value={deployment.targetId != null ? String(deployment.targetId) : '-'} />
+                        <InfoRow label="배포 시각" value={formatDateTime(deployment.deployedAt)} />
+                        <InfoRow label="배포자" value={deployment.deployedBy != null ? String(deployment.deployedBy) : '-'} />
+                        <InfoRow label="현재 deploymentId" value={String(deployment.deploymentId)} />
+                        <InfoRow label="롤백 원본" value={deployment.rollbackFromDeploymentId != null ? String(deployment.rollbackFromDeploymentId) : '-'} />
+                        <InfoRow label="사유" value={deployment.reason || '-'} />
+                      </dl>
+                    </div>
 
-                      <div className="grid gap-2 lg:min-w-[240px]">
-                        <Input
-                          label="롤백 대상 배포 ID"
-                          value={rollbackToId[deployment.deploymentId] ?? ''}
-                          onChange={(value) => setRollbackToId((prev) => ({ ...prev, [deployment.deploymentId]: value }))}
-                          placeholder="이전 deploymentId 입력"
-                          disabled={!isActive}
-                        />
-                        <p className="text-xs text-slate-500">같은 조직/검사대상/범위의 이전 배포 ID만 입력할 수 있습니다.</p>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={!isActive || busy.actionId === `deployment-off-${deployment.deploymentId}`}
-                            onClick={() => void submitDeactivateDeployment(deployment.deploymentId, '운영 비활성화')}
-                            className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                          >
-                            비활성화
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!isActive || busy.actionId === `rollback-${deployment.deploymentId}`}
-                            onClick={() => {
-                              const target = Number(rollbackToId[deployment.deploymentId] ?? '')
-                              if (!target) {
-                                window.alert('롤백 대상 배포 ID를 입력하세요.')
-                                return
-                              }
-                              void submitRollbackDeployment(deployment.deploymentId, target, '운영 롤백')
-                            }}
-                            className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                          >
-                            롤백
-                          </button>
-                        </div>
+                    <div className="grid gap-2 lg:min-w-[240px]">
+                      <Input
+                        label="롤백 대상 배포 ID"
+                        value={rollbackToId[deployment.deploymentId] ?? ''}
+                        onChange={(value) => setRollbackToId((prev) => ({ ...prev, [deployment.deploymentId]: value }))}
+                        placeholder="이전 deploymentId 입력"
+                        disabled={!isActive}
+                      />
+                      <p className="text-xs text-slate-500">같은 조직/검사대상/범위의 이전 배포 ID만 입력할 수 있습니다.</p>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={!isActive || busy.actionId === `deployment-off-${deployment.deploymentId}`}
+                          onClick={() => void submitDeactivateDeployment(deployment.deploymentId, '운영 비활성화')}
+                          className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          비활성화
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!isActive || busy.actionId === `rollback-${deployment.deploymentId}`}
+                          onClick={() => {
+                            const target = Number(rollbackToId[deployment.deploymentId] ?? '')
+                            if (!target) {
+                              window.alert('롤백 대상 배포 ID를 입력하세요.')
+                              return
+                            }
+                            void submitRollbackDeployment(deployment.deploymentId, target, '운영 롤백')
+                          }}
+                          className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                          롤백
+                        </button>
                       </div>
                     </div>
-                  </article>
-                )
-              })}
+                  </div>
+                </article>
+              )
+            })}
           </div>
         )}
       </StepSection>
@@ -798,7 +819,15 @@ function Select({
   )
 }
 
-function FileInput({ label, onChange }: { label: string; onChange: (file: File | null) => void }) {
+function FileInput({
+  label,
+  description,
+  onChange,
+}: {
+  label: string
+  description?: string
+  onChange: (file: File | null) => void
+}) {
   return (
     <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
       {label}
@@ -807,6 +836,7 @@ function FileInput({ label, onChange }: { label: string; onChange: (file: File |
         onChange={(event) => onChange(event.target.files?.[0] ?? null)}
         className="rounded border border-slate-200 bg-white px-3 py-2 text-sm"
       />
+      {description ? <span className="text-xs font-normal text-slate-500">{description}</span> : null}
     </label>
   )
 }

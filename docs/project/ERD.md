@@ -43,7 +43,7 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | INSPECTION_RUN | inspection_id (PK), organization_id (FK), user_id (FK), target_id (FK), run_type, input_type, source_type, source_id, run_status, applied_threshold, idempotency_key, payload_fingerprint, error_code, started_at, completed_at | 검사 실행 | UK: organization_id, user_id, idempotency_key |
 | INSPECTION_INPUT | inspection_input_id (PK), inspection_id (FK), source_type, file_id, camera_id, stream_url, source_name, mime_type, duration_sec, frame_count, roi_mode, roi_coordinate_type, roi_x, roi_y, roi_width, roi_height, sampling_fps, max_frames, quality_gate_enabled, created_at | 검사 입력 데이터 | 이미지/영상/실시간 입력 조건 |
 | INSPECTION_EVENT_LOG | event_id (PK), inspection_id (FK), event_type, message, created_at | 검사 이벤트 로그 |  |
-| INSPECTION_RESULT | result_id (PK), inspection_id (FK), score, confidence, decision_code, final_decision_code, result_status, threshold_source, threshold_id, threshold_version, model_version_id, analyzed_frame_count, skipped_frame_count, defect_frame_count, recheck_frame_count, max_frame_score, avg_frame_score, representative_frame_seq, input_quality_status, input_quality_reason, failure_reason, created_at | 검사 결과 | 이미지 단건 및 영상/세션 집계 |
+| INSPECTION_RESULT | result_id (PK), inspection_id (FK), score, confidence, decision_code, final_decision_code, result_status, threshold_source, threshold_id, threshold_version, model_version_id (FK), analyzed_frame_count, skipped_frame_count, defect_frame_count, recheck_frame_count, max_frame_score, avg_frame_score, representative_frame_seq, input_quality_status, input_quality_reason, failure_reason, created_at | 검사 결과 | 이미지 단건 및 영상/세션 집계 |
 | RESULT_ARTIFACT | artifact_id (PK), result_id (FK), artifact_type, file_id, created_at | 결과 산출물 |  |
 | IMAGE | image_id (PK), result_id (FK), file_id, image_role, created_at | 결과 이미지 |  |
 | ANOMALY_REGION | region_id (PK), image_id (FK), label_code, bbox_x, bbox_y, bbox_w, bbox_h, score, created_at | 이상 영역 |  |
@@ -100,6 +100,7 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | representative_frame_seq | INT | 대표 프레임 번호 |
 | input_quality_status | VARCHAR(30) | 입력 품질 요약 상태 |
 | input_quality_reason | VARCHAR(100) | 입력 품질 대표 사유 |
+| model_version_id  | BIGINT FK | 검사에 사용된 모델 버전 ID |
 
 ---
 
@@ -241,9 +242,20 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | Table | Columns | Description |
 | --- | --- | --- |
 | FILE | file_id (PK), storage_type, bucket_name, object_key, file_path, file_name, file_ext, mime_type, file_size, checksum, created_at, created_by (FK) | 파일 저장 |
-| MODEL | model_id (PK), model_name, model_type, created_at | 모델 |
-| MODEL_VERSION | model_version_id (PK), model_id (FK), file_id (FK), version_name, accuracy, precision_score, recall_score, deploy_status, is_active, validated_at, validated_by (FK), created_at | 모델 버전 |
-| MODEL_DEPLOYMENT | deployment_id (PK), model_version_id (FK), deployed_at, rollback_flag, deploy_status | 모델 배포 |
+| MODEL | model_id (PK), model_name, model_type, description, created_at | 모델 기본 정보 |
+| MODEL_VERSION | model_version_id (PK), model_id (FK), version_name, model_category, model_profile, framework, input_size, threshold_default, accuracy, precision_score, recall_score, f1_score, auroc_score, deploy_status, is_active, validated_at, validated_by (FK), created_at | 모델 버전 |
+| MODEL_ARTIFACT | model_artifact_id (PK), model_version_id (FK), file_id (FK), artifact_type, checksum, created_at | 모델 산출물 파일 |
+| MODEL_DEPLOYMENT | deployment_id (PK), organization_id (FK), target_id (FK, NULL), model_version_id (FK), deployment_scope, deploy_status, is_active, deployed_at, deployed_by (FK), rollback_from_deployment_id (FK, NULL), reason | 조직/검사대상별 모델 배포 |
+
+---
+
+### MODEL 상세 컬럼
+
+| 컬럼 | 타입 | 설명 |
+| --- | --- | --- |
+| model_name | VARCHAR(100) | 모델명 |
+| model_type | VARCHAR(50) | 모델 계열 또는 알고리즘 유형 |
+| description | TEXT | 모델 설명 |
 
 ---
 
@@ -251,8 +263,46 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
+| version_name | VARCHAR(100) | 모델 버전명 |
+| model_category | VARCHAR(20) | OBJECT / TEXTURE |
+| model_profile | VARCHAR(20) | SPEED / PERFORMANCE |
+| framework | VARCHAR(50) | PYTORCH 등 모델 실행 프레임워크 |
+| input_size | VARCHAR(50) | 모델 입력 크기. 예: 224x224 |
+| threshold_default | DECIMAL(5,4) | 기본 이상 점수 임계값 |
 | accuracy | DECIMAL 또는 FLOAT | 모델 정확도 |
 | precision_score | DECIMAL 또는 FLOAT | 정밀도 |
 | recall_score | DECIMAL 또는 FLOAT | 재현율 |
-| deploy_status | VARCHAR(30) | 배포 상태 |
-| is_active | BOOLEAN | 활성 모델 여부 |
+| f1_score | DECIMAL 또는 FLOAT | F1 점수 |
+| auroc_score | DECIMAL 또는 FLOAT | AUROC 점수 |
+| deploy_status | VARCHAR(30) | REGISTERED / VALIDATED / DEPLOYED / DEPRECATED |
+| is_active | BOOLEAN | 활성 모델 버전 여부 |
+
+> PatchCore 계열 모델 버전은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 모두 존재해야 배포 가능 상태로 활성화할 수 있다.
+
+---
+
+### MODEL_ARTIFACT 상세 컬럼
+
+| 컬럼 | 타입 | 설명 |
+| --- | --- | --- |
+| model_version_id | BIGINT | 모델 버전 ID |
+| file_id | BIGINT | FILE 테이블 참조 |
+| artifact_type | VARCHAR(30) | CKPT / CONFIG / MEMORY_BANK / LABELS / EXTRA |
+| checksum | VARCHAR(255) | 파일 무결성 확인용 체크섬 |
+
+---
+
+### MODEL_DEPLOYMENT 상세 컬럼
+
+| 컬럼 | 타입 | 설명 |
+| --- | --- | --- |
+| organization_id | BIGINT | 모델이 적용되는 조직 ID |
+| target_id | BIGINT NULL | 특정 검사대상에만 적용할 경우 사용 |
+| model_version_id | BIGINT | 배포된 모델 버전 ID |
+| deployment_scope | VARCHAR(20) | ORGANIZATION / TARGET |
+| deploy_status | VARCHAR(30) | DEPLOYED / ROLLED_BACK / DEACTIVATED |
+| is_active | BOOLEAN | 현재 활성 배포 여부 |
+| deployed_at | TIMESTAMP | 배포 시각 |
+| deployed_by | BIGINT | 배포한 관리자 ID |
+| rollback_from_deployment_id | BIGINT NULL | 롤백 기준이 된 배포 ID |
+| reason | TEXT | 배포 또는 교체 사유 |

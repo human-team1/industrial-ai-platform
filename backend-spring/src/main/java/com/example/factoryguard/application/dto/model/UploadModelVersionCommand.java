@@ -26,5 +26,6 @@ public class UploadModelVersionCommand {
     private final BigDecimal aurocScore;
     private final MultipartFile ckptFile;
     private final MultipartFile configFile;
+    private final MultipartFile memoryBankFile;
     private final MultipartFile labelsFile;
 }
