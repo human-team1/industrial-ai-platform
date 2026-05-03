@@ -19,9 +19,9 @@ export function UploadInspectionPage() {
     <section className="space-y-5">
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Upload Inspection</p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">탐지 업로드</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-900">이미지 업로드</h1>
         <p className="mt-2 text-sm text-slate-600">
-          이미지 또는 비디오 파일을 업로드하여 이상 여부를 탐지하고 결과를 확인할 수 있습니다.
+          현재 MVP에서는 이미지 파일만 업로드할 수 있습니다. 업로드한 이미지 1장을 기준으로 검사 요청을 생성하고 결과 화면에서 이력을 확인할 수 있습니다.
         </p>
         <p className="mt-3 text-sm font-medium text-slate-700">{inspection.statusMessage}</p>
         {settingMessage ? (
@@ -53,7 +53,11 @@ export function UploadInspectionPage() {
           onThresholdChange={inspection.setSelectedThresholdId}
           onModelChange={inspection.setSelectedModel}
           onSubmit={inspection.submit}
-          onSettingClick={() => setSettingMessage('설정 기능은 준비 중입니다.')}
+          onSettingClick={() =>
+            setSettingMessage(
+              '설정 기능은 준비 중입니다. 현재는 기본 ROI와 품질 게이트 설정으로 검사합니다.',
+            )
+          }
         />
         <ProgressStatusCard
           selectedFile={inspection.selectedFile}

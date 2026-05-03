@@ -55,7 +55,12 @@ public class InspectionController {
             @RequestPart("file") MultipartFile file,
             @RequestPart(value = "targetId", required = false) String targetId,
             @RequestPart(value = "thresholdId", required = false) String thresholdId,
-            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+            @RequestPart(value = "inputMode", required = false) String inputMode,
+            @RequestPart(value = "sourceType", required = false) String sourceType,
+            @RequestPart(value = "roiMode", required = false) String roiMode,
+            @RequestPart(value = "qualityGateEnabled", required = false) String qualityGateEnabled,
+            @RequestPart(value = "idempotencyKey", required = false) String idempotencyKeyPart,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKeyHeader) {
 
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
         SubmitInspectionResult result = submitInspectionUseCase.execute(new SubmitInspectionCommand(
@@ -63,8 +68,12 @@ public class InspectionController {
                 principal.sessionId(),
                 parseOptionalLong(targetId),
                 parseOptionalLong(thresholdId),
+                inputMode,
+                sourceType,
+                roiMode,
+                parseOptionalBoolean(qualityGateEnabled),
                 file,
-                idempotencyKey
+                resolveIdempotencyKey(idempotencyKeyPart, idempotencyKeyHeader)
         ));
 
         return ResponseEntity.ok()
@@ -116,5 +125,16 @@ public class InspectionController {
 
     private Long parseOptionalLong(String value) {
         return value == null || value.isBlank() ? null : Long.parseLong(value);
+    }
+
+    private Boolean parseOptionalBoolean(String value) {
+        return value == null || value.isBlank() ? null : Boolean.parseBoolean(value);
+    }
+
+    private String resolveIdempotencyKey(String partValue, String headerValue) {
+        if (partValue != null && !partValue.isBlank()) {
+            return partValue;
+        }
+        return headerValue;
     }
 }

@@ -3,10 +3,19 @@ export type UploadInspectionResponse = {
   runStatus: string
 }
 
+export type InspectionInputMode = 'IMAGE' | 'VIDEO'
+export type InspectionSourceType = 'IMAGE' | 'BROWSER_CAMERA'
+export type InspectionRoiMode = 'FULL_FRAME' | 'FIXED'
+
 export type UploadInspectionPayload = {
   file: File
   targetId?: number | null
   thresholdId?: number | null
+  inputMode?: InspectionInputMode
+  sourceType?: InspectionSourceType
+  roiMode?: InspectionRoiMode
+  qualityGateEnabled?: boolean
+  idempotencyKey?: string
 }
 
 export type AnalysisTargetOption = {
@@ -27,40 +36,15 @@ export type ThresholdOption = {
 export type SelectedInspectionFile = {
   file: File
   previewUrl: string
-  fileKind: 'image' | 'video'
+  fileKind: 'image'
   selectedAt: Date
   width?: number
   height?: number
 }
 
-export type CameraSource = {
-  cameraId: number
-  organizationId?: number
-  userId?: number
-  cameraName: string
-  streamUrl?: string
-  status?: string
-  createdAt?: string
-  updatedAt?: string
-}
-
-export type StartRealtimeInspectionRequest = {
-  targetId?: number | null
-  cameraId: number
-  thresholdId?: number | null
-}
-
-export type StartRealtimeInspectionResponse = {
-  inspectionId: number
-  runStatus: string
-  cameraId: number
-  startedAt?: string
-}
-
-export type StopRealtimeInspectionResponse = {
-  inspectionId: number
-  runStatus: string
-  completedAt?: string
+export type BrowserCameraDevice = {
+  deviceId: string
+  label: string
 }
 
 export type InspectionEvent = {

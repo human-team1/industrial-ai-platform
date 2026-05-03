@@ -1,16 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  getAnalysisTargets,
-  getCameraSources,
-  getInspectionEvents,
-  getMyThresholds,
-  startRealtimeInspection,
-  stopRealtimeInspection,
-  uploadInspection,
-} from '../api'
+import { getAnalysisTargets, getInspectionEvents, getMyThresholds, uploadInspection } from '../api'
 import type {
   AnalysisTargetOption,
-  CameraSource,
+  BrowserCameraDevice,
   InspectionEvent,
   SelectedInspectionFile,
   ThresholdOption,
@@ -18,15 +10,8 @@ import type {
 } from '../types'
 
 const MAX_UPLOAD_SIZE = 2 * 1024 * 1024 * 1024
-const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'mp4', 'mov', 'avi']
-const ALLOWED_MIME_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'video/mp4',
-  'video/quicktime',
-  'video/x-msvideo',
-  'video/avi',
-]
+const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 export function useUploadInspection() {
   const [selectedFile, setSelectedFileState] = useState<SelectedInspectionFile | null>(null)
@@ -46,10 +31,8 @@ export function useUploadInspection() {
   useEffect(() => {
     const controller = new AbortController()
     setLoadingOptions(true)
-    Promise.all([
-      getAnalysisTargets(controller.signal),
-      getMyThresholds(controller.signal),
-    ])
+
+    Promise.all([getAnalysisTargets(controller.signal), getMyThresholds(controller.signal)])
       .then(([targets, thresholds]) => {
         setTargetOptions(targets)
         setThresholdOptions(thresholds)
@@ -82,10 +65,10 @@ export function useUploadInspection() {
   )
 
   const statusMessage = useMemo(() => {
-    if (uploading) return '검사 요청을 접수하는 중입니다.'
-    if (uploadResult) return '검사 요청이 접수되었습니다.'
-    if (selectedFile) return '파일이 선택되었습니다. 탐지 실행을 눌러 검사 요청을 접수하세요.'
-    return '검사할 이미지 또는 영상을 업로드하세요.'
+    if (uploading) return '이미지 검사 요청을 접수하는 중입니다.'
+    if (uploadResult) return '이미지 검사 요청이 접수되었습니다.'
+    if (selectedFile) return '이미지가 선택되었습니다. 검사 실행 버튼으로 요청을 전송할 수 있습니다.'
+    return '현재 MVP에서는 JPG, PNG, WEBP 이미지 파일만 업로드할 수 있습니다.'
   }, [selectedFile, uploadResult, uploading])
 
   const setSelectedFile = useCallback((file: File | null) => {
@@ -113,26 +96,23 @@ export function useUploadInspection() {
 
     const previewUrl = URL.createObjectURL(file)
     objectUrlRef.current = previewUrl
-    const fileKind = getFileKind(file)
     const nextFile: SelectedInspectionFile = {
       file,
       previewUrl,
-      fileKind,
+      fileKind: 'image',
       selectedAt: new Date(),
     }
     setSelectedFileState(nextFile)
 
-    if (fileKind === 'image') {
-      const image = new Image()
-      image.onload = () => {
-        setSelectedFileState((prev) =>
-          prev?.previewUrl === previewUrl
-            ? { ...prev, width: image.naturalWidth, height: image.naturalHeight }
-            : prev,
-        )
-      }
-      image.src = previewUrl
+    const image = new Image()
+    image.onload = () => {
+      setSelectedFileState((prev) =>
+        prev?.previewUrl === previewUrl
+          ? { ...prev, width: image.naturalWidth, height: image.naturalHeight }
+          : prev,
+      )
     }
+    image.src = previewUrl
   }, [])
 
   const submit = useCallback(async () => {
@@ -148,15 +128,20 @@ export function useUploadInspection() {
         file: selectedFile.file,
         targetId: selectedTargetId,
         thresholdId: selectedThresholdId,
+        inputMode: 'IMAGE',
+        sourceType: 'IMAGE',
+        roiMode: 'FULL_FRAME',
+        qualityGateEnabled: true,
+        idempotencyKey: createInspectionIdempotencyKey('upload'),
       })
       setUploadResult(result)
       setRequestDurationMs(performance.now() - startedAt)
-      setNoticeMessage('검사 요청이 접수되었습니다. 현재 상태: PROCESSING')
+      setNoticeMessage('이미지 검사 요청이 접수되었습니다. 현재 상태: PROCESSING')
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : '검사 요청에 실패했습니다. 파일 형식과 네트워크 상태를 확인해주세요.',
+          : '검사 요청에 실패했습니다. 파일 형식과 네트워크 상태를 확인해 주세요.',
       )
     } finally {
       setUploading(false)
@@ -196,54 +181,118 @@ export function useUploadInspection() {
 }
 
 export function useRealtimeInspection() {
-  const [cameras, setCameras] = useState<CameraSource[]>([])
-  const [selectedCameraId, setSelectedCameraId] = useState<number | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const [devices, setDevices] = useState<BrowserCameraDevice[]>([])
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [currentInspectionId, setCurrentInspectionId] = useState<number | null>(null)
-  const [runStatus, setRunStatus] = useState<'IDLE' | 'PROCESSING' | 'STOPPED' | string>('IDLE')
-  const [startedAt, setStartedAt] = useState<Date | null>(null)
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [events, setEvents] = useState<InspectionEvent[]>([])
-  const [loadingCameras, setLoadingCameras] = useState(false)
-  const [isStarting, setIsStarting] = useState(false)
-  const [isStopping, setIsStopping] = useState(false)
+  const [isCameraLoading, setIsCameraLoading] = useState(false)
+  const [isCameraReady, setIsCameraReady] = useState(false)
+  const [isCapturing, setIsCapturing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
+  const [uploadResult, setUploadResult] = useState<UploadInspectionResponse | null>(null)
+  const [requestDurationMs, setRequestDurationMs] = useState<number | null>(null)
 
-  const selectedCamera = useMemo(
-    () => cameras.find((camera) => camera.cameraId === selectedCameraId) ?? null,
-    [cameras, selectedCameraId],
-  )
-  const isRunning = runStatus === 'PROCESSING'
+  const refreshDevices = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      setDevices([])
+      setSelectedDeviceId(null)
+      setErrorMessage('브라우저에서 카메라 장치 조회를 지원하지 않습니다.')
+      return
+    }
 
-  const refreshCameras = useCallback(async () => {
-    setLoadingCameras(true)
-    setErrorMessage(null)
     try {
-      const nextCameras = await getCameraSources()
-      setCameras(nextCameras)
-      setSelectedCameraId((current) => {
-        if (current && nextCameras.some((camera) => camera.cameraId === current)) return current
-        return nextCameras[0]?.cameraId ?? null
+      const mediaDevices = await navigator.mediaDevices.enumerateDevices()
+      const nextDevices = mediaDevices
+        .filter((device) => device.kind === 'videoinput')
+        .map((device, index) => ({
+          deviceId: device.deviceId,
+          label: device.label || `카메라 ${index + 1}`,
+        }))
+
+      setDevices(nextDevices)
+      setSelectedDeviceId((current) => {
+        if (current && nextDevices.some((device) => device.deviceId === current)) return current
+        return nextDevices[0]?.deviceId ?? null
       })
     } catch (error) {
-      setCameras([])
-      setErrorMessage(error instanceof Error ? error.message : '카메라 목록을 불러오지 못했습니다.')
-    } finally {
-      setLoadingCameras(false)
+      setDevices([])
+      setSelectedDeviceId(null)
+      setErrorMessage(
+        error instanceof Error ? error.message : '카메라 장치 목록을 불러오지 못했습니다.',
+      )
     }
   }, [])
 
-  useEffect(() => {
-    void refreshCameras()
-  }, [refreshCameras])
+  const stopStream = useCallback(() => {
+    const stream = streamRef.current
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    setIsCameraReady(false)
+  }, [])
+
+  const startPreview = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErrorMessage('브라우저에서 카메라 미리보기를 지원하지 않습니다.')
+      return
+    }
+
+    setIsCameraLoading(true)
+    setErrorMessage(null)
+
+    try {
+      stopStream()
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: selectedDeviceId
+          ? {
+              deviceId: { exact: selectedDeviceId },
+            }
+          : {
+              facingMode: 'environment',
+            },
+      })
+      streamRef.current = stream
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.muted = true
+        videoRef.current.playsInline = true
+        await videoRef.current.play()
+      }
+
+      setIsCameraReady(true)
+      setNoticeMessage('카메라 미리보기가 준비되었습니다. 현재 화면 검사 버튼으로 프레임 1장을 분석할 수 있습니다.')
+      await refreshDevices()
+    } catch (error) {
+      stopStream()
+      setNoticeMessage(null)
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : '카메라 접근에 실패했습니다. 브라우저 권한을 확인해 주세요.',
+      )
+    } finally {
+      setIsCameraLoading(false)
+    }
+  }, [refreshDevices, selectedDeviceId, stopStream])
 
   useEffect(() => {
-    if (!isRunning || !startedAt) return undefined
-    const timer = window.setInterval(() => {
-      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 1000)))
-    }, 1000)
-    return () => window.clearInterval(timer)
-  }, [isRunning, startedAt])
+    void refreshDevices()
+  }, [refreshDevices])
+
+  useEffect(() => {
+    void startPreview()
+    return () => stopStream()
+  }, [selectedDeviceId, startPreview, stopStream])
 
   const refreshEvents = useCallback(async () => {
     if (!currentInspectionId) return
@@ -255,94 +304,117 @@ export function useRealtimeInspection() {
     }
   }, [currentInspectionId])
 
-  const start = useCallback(async () => {
-    if (!selectedCameraId || isRunning || isStarting) return
-    setIsStarting(true)
-    setErrorMessage(null)
-    setNoticeMessage('실시간 탐지를 시작하는 중입니다.')
-    try {
-      const result = await startRealtimeInspection({ cameraId: selectedCameraId })
-      setCurrentInspectionId(result.inspectionId)
-      setRunStatus(result.runStatus)
-      setStartedAt(result.startedAt ? new Date(result.startedAt) : new Date())
-      setElapsedSeconds(0)
-      setEvents([])
-      setNoticeMessage('실시간 탐지가 진행 중입니다.')
-    } catch (error) {
-      setCurrentInspectionId(null)
-      setRunStatus('IDLE')
-      setStartedAt(null)
-      setNoticeMessage(null)
-      setErrorMessage(error instanceof Error ? error.message : '실시간 탐지 요청에 실패했습니다.')
-    } finally {
-      setIsStarting(false)
-    }
-  }, [isRunning, isStarting, selectedCameraId])
-
-  const stop = useCallback(async () => {
-    if (!currentInspectionId || !isRunning || isStopping) return
-    setIsStopping(true)
-    setErrorMessage(null)
-    setNoticeMessage('실시간 탐지를 중지하는 중입니다.')
-    try {
-      const result = await stopRealtimeInspection(currentInspectionId)
-      setRunStatus(result.runStatus)
-      setStartedAt(null)
-      setNoticeMessage('실시간 탐지가 중지되었습니다.')
-      await refreshEvents()
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '실시간 탐지 요청에 실패했습니다.')
-    } finally {
-      setIsStopping(false)
-    }
-  }, [currentInspectionId, isRunning, isStopping, refreshEvents])
-
   useEffect(() => {
     if (currentInspectionId) void refreshEvents()
   }, [currentInspectionId, refreshEvents])
 
+  const captureFrame = useCallback(async () => {
+    const video = videoRef.current
+    if (!video || isCapturing) return
+    if (video.videoWidth <= 0 || video.videoHeight <= 0) {
+      setErrorMessage('카메라 프레임을 아직 읽을 수 없습니다. 잠시 후 다시 시도해 주세요.')
+      return
+    }
+
+    setIsCapturing(true)
+    setErrorMessage(null)
+    setNoticeMessage(null)
+
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const context = canvas.getContext('2d')
+
+      if (!context) {
+        throw new Error('프레임 캡처용 캔버스를 초기화하지 못했습니다.')
+      }
+
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (nextBlob) => {
+            if (nextBlob) {
+              resolve(nextBlob)
+              return
+            }
+            reject(new Error('카메라 프레임 Blob 변환에 실패했습니다.'))
+          },
+          'image/jpeg',
+          0.92,
+        )
+      })
+
+      const timestamp = Date.now()
+      const file = new File([blob], `captured-frame-${timestamp}.jpg`, {
+        type: 'image/jpeg',
+      })
+      const startedAt = performance.now()
+      const result = await uploadInspection({
+        file,
+        inputMode: 'IMAGE',
+        sourceType: 'BROWSER_CAMERA',
+        roiMode: 'FULL_FRAME',
+        qualityGateEnabled: true,
+        idempotencyKey: createInspectionIdempotencyKey('camera-capture'),
+      })
+
+      setUploadResult(result)
+      setCurrentInspectionId(result.inspectionId)
+      setRequestDurationMs(performance.now() - startedAt)
+      setNoticeMessage('카메라 프레임 1장을 캡처해 검사 요청을 접수했습니다.')
+      await refreshEvents()
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '카메라 검사 요청에 실패했습니다.')
+    } finally {
+      setIsCapturing(false)
+    }
+  }, [isCapturing, refreshEvents])
+
   const statusMessage = useMemo(() => {
-    if (loadingCameras) return '카메라 목록을 불러오는 중입니다.'
-    if (cameras.length === 0) return '등록된 카메라가 없습니다.'
-    if (!selectedCameraId) return '카메라를 선택해주세요.'
-    if (isStarting) return '실시간 탐지를 시작하는 중입니다.'
-    if (isStopping) return '실시간 탐지를 중지하는 중입니다.'
-    if (isRunning) return '실시간 탐지가 진행 중입니다.'
-    if (runStatus === 'STOPPED') return '실시간 탐지가 중지되었습니다.'
-    return '실시간 탐지를 시작하려면 카메라를 선택하고 시작 버튼을 눌러주세요.'
-  }, [cameras.length, isRunning, isStarting, isStopping, loadingCameras, runStatus, selectedCameraId])
+    if (isCameraLoading) return '카메라 미리보기를 준비하는 중입니다.'
+    if (devices.length === 0) return '사용 가능한 브라우저 카메라가 없습니다.'
+    if (!selectedDeviceId) return '검사에 사용할 카메라를 선택해 주세요.'
+    if (isCapturing) return '현재 프레임을 캡처해 검사 요청을 전송하는 중입니다.'
+    if (uploadResult) return '최근 카메라 캡처 검사 요청이 접수되었습니다.'
+    if (isCameraReady) return '버튼을 누른 순간의 프레임 1장을 이미지 검사로 처리합니다.'
+    return '브라우저 카메라 권한을 허용하면 현재 화면 검사 기능을 사용할 수 있습니다.'
+  }, [devices.length, isCameraLoading, isCameraReady, isCapturing, selectedDeviceId, uploadResult])
 
   return {
-    cameras,
-    selectedCamera,
-    selectedCameraId,
+    videoRef,
+    devices,
+    selectedDeviceId,
     currentInspectionId,
-    runStatus,
-    isRunning,
-    isStarting,
-    isStopping,
-    loadingCameras,
-    elapsedSeconds,
+    isCameraLoading,
+    isCameraReady,
+    isCapturing,
     events,
     errorMessage,
     noticeMessage,
     statusMessage,
-    setSelectedCameraId,
-    refreshCameras,
+    uploadResult,
+    requestDurationMs,
+    setSelectedDeviceId,
+    refreshDevices,
     refreshEvents,
-    start,
-    stop,
+    captureFrame,
   }
 }
 
 function validateInspectionFile(file: File) {
   const extension = file.name.split('.').pop()?.toLowerCase()
   if (!extension || !ALLOWED_EXTENSIONS.includes(extension)) {
-    return '지원하지 않는 파일 형식입니다. JPG, PNG, MP4, MOV, AVI 파일을 선택해주세요.'
+    return '현재 MVP에서는 JPG, JPEG, PNG, WEBP 이미지 파일만 지원합니다.'
+  }
+
+  if (file.type?.startsWith('video/')) {
+    return '현재 MVP에서는 이미지 파일만 지원합니다.'
   }
 
   if (file.type && !ALLOWED_MIME_TYPES.includes(file.type)) {
-    return '지원하지 않는 MIME 타입입니다. 파일 형식을 확인해주세요.'
+    return '지원하지 않는 이미지 MIME 타입입니다. JPG, PNG, WEBP 파일만 업로드할 수 있습니다.'
   }
 
   if (file.size > MAX_UPLOAD_SIZE) {
@@ -352,8 +424,7 @@ function validateInspectionFile(file: File) {
   return null
 }
 
-function getFileKind(file: File): 'image' | 'video' {
-  if (file.type.startsWith('image/')) return 'image'
-  const extension = file.name.split('.').pop()?.toLowerCase()
-  return extension === 'jpg' || extension === 'jpeg' || extension === 'png' ? 'image' : 'video'
+function createInspectionIdempotencyKey(prefix: string) {
+  const random = Math.random().toString(36).slice(2, 10)
+  return `${prefix}-${Date.now()}-${random}`
 }

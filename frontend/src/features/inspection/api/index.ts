@@ -2,11 +2,7 @@ import { AxiosError } from 'axios'
 import { apiClient } from '../../../shared/api/client'
 import type {
   AnalysisTargetOption,
-  CameraSource,
   InspectionEvent,
-  StartRealtimeInspectionRequest,
-  StartRealtimeInspectionResponse,
-  StopRealtimeInspectionResponse,
   ThresholdOption,
   UploadInspectionPayload,
   UploadInspectionResponse,
@@ -33,10 +29,24 @@ export async function uploadInspection(
     formData.append('file', payload.file)
     if (payload.targetId) formData.append('targetId', String(payload.targetId))
     if (payload.thresholdId) formData.append('thresholdId', String(payload.thresholdId))
+    if (payload.inputMode) formData.append('inputMode', payload.inputMode)
+    if (payload.sourceType) formData.append('sourceType', payload.sourceType)
+    if (payload.roiMode) formData.append('roiMode', payload.roiMode)
+    if (payload.qualityGateEnabled !== undefined) {
+      formData.append('qualityGateEnabled', String(payload.qualityGateEnabled))
+    }
+    if (payload.idempotencyKey) formData.append('idempotencyKey', payload.idempotencyKey)
 
     const response = await apiClient.post<ApiResponse<UploadInspectionResponse>>(
       '/inspections/upload',
       formData,
+      {
+        headers: payload.idempotencyKey
+          ? {
+              'Idempotency-Key': payload.idempotencyKey,
+            }
+          : undefined,
+      },
     )
     return response.data.data
   } catch (error) {
@@ -57,42 +67,6 @@ export async function getMyThresholds(signal?: AbortSignal): Promise<ThresholdOp
   try {
     const response = await apiClient.get<ApiResponse<unknown>>('/users/me/thresholds', { signal })
     return toThresholdOptions(response.data.data)
-  } catch (error) {
-    throw new Error(getInspectionErrorMessage(error))
-  }
-}
-
-export async function getCameraSources(signal?: AbortSignal): Promise<CameraSource[]> {
-  try {
-    const response = await apiClient.get<ApiResponse<CameraSource[]>>('/camera-sources', { signal })
-    return response.data.data ?? []
-  } catch (error) {
-    throw new Error(getInspectionErrorMessage(error))
-  }
-}
-
-export async function startRealtimeInspection(
-  payload: StartRealtimeInspectionRequest,
-): Promise<StartRealtimeInspectionResponse> {
-  try {
-    const response = await apiClient.post<ApiResponse<StartRealtimeInspectionResponse>>(
-      '/inspections/realtime',
-      payload,
-    )
-    return response.data.data
-  } catch (error) {
-    throw new Error(getInspectionErrorMessage(error))
-  }
-}
-
-export async function stopRealtimeInspection(
-  inspectionId: number,
-): Promise<StopRealtimeInspectionResponse> {
-  try {
-    const response = await apiClient.patch<ApiResponse<StopRealtimeInspectionResponse>>(
-      `/inspections/${inspectionId}/stop`,
-    )
-    return response.data.data
   } catch (error) {
     throw new Error(getInspectionErrorMessage(error))
   }
@@ -120,18 +94,18 @@ function getInspectionErrorMessage(error: unknown) {
     const serverMessage = data?.detail ?? data?.title ?? data?.errorCode ?? data?.message
 
     if (serverMessage) return String(serverMessage)
-    if (status === 401) return '인증이 만료되었습니다. 다시 로그인해주세요.'
+    if (status === 401) return '인증이 만료되었거나 로그인 정보가 올바르지 않습니다.'
     if (status === 403) return '검사 요청 권한이 없습니다.'
-    if (status === 404) return '요청한 카메라 또는 검사를 찾을 수 없습니다.'
-    if (status === 409) return '이미 종료되었거나 현재 상태에서 처리할 수 없는 검사입니다.'
+    if (status === 404) return '요청한 검사 정보를 찾을 수 없습니다.'
+    if (status === 409) return '중복 요청이 감지되었거나 현재 상태에서 처리할 수 없습니다.'
     if (status === 422) return '검사 요청 값이 올바르지 않습니다.'
     if (status && status >= 500) return '서버 오류로 검사 요청에 실패했습니다.'
-    if (error.code === 'ERR_NETWORK') return '네트워크 상태를 확인해주세요.'
-    return '검사 요청에 실패했습니다. 파일 형식과 네트워크 상태를 확인해주세요.'
+    if (error.code === 'ERR_NETWORK') return '네트워크 상태를 확인해 주세요.'
+    return '검사 요청에 실패했습니다. 파일 형식과 네트워크 상태를 확인해 주세요.'
   }
 
   if (error instanceof Error) return error.message
-  return '검사 요청에 실패했습니다. 파일 형식과 네트워크 상태를 확인해주세요.'
+  return '검사 요청에 실패했습니다. 파일 형식과 네트워크 상태를 확인해 주세요.'
 }
 
 function toAnalysisTargetOptions(data: unknown): AnalysisTargetOption[] {
@@ -175,7 +149,7 @@ function toThresholdOptions(data: unknown): ThresholdOption[] {
   if (isRecord(data) && ('anomalyThreshold' in data || 'lowConfidenceThreshold' in data)) {
     return [
       {
-        name: data.source === 'SYSTEM_DEFAULT' ? '기본 임계값' : '내 임계값',
+        name: data.source === 'SYSTEM_DEFAULT' ? '기본 임계값' : '임계값',
         anomalyThreshold: toOptionalNumber(data.anomalyThreshold),
         lowConfidenceThreshold: toOptionalNumber(data.lowConfidenceThreshold),
         source: data.source ? String(data.source) : undefined,

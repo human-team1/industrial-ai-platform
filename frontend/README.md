@@ -1,5 +1,13 @@
 # Frontend
 
+## 탐지 MVP 정책
+
+- 업로드 탐지 화면은 이미지 파일만 허용합니다.
+- 허용 파일 형식은 `image/jpeg`, `image/png`, `image/webp`입니다.
+- `video/*` 파일은 선택 단계와 제출 단계에서 차단합니다.
+- 실시간 탐지 화면은 브라우저 카메라 프리뷰를 보여주고, `[현재 화면 검사]` 버튼 클릭 시 현재 프레임 1장을 캡처해 `/api/v1/inspections/upload`로 전송합니다.
+- `POST /inspections/realtime`, `POST /inspections/{inspectionId}/frames`, `PATCH /inspections/{inspectionId}/stop` API는 백엔드 확장 계약으로 유지하지만 현재 프론트에서는 호출하지 않습니다.
+
 React + Vite + TypeScript 기반 웹 클라이언트입니다. 사용자는 검사/결과/문서/RAG/챗봇/대시보드 화면을 이용하고, 관리자는 가입 승인 등 운영 화면을 사용합니다.
 
 ## 현재 스택

@@ -78,6 +78,8 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         Long orgId = user.getOrganizationId();
         Long userId = command.getUserId();
         MultipartFile file = command.getFile();
+        String inputMode = resolveInputMode(command, file);
+        String sourceType = resolveSourceType(command);
         String fingerprint = PayloadFingerprintCalculator.compute(
                 orgId, userId, command.getTargetId(), command.getThresholdId(),
                 null, file.getOriginalFilename(), file.getContentType(), file.getSize()
@@ -124,9 +126,10 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                     uploadedFile,
                     InspectionInput.builder()
                             .inspectionId(runId)
-                            .sourceType(InputSourceType.FILE)
+                            .sourceType(resolveInputSourceType(sourceType))
                             .sourceName(file.getOriginalFilename())
                             .mimeType(file.getContentType())
+                            .frameCount(isBrowserCamera(sourceType) ? 1 : null)
                             .build(),
                     file.getOriginalFilename()
             );
@@ -144,13 +147,15 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
 
     private InspectionRun createRun(SubmitInspectionCommand command, ResolvedThreshold resolved, Long orgId,
                                     Long userId, String idempotencyKey, String fingerprint, MultipartFile file) {
+        String inputMode = resolveInputMode(command, file);
+        String sourceType = resolveSourceType(command);
         return inspectionUploadTransactionService.createPendingRun(InspectionRun.builder()
                 .organizationId(orgId)
                 .userId(userId)
                 .targetId(command.getTargetId())
                 .runType(RunType.UPLOAD)
-                .inputType("FILE")
-                .sourceType("UPLOAD")
+                .inputType(inputMode)
+                .sourceType(sourceType)
                 .sourceId(file.getOriginalFilename())
                 .runStatus(RunStatus.PENDING)
                 .appliedThreshold(BigDecimal.valueOf(resolved.getAnomalyThreshold()))
@@ -241,6 +246,46 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
             throw new BusinessException(ErrorCode.INVALID_IDEMPOTENCY_KEY);
         }
         return idempotencyKey;
+    }
+
+    private String resolveInputMode(SubmitInspectionCommand command, MultipartFile file) {
+        String rawMode = command.getInputMode();
+        if (rawMode != null && !rawMode.isBlank()) {
+            String normalized = rawMode.trim().toUpperCase(Locale.ROOT);
+            if ("IMAGE".equals(normalized) || "VIDEO".equals(normalized)) {
+                return normalized;
+            }
+        }
+
+        String contentType = file.getContentType();
+        if (contentType != null && contentType.toLowerCase(Locale.ROOT).startsWith("video/")) {
+            return "VIDEO";
+        }
+        return "IMAGE";
+    }
+
+    private String resolveSourceType(SubmitInspectionCommand command) {
+        String rawSourceType = command.getSourceType();
+        if (rawSourceType == null || rawSourceType.isBlank()) {
+            return "IMAGE";
+        }
+
+        String normalized = rawSourceType.trim().toUpperCase(Locale.ROOT);
+        if ("BROWSER_CAMERA".equals(normalized)) {
+            return "BROWSER_CAMERA";
+        }
+        return "IMAGE";
+    }
+
+    private InputSourceType resolveInputSourceType(String sourceType) {
+        if (isBrowserCamera(sourceType)) {
+            return InputSourceType.BROWSER_CAMERA;
+        }
+        return InputSourceType.FILE;
+    }
+
+    private boolean isBrowserCamera(String sourceType) {
+        return "BROWSER_CAMERA".equalsIgnoreCase(sourceType);
     }
 
     private ErrorCode mapFailedErrorCode(String errorCode) {

@@ -142,20 +142,28 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
-| POST | `/inspections/upload` | 이미지/영상 업로드 검사 요청 | USER |
-| POST | `/inspections/realtime` | 실시간 검사 세션 시작 | USER |
-| POST | `/inspections/{inspectionId}/frames` | 실시간 프레임 검사 | USER |
-| PATCH | `/inspections/{inspectionId}/stop` | 실시간 검사 중지 | USER |
+| POST | `/inspections/upload` | 이미지 업로드 검사 요청 | USER |
+| POST | `/inspections/realtime` | 실시간 검사 세션 시작. 백엔드 확장 계약으로 유지 | USER |
+| POST | `/inspections/{inspectionId}/frames` | 실시간 프레임 검사. 백엔드 확장 계약으로 유지 | USER |
+| PATCH | `/inspections/{inspectionId}/stop` | 실시간 검사 중지. 백엔드 확장 계약으로 유지 | USER |
 | GET | `/inspections` | 검사 실행 목록 조회 | USER |
 | GET | `/inspections/{inspectionId}` | 검사 실행 상세 조회 | USER |
 | GET | `/inspections/{inspectionId}/events` | 검사 이벤트 로그 조회 | USER |
+
+> MVP 프론트에서는 영상 파일 업로드와 지속 실시간 스트리밍을 제공하지 않는다.  
+> 업로드 탐지는 이미지 파일만 지원하고, 카메라 검사는 브라우저 카메라 프리뷰에서 버튼 클릭 시 현재 프레임 1장을 캡처하여 `/inspections/upload`로 전송한다.
+
+---
 
 ## 6.2 ROI / 품질검사 기준
 
 | 항목 | 기준 |
 | --- | --- |
-| 영상/실시간 기본 처리 | 고정 ROI 기반 |
+| MVP 프론트 입력 범위 | 이미지 업로드, 브라우저 카메라 단건 캡처 |
+| ROI 기본 처리 | `FULL_FRAME` 기본, ROI 지정 시 `FIXED` 고정 ROI |
+| 영상/지속 스트리밍 처리 | 백엔드 확장 계약으로 유지, MVP 프론트 미사용 |
 | 객체탐지/세그멘테이션 | MVP 범위 제외 |
+| 자동 ROI 탐지 | MVP 범위 제외 |
 | 좌표 타입 | `NORMALIZED` |
 | 좌표 범위 | `0.0 ~ 1.0` |
 | 품질검사 실패 | `DEFECT`가 아니라 `RECHECK` |
@@ -165,31 +173,70 @@
 
 ## 6.3 POST `/inspections/upload`
 
-이미지 또는 영상 파일을 업로드하여 검사를 요청한다.
+이미지 파일을 업로드하여 검사를 요청한다.
 
-- 이미지: 단일 이미지 추론
-- 영상: 프레임 샘플링 → 고정 ROI crop → 입력 품질 검사 → PatchCore 추론 → 영상 단위 집계
+MVP 프론트에서는 이미지 파일만 전송한다.  
+브라우저 카메라 단건 캡처도 현재 프레임을 이미지 파일로 변환한 뒤 이 API로 전송한다.
+
+- 이미지 업로드: 단일 이미지 추론
+- 카메라 캡처: 버튼 클릭 시 캡처한 프레임 1장을 이미지 추론
+- 영상 파일 업로드: 백엔드 확장 계약으로 유지하되 MVP 프론트에서는 사용하지 않는다.
 
 `multipart/form-data`
 
 | Field | Type | Required | 설명 |
 | --- | --- | --- | --- |
-| `file` | File | Y | 이미지/영상 파일 |
+| `file` | File | Y | 검사할 이미지 파일. MVP 프론트 허용 형식은 jpg/jpeg/png/webp |
 | `targetId` | Long | N | 검사 대상 ID |
 | `thresholdId` | Long | N | 적용 임계값 ID |
-| `inputMode` | String | N | `IMAGE / VIDEO`, 없으면 MIME 기반 판별 |
+| `inputMode` | String | N | MVP 프론트 기본값 `IMAGE`. `VIDEO`는 백엔드 확장 계약으로 유지 |
+| `sourceType` | String | N | 입력 출처. 기본 `IMAGE`, 카메라 캡처 시 `BROWSER_CAMERA` |
 | `roiMode` | String | N | `FULL_FRAME / FIXED`, 기본 `FULL_FRAME` |
 | `roiCoordinateType` | String | N | 기본 `NORMALIZED` |
 | `roiX` | Decimal | N | 정규화 ROI x. `0~1` |
 | `roiY` | Decimal | N | 정규화 ROI y. `0~1` |
 | `roiWidth` | Decimal | N | 정규화 ROI width. `0~1` |
 | `roiHeight` | Decimal | N | 정규화 ROI height. `0~1` |
-| `samplingFps` | Decimal | N | 영상 분석 FPS. 기본 `1.00` |
-| `maxFrames` | Int | N | 영상 분석 최대 프레임 수. 기본 `60` |
+| `samplingFps` | Decimal | N | 영상 확장용 필드. MVP 프론트에서는 전송하지 않음 |
+| `maxFrames` | Int | N | 영상 확장용 필드. MVP 프론트에서는 전송하지 않음 |
 | `qualityGateEnabled` | Boolean | N | 입력 품질 검사 사용 여부. 기본 `true` |
 | `idempotencyKey` | String | N | 중복 요청 방지 키 |
 
-### Response
+### 이미지 업로드 요청 예시
+
+```http
+POST /api/v1/inspections/upload
+Content-Type: multipart/form-data
+Authorization: Bearer {accessToken}
+```
+
+```text
+file=sample.jpg
+inputMode=IMAGE
+sourceType=IMAGE
+roiMode=FULL_FRAME
+qualityGateEnabled=true
+idempotencyKey=upload-20260503-0001
+```
+
+### 카메라 캡처 요청 예시
+
+```http
+POST /api/v1/inspections/upload
+Content-Type: multipart/form-data
+Authorization: Bearer {accessToken}
+```
+
+```text
+file=captured-frame-20260503-100000.jpg
+inputMode=IMAGE
+sourceType=BROWSER_CAMERA
+roiMode=FULL_FRAME
+qualityGateEnabled=true
+idempotencyKey=camera-capture-20260503-100000-a1b2c3
+```
+
+### 이미지 업로드 Response
 
 ```json
 {
@@ -197,13 +244,29 @@
   "data": {
     "inspectionId": 1001,
     "runStatus": "PROCESSING",
-    "inputType": "VIDEO",
-    "roiMode": "FIXED",
-    "samplingFps": 1.0,
-    "maxFrames": 60,
+    "inputType": "IMAGE",
+    "sourceType": "IMAGE",
+    "roiMode": "FULL_FRAME",
     "qualityGateEnabled": true
   },
   "message": "업로드 검사가 요청되었습니다."
+}
+```
+
+### 카메라 캡처 Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "inspectionId": 1002,
+    "runStatus": "PROCESSING",
+    "inputType": "IMAGE",
+    "sourceType": "BROWSER_CAMERA",
+    "roiMode": "FULL_FRAME",
+    "qualityGateEnabled": true
+  },
+  "message": "카메라 캡처 검사가 요청되었습니다."
 }
 ```
 
@@ -215,16 +278,21 @@
 | 손상 파일 | 422 |
 | `roiMode=FIXED`인데 ROI 좌표 누락 | 422 |
 | ROI 좌표가 0~1 범위를 벗어남 | 422 |
-| `samplingFps <= 0` | 422 |
-| `maxFrames <= 0` | 422 |
+| 영상 확장 요청에서 `samplingFps <= 0` | 422 |
+| 영상 확장 요청에서 `maxFrames <= 0` | 422 |
 | 동일 `idempotencyKey` + 다른 payload | 409 |
+| MVP 프론트에서 video/* MIME 선택 | 프론트에서 차단 |
 
 ---
 
 ## 6.4 POST `/inspections/realtime`
 
-실시간 검사 세션을 시작한다.  
-MVP에서는 고정 ROI 기반으로 처리한다.
+실시간 검사 세션을 시작한다.
+
+이 API는 실제 센서/RTSP/PLC 연동 또는 자동 주기 검사 확장용 계약으로 유지한다.  
+현재 MVP 프론트에서는 이 API를 호출하지 않는다.
+
+MVP 프론트의 카메라 검사는 `/inspections/upload`를 재사용하여 버튼 클릭 시 캡처한 이미지 1장을 전송한다.
 
 ### Request
 
@@ -268,8 +336,12 @@ MVP에서는 고정 ROI 기반으로 처리한다.
 
 ## 6.5 POST `/inspections/{inspectionId}/frames`
 
-실시간 세션에서 캡처한 프레임 1장을 전송한다.  
-MVP에서는 WebSocket 대신 HTTP multipart 전송을 기본으로 한다.
+실시간 세션에서 캡처한 프레임 1장을 전송한다.
+
+이 API는 실시간 세션 기반 확장용 계약으로 유지한다.  
+현재 MVP 프론트에서는 호출하지 않는다.
+
+MVP 프론트의 브라우저 카메라 검사는 `/inspections/upload`로 단건 이미지 캡처를 전송한다.
 
 `multipart/form-data`
 
@@ -308,6 +380,9 @@ MVP에서는 WebSocket 대신 HTTP multipart 전송을 기본으로 한다.
 ## 6.6 PATCH `/inspections/{inspectionId}/stop`
 
 실시간 검사 세션을 중지하고 세션 단위 결과를 집계한다.
+
+이 API는 실시간 세션 기반 확장용 계약으로 유지한다.  
+현재 MVP 프론트에서는 호출하지 않는다.
 
 ### Request
 
@@ -368,36 +443,36 @@ MVP에서는 WebSocket 대신 HTTP multipart 전송을 기본으로 한다.
   "success": true,
   "data": {
     "inspectionId": 2001,
-    "runType": "REALTIME",
-    "inputType": "BROWSER_CAMERA",
+    "runType": "UPLOAD",
+    "inputType": "IMAGE",
     "sourceType": "BROWSER_CAMERA",
     "runStatus": "COMPLETED",
     "appliedThreshold": 0.75,
     "startedAt": "2026-05-03T10:00:00",
-    "completedAt": "2026-05-03T10:01:00",
+    "completedAt": "2026-05-03T10:00:03",
     "input": {
-      "roiMode": "FIXED",
+      "roiMode": "FULL_FRAME",
       "roiCoordinateType": "NORMALIZED",
-      "roiX": 0.25,
-      "roiY": 0.2,
-      "roiWidth": 0.5,
-      "roiHeight": 0.5,
-      "samplingFps": 1.0,
+      "roiX": null,
+      "roiY": null,
+      "roiWidth": null,
+      "roiHeight": null,
+      "samplingFps": null,
       "maxFrames": null,
       "qualityGateEnabled": true
     },
     "resultSummary": {
       "resultId": 3001,
-      "finalDecisionCode": "RECHECK",
-      "analyzedFrameCount": 48,
-      "skippedFrameCount": 12,
+      "finalDecisionCode": "NORMAL",
+      "analyzedFrameCount": 1,
+      "skippedFrameCount": 0,
       "defectFrameCount": 0,
-      "recheckFrameCount": 12,
-      "maxFrameScore": 0.5512,
-      "avgFrameScore": 0.2304,
-      "representativeFrameSeq": 17,
-      "inputQualityStatus": "WARNING",
-      "inputQualityReason": "SOME_FRAMES_RECHECK"
+      "recheckFrameCount": 0,
+      "maxFrameScore": 0.1204,
+      "avgFrameScore": 0.1204,
+      "representativeFrameSeq": 1,
+      "inputQualityStatus": "PASSED",
+      "inputQualityReason": null
     }
   },
   "message": "검사 실행 상세를 조회했습니다."
@@ -457,37 +532,28 @@ MVP에서는 WebSocket 대신 HTTP multipart 전송을 기본으로 한다.
     "targetId": 1,
     "equipmentName": "프레스 #1",
     "locationName": "라인 A-1",
-    "inputType": "VIDEO",
-    "score": 0.8821,
+    "inputType": "IMAGE",
+    "sourceType": "BROWSER_CAMERA",
+    "score": 0.1204,
     "confidence": 0.89,
-    "decisionCode": "DEFECT",
-    "finalDecisionCode": "DEFECT",
+    "decisionCode": "NORMAL",
+    "finalDecisionCode": "NORMAL",
     "resultStatus": "COMPLETED",
     "thresholdId": 2,
     "thresholdVersion": 3,
     "modelVersionId": 10,
     "roi": {
-      "roiMode": "FIXED",
+      "roiMode": "FULL_FRAME",
       "roiCoordinateType": "NORMALIZED",
-      "roiX": 0.25,
-      "roiY": 0.2,
-      "roiWidth": 0.5,
-      "roiHeight": 0.5
+      "roiX": null,
+      "roiY": null,
+      "roiWidth": null,
+      "roiHeight": null
     },
-    "videoSummary": {
-      "samplingFps": 1.0,
-      "frameCount": 60,
-      "analyzedFrameCount": 48,
-      "skippedFrameCount": 12,
-      "defectFrameCount": 2,
-      "recheckFrameCount": 8,
-      "maxFrameScore": 0.8821,
-      "avgFrameScore": 0.3412,
-      "representativeFrameSeq": 31
-    },
+    "videoSummary": null,
     "inputQuality": {
-      "status": "WARNING",
-      "reason": "SOME_FRAMES_RECHECK"
+      "status": "PASSED",
+      "reason": null
     },
     "failureReason": null,
     "createdAt": "2026-05-03T10:01:00"
