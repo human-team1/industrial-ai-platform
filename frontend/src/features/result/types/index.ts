@@ -84,6 +84,14 @@ export type ResultDecisionInfo = {
   createdAt?: string | null
 }
 
+export type ResultModelInfo = {
+  modelId?: number | null
+  modelName?: string | null
+  versionName?: string | null
+  modelCategory?: string | null
+  modelProfile?: string | null
+}
+
 export type ResultArtifact = {
   artifactId: number
   artifactType?: string | null
@@ -145,6 +153,7 @@ export type ResultDetail = {
   target: ResultTarget
   inspection: ResultInspection
   result: ResultDecisionInfo
+  model?: ResultModelInfo | null
   artifacts: ResultArtifact[]
   images: ResultImage[]
   review: ReviewQueueSummary

@@ -143,6 +143,7 @@ public class ResultQueryService implements
                 .target(detail.getTarget())
                 .inspection(detail.getInspection())
                 .result(detail.getResult())
+                .model(detail.getModel())
                 .artifacts(detail.getArtifacts())
                 .images(detail.getImages())
                 .review(detail.getReview())

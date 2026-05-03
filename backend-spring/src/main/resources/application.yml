@@ -81,7 +81,7 @@ app:
     secure: ${MINIO_SECURE:false}
     auto-create-buckets: ${MINIO_AUTO_CREATE_BUCKETS:true}
   jwt:
-    secret: ${JWT_SECRET:change_me_jwt_secret}
+    secret: ${JWT_SECRET:change_me_jwt_secret_change_me_jwt_secret}
     expire-minutes: ${JWT_EXPIRE_MINUTES:60}
   oauth2:
     google:

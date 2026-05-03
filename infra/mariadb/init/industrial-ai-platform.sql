@@ -152,35 +152,67 @@
   CREATE TABLE model (
     model_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     model_name VARCHAR(100) NOT NULL,
-    model_type VARCHAR(50),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    model_type VARCHAR(50) NOT NULL,
+    description TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uk_model_name_type UNIQUE (model_name, model_type)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
   CREATE TABLE model_version (
     model_version_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     model_id BIGINT NOT NULL,
     file_id BIGINT,
-    version_name VARCHAR(100),
+    version_name VARCHAR(100) NOT NULL,
+    model_category VARCHAR(20) NOT NULL,
+    model_profile VARCHAR(20) NOT NULL,
+    framework VARCHAR(50),
+    input_size VARCHAR(50),
+    threshold_default DECIMAL(5,4),
     accuracy DECIMAL(6,4),
     precision_score DECIMAL(6,4),
     recall_score DECIMAL(6,4),
-    deploy_status VARCHAR(20) NOT NULL DEFAULT 'READY',
+    f1_score DECIMAL(6,4),
+    auroc_score DECIMAL(6,4),
+    deploy_status VARCHAR(20) NOT NULL DEFAULT 'REGISTERED',
     is_active BOOLEAN NOT NULL DEFAULT FALSE,
     validated_at TIMESTAMP NULL,
     validated_by BIGINT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_model_version_model FOREIGN KEY (model_id) REFERENCES model(model_id),
     CONSTRAINT fk_model_version_file FOREIGN KEY (file_id) REFERENCES file(file_id),
-    CONSTRAINT fk_model_version_validated_by FOREIGN KEY (validated_by) REFERENCES users(user_id)
+    CONSTRAINT fk_model_version_validated_by FOREIGN KEY (validated_by) REFERENCES users(user_id),
+    CONSTRAINT uk_model_version_name UNIQUE (model_id, version_name)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+  CREATE TABLE model_artifact (
+    model_artifact_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    model_version_id BIGINT NOT NULL,
+    file_id BIGINT NOT NULL,
+    artifact_type VARCHAR(20) NOT NULL,
+    checksum VARCHAR(128),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_model_artifact_version FOREIGN KEY (model_version_id) REFERENCES model_version(model_version_id),
+    CONSTRAINT fk_model_artifact_file FOREIGN KEY (file_id) REFERENCES file(file_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
   CREATE TABLE model_deployment (
     deployment_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    organization_id BIGINT NOT NULL,
+    target_id BIGINT NULL,
     model_version_id BIGINT NOT NULL,
-    deployed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    rollback_flag BOOLEAN NOT NULL DEFAULT FALSE,
+    deployment_scope VARCHAR(20) NOT NULL,
     deploy_status VARCHAR(20) NOT NULL DEFAULT 'DEPLOYED',
-    CONSTRAINT fk_model_deployment_version FOREIGN KEY (model_version_id) REFERENCES model_version(model_version_id)
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    deployed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deployed_by BIGINT NULL,
+    rollback_from_deployment_id BIGINT NULL,
+    reason VARCHAR(255) NULL,
+    rollback_flag BOOLEAN NOT NULL DEFAULT FALSE,
+    CONSTRAINT fk_model_deployment_version FOREIGN KEY (model_version_id) REFERENCES model_version(model_version_id),
+    CONSTRAINT fk_model_deployment_organization FOREIGN KEY (organization_id) REFERENCES organization(organization_id),
+    CONSTRAINT fk_model_deployment_target FOREIGN KEY (target_id) REFERENCES analysis_target(target_id),
+    CONSTRAINT fk_model_deployment_user FOREIGN KEY (deployed_by) REFERENCES users(user_id),
+    CONSTRAINT fk_model_deployment_rollback FOREIGN KEY (rollback_from_deployment_id) REFERENCES model_deployment(deployment_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
   CREATE TABLE inspection_run (
@@ -569,6 +601,10 @@
   CREATE INDEX idx_inspection_run_org_status_completed ON inspection_run(organization_id, run_status, completed_at);
   CREATE INDEX idx_result_decision ON inspection_result(decision_code);
   CREATE INDEX idx_result_inspection_decision ON inspection_result(inspection_id, decision_code, final_decision_code, created_at);
+  CREATE INDEX idx_model_type_created ON model(model_type, created_at);
+  CREATE INDEX idx_model_version_model_status ON model_version(model_id, deploy_status, is_active, created_at);
+  CREATE INDEX idx_model_artifact_version_type ON model_artifact(model_version_id, artifact_type);
+  CREATE INDEX idx_model_deployment_scope ON model_deployment(organization_id, target_id, deployment_scope, is_active);
   CREATE INDEX idx_analysis_target_org_status ON analysis_target(organization_id, target_status);
   CREATE INDEX idx_notification_user_created ON notification(user_id, created_at);
   CREATE INDEX idx_operation_log_created ON operation_log(created_at);

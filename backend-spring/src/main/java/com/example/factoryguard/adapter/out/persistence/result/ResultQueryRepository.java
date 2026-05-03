@@ -1,5 +1,6 @@
 package com.example.factoryguard.adapter.out.persistence.result;
 
+import com.example.factoryguard.application.dto.model.ResultModelInfoResponse;
 import com.example.factoryguard.application.dto.result.AnomalyRegionResponse;
 import com.example.factoryguard.application.dto.result.ListInspectionResultsQuery;
 import com.example.factoryguard.application.dto.result.RelatedResultResponse;
@@ -108,11 +109,18 @@ public class ResultQueryRepository {
                     r.created_at,
                     rq.queue_status,
                     rq.queued_reason,
-                    ir.organization_id
+                    ir.organization_id,
+                    mv.model_id,
+                    m.model_name,
+                    mv.version_name,
+                    mv.model_category,
+                    mv.model_profile
                 FROM inspection_result r
                 JOIN inspection_run ir ON r.inspection_id = ir.inspection_id
                 LEFT JOIN analysis_target at ON ir.target_id = at.target_id
                 LEFT JOIN review_queue rq ON r.result_id = rq.result_id
+                LEFT JOIN model_version mv ON r.model_version_id = mv.model_version_id
+                LEFT JOIN model m ON mv.model_id = m.model_id
                 WHERE r.result_id = :resultId
                 """);
         query.setParameter("resultId", resultId);
@@ -154,6 +162,13 @@ public class ResultQueryRepository {
                         .modelVersionId(toLongObject(row[19]))
                         .failureReason(toStringObject(row[20]))
                         .createdAt(toLocalDateTime(row[21]))
+                        .build())
+                .model(toLongObject(row[25]) == null ? null : ResultModelInfoResponse.builder()
+                        .modelId(toLongObject(row[25]))
+                        .modelName(toStringObject(row[26]))
+                        .versionName(toStringObject(row[27]))
+                        .modelCategory(toStringObject(row[28]))
+                        .modelProfile(toStringObject(row[29]))
                         .build())
                 .artifacts(findArtifacts(detailResultId))
                 .images(images)

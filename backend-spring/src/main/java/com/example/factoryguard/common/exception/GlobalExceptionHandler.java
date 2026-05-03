@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
@@ -76,6 +77,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ProblemDetailsResponse> handleMissingParam(
             MissingServletRequestParameterException exception, WebRequest request) {
+        ErrorCode errorCode = ErrorCode.INVALID_REQUEST;
+        return ResponseEntity.status(errorCode.getStatus())
+                .body(toProblem(errorCode, exception.getMessage(), request.getDescription(false), null));
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ProblemDetailsResponse> handleMissingPart(
+            MissingServletRequestPartException exception, WebRequest request) {
         ErrorCode errorCode = ErrorCode.INVALID_REQUEST;
         return ResponseEntity.status(errorCode.getStatus())
                 .body(toProblem(errorCode, exception.getMessage(), request.getDescription(false), null));

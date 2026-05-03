@@ -82,6 +82,35 @@ export function ResultDetailPage() {
             result={data.result}
             originalImage={originalImage}
           />
+          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-4 text-base font-semibold text-slate-950">사용 모델</h2>
+            {data.model ? (
+              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-slate-500">모델명</dt>
+                  <dd className="mt-1 text-sm text-slate-900">{data.model.modelName ?? '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-slate-500">버전명</dt>
+                  <dd className="mt-1 text-sm text-slate-900">{data.model.versionName ?? '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-slate-500">카테고리</dt>
+                  <dd className="mt-1 text-sm text-slate-900">{data.model.modelCategory ?? '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-slate-500">프로필</dt>
+                  <dd className="mt-1 text-sm text-slate-900">{data.model.modelProfile ?? '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-semibold uppercase text-slate-500">modelVersionId</dt>
+                  <dd className="mt-1 text-sm text-slate-900">{data.result.modelVersionId ?? '-'}</dd>
+                </div>
+              </dl>
+            ) : (
+              <p className="text-sm text-slate-500">모델 정보 없음</p>
+            )}
+          </section>
           <ProbabilityDecisionCard result={data.result} />
           <BarChartCard
             viewModel={toRegionScoreChart(data)}
