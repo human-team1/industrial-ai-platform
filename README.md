@@ -97,4 +97,23 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8001
 
 - [`docs/auth/api-authority-matrix.md`](docs/auth/api-authority-matrix.md)
 
+## Nginx 단일 진입점
+
+중간발표 Cloudflare Tunnel과 최종발표 집컴 도메인/DDNS 배포는 같은 Nginx 게이트웨이를 공통으로 사용합니다.
+
+```text
+외부 사용자
+  ↓
+Cloudflare Tunnel 또는 도메인/DDNS
+  ↓
+Nginx
+  ├─ /      → Frontend
+  └─ /api   → Spring Boot
+```
+
+- 외부 공개 포트는 우선 `80`만 사용합니다.
+- FastAPI, MariaDB, Redis, MinIO, ChromaDB는 외부에 직접 공개하지 않습니다.
+- 프론트 API base URL 기본값은 `/api/v1` 상대경로입니다.
+- 자세한 실행 방법은 [`infra/README.md`](infra/README.md), 포트 정책은 [`docs/project/포트정리.md`](docs/project/포트정리.md)를 따릅니다.
+
 다른 문서에서는 권한 상세를 중복 설명하지 않고 위 문서를 참조합니다.

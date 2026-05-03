@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 
 // accessToken을 메모리에만 보관 (localStorage 저장 금지 — XSS 탈취 방지)
 let _memoryToken: string | null = null

@@ -117,3 +117,10 @@ Copy-Item .env.example .env
 
 - 현재 local profile은 `ddl-auto=validate`입니다. 테이블 자동 생성이 아니라 init SQL 실행이 필요합니다.
 - `bootrun-*.txt`, `.env`, `build/`, `.gradle/`은 커밋하지 않습니다.
+## CORS 메모
+
+- 기본 로컬 값은 `APP_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost`입니다.
+- 중간발표 Cloudflare Tunnel 예시: `APP_CORS_ALLOWED_ORIGINS=https://xxxx.trycloudflare.com`
+- 최종발표 도메인 예시: `APP_CORS_ALLOWED_ORIGINS=https://your-domain.com`
+- 운영/외부 공개 기준에서 `*`는 사용하지 않습니다.
+- 프론트가 `/api/v1` 상대경로를 사용하고 Nginx가 같은 origin에서 프록시하면 CORS 의존도를 줄일 수 있습니다.

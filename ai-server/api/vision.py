@@ -14,4 +14,4 @@ async def infer_image(
     service: VisionInferenceService = Depends(get_vision_inference_service),
 ) -> InferImageApiResponse:
     request_id = getattr(request.state, "request_id", None) or request.headers.get("X-Request-Id") or "generated-request-id"
-    return service.infer_image(payload, request_id)
+    return await service.infer_image(payload, request_id)

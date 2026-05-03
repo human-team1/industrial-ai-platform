@@ -6,6 +6,7 @@ from application.rag_service import RagService
 from application.vision_inference_service import VisionInferenceService
 from config.settings import get_settings
 from infrastructure.chroma_client import ChromaClientWrapper
+from infrastructure.concurrency.inference_limiter import InferenceLimiter
 from infrastructure.fallback_inferencer import StatisticalFallbackInferencer
 from infrastructure.heatmap_generator import HeatmapGenerator
 from infrastructure.image_preprocessor import VisionImagePreprocessor
@@ -83,6 +84,16 @@ def get_heatmap_generator() -> HeatmapGenerator:
     return HeatmapGenerator()
 
 
+@lru_cache
+def get_inference_limiter() -> InferenceLimiter:
+    settings = get_settings()
+    return InferenceLimiter(
+        max_concurrency=settings.max_inference_concurrency,
+        queue_size=settings.inference_queue_size,
+    )
+
+
+@lru_cache
 def get_vision_inference_service() -> VisionInferenceService:
     settings = get_settings()
     return VisionInferenceService(
@@ -94,6 +105,7 @@ def get_vision_inference_service() -> VisionInferenceService:
         quality_evaluator=get_quality_evaluator(),
         inferencer=get_fallback_inferencer(),
         heatmap_generator=get_heatmap_generator(),
+        inference_limiter=get_inference_limiter(),
         inspection_artifact_bucket_name=settings.minio_bucket_inspection_artifacts,
         model_bucket_name=settings.minio_bucket_models,
     )

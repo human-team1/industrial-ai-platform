@@ -29,8 +29,7 @@ Copy-Item .env.example .env
 | 변수 | 설명 |
 | --- | --- |
 | `VITE_APP_NAME` | 앱 이름 |
-| `VITE_API_BASE_URL` | Spring API base URL, 예: `http://localhost:8080/api/v1` |
-| `VITE_AI_API_BASE_URL` | FastAPI AI base URL |
+| `VITE_API_BASE_URL` | Spring API base URL, 기본값 `/api/v1` |
 | `VITE_GOOGLE_CLIENT_ID` | Google OAuth Client ID |
 
 ## 설치
@@ -106,3 +105,9 @@ src/
 ## 커밋 제외
 
 `node_modules/`, `dist/`, `.env`, `*.log`는 커밋하지 않습니다.
+## Nginx 게이트웨이 기준 API 경로
+
+- `VITE_API_BASE_URL` 기본값은 `/api/v1`입니다.
+- 운영/시연 환경에서는 `http://localhost:8080/api/v1` 같은 절대 주소를 사용하지 않습니다.
+- Cloudflare Tunnel 주소나 최종 도메인이 바뀌어도 같은 프론트 코드가 동작하도록 상대경로를 유지합니다.
+- FastAPI는 프론트에서 직접 호출하지 않고 Spring Boot 내부 연동으로만 사용합니다.

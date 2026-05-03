@@ -69,6 +69,17 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 uvicorn main:app --reload --host 0.0.0.0 --port 8001
 ```
 
+발표/시연 서버 기준:
+
+```powershell
+uvicorn main:app --host 0.0.0.0 --port 8001 --workers 1
+```
+
+- `--reload`와 `--workers`는 동시에 사용하지 않습니다.
+- 발표/시연 환경에서는 `--workers 1`을 유지합니다.
+- AI 추론 기본 설정은 `MAX_INFERENCE_CONCURRENCY=1`, `INFERENCE_QUEUE_SIZE=5`입니다.
+- 현재 정책은 "동시 실행 1개 + 대기열 5개"이며, 대기열 초과 시 `429`를 반환합니다.
+
 확인:
 
 - `http://localhost:8001/docs`
