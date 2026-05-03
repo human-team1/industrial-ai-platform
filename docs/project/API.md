@@ -1430,3 +1430,9 @@ FastAPI는 전달받은 `ckptFileKey`, `configFileKey`, `memoryBankFileKey`를 �
   }
 }
 ```
+## Async Upload Notes
+
+- `POST /inspections/upload` 는 FastAPI 추론 완료를 기다리지 않고 `runStatus=PROCESSING` 을 즉시 반환한다.
+- 업로드 요청이 성공하면 Spring 이 `inspection_run` 과 `async_job(job_type=AI_IMAGE_INFERENCE)` 를 생성한다.
+- 실제 AI 추론은 Spring worker 가 `ASYNC_JOB` 을 순차 처리하면서 FastAPI `/ai/v1/internal/vision/infer-image` 를 호출한다.
+- 프론트는 `inspectionId` 기준 polling 으로 `PROCESSING -> COMPLETED/FAILED` 상태를 확인한다.

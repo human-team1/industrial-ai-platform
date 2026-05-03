@@ -47,8 +47,17 @@ inspection:
       - mp4
   decision:
     boundary-margin: 0.05
+  ai-job-worker:
+    enabled: ${AI_JOB_WORKER_ENABLED:true}
+    concurrency: ${AI_JOB_WORKER_CONCURRENCY:1}
+    poll-interval-ms: ${AI_JOB_POLL_INTERVAL_MS:1000}
+    batch-size: ${AI_JOB_BATCH_SIZE:1}
+    max-retry: ${AI_JOB_MAX_RETRY:0}
 
 app:
+  session:
+    max-active-users: ${MAX_ACTIVE_USERS:3}
+    active-session-ttl-seconds: ${ACTIVE_SESSION_TTL_SECONDS:1800}
   document:
     upload:
       max-size-bytes: ${DOCUMENT_UPLOAD_MAX_SIZE_BYTES:52428800}
@@ -58,7 +67,7 @@ app:
   ai-server:
     base-url: ${AI_SERVER_BASE_URL:http://localhost:8001}
     connect-timeout-sec: ${AI_SERVER_CONNECT_TIMEOUT_SEC:5}
-    read-timeout-sec: ${AI_SERVER_READ_TIMEOUT_SEC:60}
+    read-timeout-sec: ${AI_REQUEST_TIMEOUT_SECONDS:${AI_SERVER_READ_TIMEOUT_SEC:180}}
   operation:
     monitoring:
       collect-interval-ms: ${OPERATION_MONITORING_COLLECT_INTERVAL_MS:30000}

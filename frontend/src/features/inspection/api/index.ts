@@ -2,6 +2,7 @@ import { AxiosError } from 'axios'
 import { apiClient } from '../../../shared/api/client'
 import type {
   AnalysisTargetOption,
+  InspectionDetail,
   InspectionEvent,
   ThresholdOption,
   UploadInspectionPayload,
@@ -82,6 +83,21 @@ export async function getInspectionEvents(
       { signal },
     )
     return response.data.data ?? []
+  } catch (error) {
+    throw new Error(getInspectionErrorMessage(error))
+  }
+}
+
+export async function getInspectionDetail(
+  inspectionId: number,
+  signal?: AbortSignal,
+): Promise<InspectionDetail> {
+  try {
+    const response = await apiClient.get<ApiResponse<InspectionDetail>>(
+      `/inspections/${inspectionId}`,
+      { signal },
+    )
+    return response.data.data
   } catch (error) {
     throw new Error(getInspectionErrorMessage(error))
   }

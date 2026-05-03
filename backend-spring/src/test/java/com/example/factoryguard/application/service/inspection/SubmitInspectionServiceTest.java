@@ -13,6 +13,7 @@ import com.example.factoryguard.application.port.out.inspection.LoadInspectionRu
 import com.example.factoryguard.application.port.out.result.LoadInspectionResultPort;
 import com.example.factoryguard.application.port.out.review.LoadReviewQueuePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.common.validation.FileValidator;
@@ -64,6 +65,7 @@ class SubmitInspectionServiceTest {
     @Mock MinioProperties minioProperties;
     @Mock RecordOperationLogUseCase recordOperationLogUseCase;
     @Mock InspectionIdempotencyCachePort inspectionIdempotencyCachePort;
+    @Mock SessionValidationService sessionValidationService;
 
     SubmitInspectionService service;
 
@@ -82,7 +84,8 @@ class SubmitInspectionServiceTest {
                 minioStorageAdapter,
                 minioProperties,
                 recordOperationLogUseCase,
-                inspectionIdempotencyCachePort
+                inspectionIdempotencyCachePort,
+                sessionValidationService
         );
     }
 
@@ -244,7 +247,6 @@ class SubmitInspectionServiceTest {
     }
 
     private void givenActiveUser() {
-        when(tokenStorePort.getSessionId(1L)).thenReturn(Optional.of("session-1"));
         when(findUserByIdPort.findById(1L)).thenReturn(Optional.of(User.builder()
                 .userId(1L)
                 .organizationId(1L)

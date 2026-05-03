@@ -1,3 +1,4 @@
+from contextlib import AbstractAsyncContextManager
 from typing import Protocol
 
 from domain.vision_models import InferenceOutput, LoadedMemoryBank, LoadedVisionModel, PreprocessedImage, QualityMetrics
@@ -35,3 +36,12 @@ class VisionInferencerPort(Protocol):
 
 class HeatmapGeneratorPort(Protocol):
     def render(self, image, anomaly_map) -> bytes: ...
+
+
+class InferenceLimiterPort(Protocol):
+    def limit(
+        self,
+        request_id: str,
+        inspection_id: int | None,
+        model_version_id: int | None,
+    ) -> AbstractAsyncContextManager[None]: ...

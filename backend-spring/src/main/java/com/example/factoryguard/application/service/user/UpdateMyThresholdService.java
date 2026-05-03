@@ -3,12 +3,12 @@ package com.example.factoryguard.application.service.user;
 import com.example.factoryguard.application.dto.user.UpdateThresholdCommand;
 import com.example.factoryguard.application.dto.user.UserThresholdResult;
 import com.example.factoryguard.application.port.in.user.UpdateMyThresholdUseCase;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.application.port.out.user.LoadThresholdByIdPort;
 import com.example.factoryguard.application.port.out.user.LoadUserThresholdHistoryPort;
 import com.example.factoryguard.application.port.out.user.SaveThresholdHistoryPort;
 import com.example.factoryguard.application.port.out.user.UpdateThresholdPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.user.model.User;
@@ -28,16 +28,16 @@ public class UpdateMyThresholdService implements UpdateMyThresholdUseCase {
     private static final String DEFAULT_CHANGE_REASON = "USER_SETTING_PAGE_UPDATE";
     private static final String DEFAULT_APPLY_SCOPE = "DEFAULT";
 
-    private final TokenStorePort tokenStorePort;
     private final FindUserByIdPort findUserByIdPort;
     private final LoadThresholdByIdPort loadThresholdByIdPort;
     private final UpdateThresholdPort updateThresholdPort;
     private final SaveThresholdHistoryPort saveThresholdHistoryPort;
     private final LoadUserThresholdHistoryPort loadUserThresholdHistoryPort;
+    private final SessionValidationService sessionValidationService;
 
     @Override
     public UserThresholdResult execute(Long userId, String sessionId, Long thresholdId, UpdateThresholdCommand command) {
-        validateSession(userId, sessionId);
+        sessionValidationService.validate(userId, sessionId);
         validateUserStatus(userId);
 
         // 1. 존재
@@ -121,17 +121,6 @@ public class UpdateMyThresholdService implements UpdateMyThresholdUseCase {
             throw new BusinessException(ErrorCode.USER_THRESHOLD_INVALID_RELATION);
         }
     }
-
-    private void validateSession(Long userId, String sessionId) {
-        if (sessionId == null) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-        String current = tokenStorePort.getSessionId(userId).orElse(null);
-        if (current == null || current.isBlank() || !current.equals(sessionId)) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-    }
-
     private void validateUserStatus(Long userId) {
         User user = findUserByIdPort.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));

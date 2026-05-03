@@ -3,9 +3,9 @@ package com.example.factoryguard.application.service.user;
 import com.example.factoryguard.application.dto.user.UpdateUserSettingCommand;
 import com.example.factoryguard.application.dto.user.UserSettingResult;
 import com.example.factoryguard.application.port.in.user.UpdateUserSettingUseCase;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.application.port.out.user.SaveUserSettingPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.user.model.User;
@@ -19,14 +19,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class UpdateMySettingService implements UpdateUserSettingUseCase {
 
-    private final TokenStorePort tokenStorePort;
     private final FindUserByIdPort findUserByIdPort;
     private final SaveUserSettingPort saveUserSettingPort;
+    private final SessionValidationService sessionValidationService;
 
     @Override
     public UserSettingResult execute(UpdateUserSettingCommand command) {
         Long userId = command.getUserId();
-        validateSession(userId, command.getSessionId());
+        sessionValidationService.validate(userId, command.getSessionId());
         validateUserStatus(userId);
         validateDefaultCameraId(command.getDefaultCameraId());
 
@@ -59,17 +59,6 @@ public class UpdateMySettingService implements UpdateUserSettingUseCase {
             );
         }
     }
-
-    private void validateSession(Long userId, String sessionId) {
-        if (sessionId == null) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-        String current = tokenStorePort.getSessionId(userId).orElse(null);
-        if (current == null || current.isBlank() || !current.equals(sessionId)) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-    }
-
     private void validateUserStatus(Long userId) {
         User user = findUserByIdPort.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));

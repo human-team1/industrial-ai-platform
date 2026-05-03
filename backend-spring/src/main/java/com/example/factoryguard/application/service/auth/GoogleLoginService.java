@@ -31,6 +31,7 @@ public class GoogleLoginService implements GoogleLoginUseCase {
     private final TokenStorePort tokenStorePort;
     private final JwtProperties jwtProperties;
     private final RecordOperationLogUseCase recordOperationLogUseCase;
+    private final ActiveSessionService activeSessionService;
 
     @Override
     public GoogleLoginResult execute(GoogleLoginCommand command) {
@@ -66,14 +67,23 @@ public class GoogleLoginService implements GoogleLoginUseCase {
             case ACTIVE -> {
                 String sessionId = UUID.randomUUID().toString();
                 Duration ttl = Duration.ofDays(jwtProperties.getRefreshExpireDays());
+                activeSessionService.assertCanRegisterNewSession();
 
                 String accessToken = jwtTokenProvider.generateAccessToken(
                         user.getUserId(), user.getRole(), user.getOrganizationId(), sessionId);
                 String refreshToken = jwtTokenProvider.generateRefreshToken(
                         user.getUserId(), user.getRole(), user.getOrganizationId(), sessionId);
 
-                tokenStorePort.saveRefreshToken(user.getUserId(), refreshToken, ttl);
-                tokenStorePort.saveSessionId(user.getUserId(), sessionId, ttl);
+                try {
+                    tokenStorePort.saveRefreshToken(user.getUserId(), sessionId, refreshToken, ttl);
+                    tokenStorePort.saveSessionId(user.getUserId(), sessionId, ttl);
+                    activeSessionService.registerSession(user.getUserId(), sessionId);
+                } catch (RuntimeException exception) {
+                    tokenStorePort.deleteRefreshToken(user.getUserId(), sessionId);
+                    tokenStorePort.deleteSessionId(user.getUserId(), sessionId);
+                    activeSessionService.removeSession(sessionId);
+                    throw exception;
+                }
                 recordOperationLogUseCase.recordOperationLog(RecordOperationLogCommand.builder()
                         .eventType("LOGIN_SUCCESS")
                         .eventStatus("SUCCESS")

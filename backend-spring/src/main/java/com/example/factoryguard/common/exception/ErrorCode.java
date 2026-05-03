@@ -43,6 +43,7 @@ public enum ErrorCode {
     AI_SERVER_ERROR("AI-503", HttpStatus.SERVICE_UNAVAILABLE, "AI 서버 통신 중 오류가 발생했습니다."),
     AI_TIMEOUT("AI-504", HttpStatus.GATEWAY_TIMEOUT, "AI 서버 응답 시간이 초과되었습니다."),
     AI_REQUEST_INVALID("AI-400", HttpStatus.BAD_GATEWAY, "AI 서버 요청 형식이 올바르지 않습니다."),
+    ACTIVE_USER_LIMIT_EXCEEDED("AUTH-429", HttpStatus.TOO_MANY_REQUESTS, "현재 시연 서버의 최대 동시 사용자 수를 초과했습니다."),
     REALTIME_NOT_ENABLED("REALTIME-503", HttpStatus.SERVICE_UNAVAILABLE, "실시간 검사는 현재 사용할 수 없습니다."),
     USER_THRESHOLD_NOT_FOUND("USER-THRESHOLD-404", HttpStatus.NOT_FOUND, "사용자 개인 임계값이 없습니다."),
     USER_THRESHOLD_FORBIDDEN("USER-THRESHOLD-403", HttpStatus.FORBIDDEN, "다른 사용자의 임계값에는 접근할 수 없습니다."),

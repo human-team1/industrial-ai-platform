@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +29,8 @@ class Settings(BaseSettings):
     model_name: str = "anomaly-baseline"
     embedding_model_name: str = ""
     llm_model_name: str = ""
+    max_inference_concurrency: int = Field(default=1, ge=1)
+    inference_queue_size: int = Field(default=5, ge=1)
     log_level: str = "INFO"
     tz: str = "Asia/Seoul"
 

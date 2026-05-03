@@ -8,13 +8,13 @@ import com.example.factoryguard.application.dto.inspection.SubmitRealtimeInspect
 import com.example.factoryguard.application.dto.notification.CreateNotificationCommand;
 import com.example.factoryguard.application.port.in.inspection.SubmitRealtimeInspectionUseCase;
 import com.example.factoryguard.application.port.in.notification.CreateNotificationUseCase;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.inspection.CallAiInspectionPort;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
 import com.example.factoryguard.application.port.out.inspection.LoadCameraSourcePort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionResultPort;
 import com.example.factoryguard.application.port.out.review.SaveReviewQueuePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.inspection.model.AnalysisTarget;
@@ -55,7 +55,6 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
     private static final String RESULT_STATUS_REVIEW_REQUIRED = "REVIEW_REQUIRED";
     private static final String RESULT_STATUS_FAILED = "FAILED";
 
-    private final TokenStorePort tokenStorePort;
     private final FindUserByIdPort findUserByIdPort;
     private final LoadAnalysisTargetPort loadAnalysisTargetPort;
     private final LoadCameraSourcePort loadCameraSourcePort;
@@ -68,10 +67,11 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
     private final InspectionEventLogger eventLogger;
     private final DecisionProperties decisionProperties;
     private final CreateNotificationUseCase createNotificationUseCase;
+    private final SessionValidationService sessionValidationService;
 
     @Override
     public SubmitInspectionResult execute(SubmitRealtimeInspectionCommand command) {
-        validateSession(command.getUserId(), command.getSessionId());
+        sessionValidationService.validate(command.getUserId(), command.getSessionId());
         User user = validateUserStatus(command.getUserId());
         if (command.getCameraId() == null) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
@@ -177,17 +177,6 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
         if (msg == null) return t.getClass().getSimpleName();
         return msg.length() > 1000 ? msg.substring(0, 1000) : msg;
     }
-
-    private void validateSession(Long userId, String sessionId) {
-        if (sessionId == null) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-        String current = tokenStorePort.getSessionId(userId).orElse(null);
-        if (current == null || current.isBlank() || !current.equals(sessionId)) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-    }
-
     private User validateUserStatus(Long userId) {
         User user = findUserByIdPort.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));

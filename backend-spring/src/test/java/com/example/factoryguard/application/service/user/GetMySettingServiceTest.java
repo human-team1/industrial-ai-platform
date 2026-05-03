@@ -1,9 +1,9 @@
 package com.example.factoryguard.application.service.user;
 
 import com.example.factoryguard.application.dto.user.UserSettingResult;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.application.port.out.user.LoadUserSettingPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.domain.user.model.User;
 import com.example.factoryguard.domain.user.model.UserSetting;
 import com.example.factoryguard.domain.user.model.UserStatus;
@@ -24,16 +24,15 @@ class GetMySettingServiceTest {
     private static final Long USER_ID = 1L;
     private static final String SESSION_ID = "session-1";
 
-    @Mock TokenStorePort tokenStorePort;
     @Mock FindUserByIdPort findUserByIdPort;
     @Mock LoadUserSettingPort loadUserSettingPort;
+    @Mock SessionValidationService sessionValidationService;
 
     GetMySettingService service;
 
     @BeforeEach
     void setUp() {
-        service = new GetMySettingService(tokenStorePort, findUserByIdPort, loadUserSettingPort);
-        when(tokenStorePort.getSessionId(USER_ID)).thenReturn(Optional.of(SESSION_ID));
+        service = new GetMySettingService(findUserByIdPort, loadUserSettingPort, sessionValidationService);
         when(findUserByIdPort.findById(USER_ID)).thenReturn(Optional.of(activeUser()));
     }
 

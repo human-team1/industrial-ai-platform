@@ -2,7 +2,6 @@ package com.example.factoryguard.application.service.auth;
 
 import com.example.factoryguard.application.dto.auth.AuthMeResult;
 import com.example.factoryguard.application.port.in.auth.GetAuthMeUseCase;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
@@ -16,12 +15,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class GetAuthMeService implements GetAuthMeUseCase {
 
-    private final TokenStorePort tokenStorePort;
     private final FindUserByIdPort findUserByIdPort;
+    private final SessionValidationService sessionValidationService;
+    private final ActiveSessionService activeSessionService;
 
     @Override
     public AuthMeResult execute(Long userId, String sessionId) {
-        validateSession(userId, sessionId);
+        sessionValidationService.validate(userId, sessionId);
+        activeSessionService.refreshSession(sessionId);
 
         User user = findUserByIdPort.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
@@ -32,21 +33,5 @@ public class GetAuthMeService implements GetAuthMeUseCase {
             case REJECTED -> throw new BusinessException(ErrorCode.ACCOUNT_REJECTED);
             case INACTIVE -> throw new BusinessException(ErrorCode.ACCOUNT_INACTIVE);
         };
-    }
-
-    private void validateSession(Long userId, String sessionId) {
-        if (sessionId == null) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-
-        String currentSessionId = tokenStorePort.getSessionId(userId).orElse(null);
-
-        if (currentSessionId == null || currentSessionId.isBlank()) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-
-        if (!currentSessionId.equals(sessionId)) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
     }
 }
