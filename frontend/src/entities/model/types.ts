@@ -12,7 +12,7 @@ export type ModelProfile = 'SPEED' | 'PERFORMANCE'
 
 export type ModelDeployStatus = 'REGISTERED' | 'VALIDATED' | 'DEPLOYED' | 'DEPRECATED'
 
-export type ModelArtifactType = 'CKPT' | 'CONFIG' | 'LABELS' | 'EXTRA'
+export type ModelArtifactType = 'CKPT' | 'CONFIG' | 'MEMORY_BANK' | 'LABELS' | 'EXTRA'
 
 export type DeploymentScope = 'ORGANIZATION' | 'TARGET'
 
@@ -101,6 +101,7 @@ export type UploadModelVersionForm = {
   aurocScore?: string
   ckptFile: File | null
   configFile: File | null
+  memoryBankFile: File | null
   labelsFile: File | null
 }
 

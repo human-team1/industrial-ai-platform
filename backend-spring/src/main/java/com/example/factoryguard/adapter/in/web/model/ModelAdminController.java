@@ -106,6 +106,7 @@ public class ModelAdminController {
             @PathVariable Long modelId,
             @RequestPart("ckptFile") MultipartFile ckptFile,
             @RequestPart("configFile") MultipartFile configFile,
+            @RequestPart("memoryBankFile") MultipartFile memoryBankFile,
             @RequestPart(value = "labelsFile", required = false) MultipartFile labelsFile,
             @RequestPart("versionName") String versionName,
             @RequestPart("modelCategory") String modelCategory,
@@ -124,6 +125,7 @@ public class ModelAdminController {
                         .modelId(modelId)
                         .ckptFile(ckptFile)
                         .configFile(configFile)
+                        .memoryBankFile(memoryBankFile)
                         .labelsFile(labelsFile)
                         .versionName(versionName)
                         .modelCategory(parseModelCategory(modelCategory))

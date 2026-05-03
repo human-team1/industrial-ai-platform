@@ -69,6 +69,7 @@ export async function uploadModelVersion(modelId: number, form: UploadModelVersi
     if (form.aurocScore) formData.append('aurocScore', form.aurocScore)
     if (form.ckptFile) formData.append('ckptFile', form.ckptFile)
     if (form.configFile) formData.append('configFile', form.configFile)
+    if (form.memoryBankFile) formData.append('memoryBankFile', form.memoryBankFile)
     if (form.labelsFile) formData.append('labelsFile', form.labelsFile)
     const response = await apiClient.post<ApiResponse<ModelVersionDetail>>(`/models/${modelId}/versions`, formData)
     return response.data.data

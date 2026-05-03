@@ -1,15 +1,26 @@
+from io import BytesIO
 from config.settings import Settings
 from urllib.parse import urlparse
+
+from application.exceptions import AppException
 
 
 class MinioStorage:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
 
-    def put_object(self, object_name: str, content: bytes) -> None:
-        # Actual bucket creation and upload policy should be added with storage requirements.
-        _ = object_name
-        _ = content
+    def put_object(self, bucket_name: str, object_name: str, content: bytes, content_type: str = "application/octet-stream") -> None:
+        payload = BytesIO(content)
+        client = self.client()
+        if not client.bucket_exists(bucket_name):
+            client.make_bucket(bucket_name)
+        client.put_object(
+            bucket_name,
+            object_name,
+            payload,
+            length=len(content),
+            content_type=content_type,
+        )
 
     def document_bucket_name(self) -> str:
         return self._settings.minio_bucket_documents
@@ -21,7 +32,10 @@ class MinioStorage:
             return False
 
     def download_object(self, bucket_name: str, object_name: str) -> bytes:
-        response = self.client().get_object(bucket_name, object_name)
+        try:
+            response = self.client().get_object(bucket_name, object_name)
+        except Exception as exc:
+            raise AppException(404, "Object not found", "저장소에서 파일을 찾을 수 없습니다.", "AI_OBJECT_NOT_FOUND") from exc
         try:
             return response.read()
         finally:
