@@ -2,9 +2,9 @@ package com.example.factoryguard.application.service.user;
 
 import com.example.factoryguard.application.dto.user.UpdateUserSettingCommand;
 import com.example.factoryguard.application.dto.user.UserSettingResult;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.application.port.out.user.SaveUserSettingPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.user.model.User;
@@ -32,15 +32,15 @@ class UpdateMySettingServiceTest {
     private static final Long USER_ID = 1L;
     private static final String SESSION_ID = "session-1";
 
-    @Mock TokenStorePort tokenStorePort;
     @Mock FindUserByIdPort findUserByIdPort;
     @Mock SaveUserSettingPort saveUserSettingPort;
+    @Mock SessionValidationService sessionValidationService;
 
     UpdateMySettingService service;
 
     @BeforeEach
     void setUp() {
-        service = new UpdateMySettingService(tokenStorePort, findUserByIdPort, saveUserSettingPort);
+        service = new UpdateMySettingService(findUserByIdPort, saveUserSettingPort, sessionValidationService);
     }
 
     @Test
@@ -102,7 +102,6 @@ class UpdateMySettingServiceTest {
     }
 
     private void prepareSession() {
-        when(tokenStorePort.getSessionId(USER_ID)).thenReturn(Optional.of(SESSION_ID));
         when(findUserByIdPort.findById(USER_ID))
                 .thenReturn(Optional.of(User.builder().userId(USER_ID).status(UserStatus.ACTIVE).build()));
     }

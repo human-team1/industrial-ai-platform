@@ -1,10 +1,10 @@
 package com.example.factoryguard.application.service.user;
 
 import com.example.factoryguard.application.dto.user.UserThresholdResult;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.user.FindActiveThresholdByUserIdPort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.application.port.out.user.LoadUserThresholdHistoryPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.user.model.User;
@@ -31,20 +31,21 @@ class GetMyThresholdsServiceTest {
     private static final Long USER_ID = 1L;
     private static final String SESSION_ID = "session-1";
 
-    @Mock TokenStorePort tokenStorePort;
     @Mock FindUserByIdPort findUserByIdPort;
     @Mock FindActiveThresholdByUserIdPort findActiveThresholdByUserIdPort;
     @Mock LoadUserThresholdHistoryPort loadUserThresholdHistoryPort;
+    @Mock SessionValidationService sessionValidationService;
 
     GetMyThresholdsService service;
 
     @BeforeEach
     void setUp() {
         service = new GetMyThresholdsService(
-                tokenStorePort, findUserByIdPort,
-                findActiveThresholdByUserIdPort, loadUserThresholdHistoryPort
+                findUserByIdPort,
+                findActiveThresholdByUserIdPort,
+                loadUserThresholdHistoryPort,
+                sessionValidationService
         );
-        when(tokenStorePort.getSessionId(USER_ID)).thenReturn(Optional.of(SESSION_ID));
         when(findUserByIdPort.findById(USER_ID))
                 .thenReturn(Optional.of(User.builder().userId(USER_ID).status(UserStatus.ACTIVE).build()));
     }

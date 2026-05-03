@@ -2,12 +2,12 @@ package com.example.factoryguard.application.service.user;
 
 import com.example.factoryguard.application.dto.user.UpdateThresholdCommand;
 import com.example.factoryguard.application.dto.user.UserThresholdResult;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.application.port.out.user.LoadThresholdByIdPort;
 import com.example.factoryguard.application.port.out.user.LoadUserThresholdHistoryPort;
 import com.example.factoryguard.application.port.out.user.SaveThresholdHistoryPort;
 import com.example.factoryguard.application.port.out.user.UpdateThresholdPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.user.model.User;
@@ -20,7 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -40,22 +39,25 @@ class UpdateMyThresholdServiceTest {
     private static final Long THRESHOLD_ID = 100L;
     private static final String SESSION_ID = "session-1";
 
-    @Mock TokenStorePort tokenStorePort;
     @Mock FindUserByIdPort findUserByIdPort;
     @Mock LoadThresholdByIdPort loadThresholdByIdPort;
     @Mock UpdateThresholdPort updateThresholdPort;
     @Mock SaveThresholdHistoryPort saveThresholdHistoryPort;
     @Mock LoadUserThresholdHistoryPort loadUserThresholdHistoryPort;
+    @Mock SessionValidationService sessionValidationService;
 
     UpdateMyThresholdService service;
 
     @BeforeEach
     void setUp() {
         service = new UpdateMyThresholdService(
-                tokenStorePort, findUserByIdPort, loadThresholdByIdPort,
-                updateThresholdPort, saveThresholdHistoryPort, loadUserThresholdHistoryPort
+                findUserByIdPort,
+                loadThresholdByIdPort,
+                updateThresholdPort,
+                saveThresholdHistoryPort,
+                loadUserThresholdHistoryPort,
+                sessionValidationService
         );
-        when(tokenStorePort.getSessionId(USER_ID)).thenReturn(Optional.of(SESSION_ID));
         when(findUserByIdPort.findById(USER_ID))
                 .thenReturn(Optional.of(User.builder().userId(USER_ID).status(UserStatus.ACTIVE).build()));
     }

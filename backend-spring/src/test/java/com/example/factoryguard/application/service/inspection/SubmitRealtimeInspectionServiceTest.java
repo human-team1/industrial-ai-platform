@@ -4,13 +4,13 @@ import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.dto.inspection.SubmitRealtimeInspectionCommand;
 import com.example.factoryguard.application.port.in.notification.CreateNotificationUseCase;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.inspection.CallAiInspectionPort;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
 import com.example.factoryguard.application.port.out.inspection.LoadCameraSourcePort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionResultPort;
 import com.example.factoryguard.application.port.out.review.SaveReviewQueuePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.inspection.model.AnalysisTarget;
@@ -43,7 +43,6 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class SubmitRealtimeInspectionServiceTest {
 
-    @Mock TokenStorePort tokenStorePort;
     @Mock FindUserByIdPort findUserByIdPort;
     @Mock LoadAnalysisTargetPort loadAnalysisTargetPort;
     @Mock LoadCameraSourcePort loadCameraSourcePort;
@@ -56,13 +55,13 @@ class SubmitRealtimeInspectionServiceTest {
     @Mock InspectionEventLogger eventLogger;
     @Mock DecisionProperties decisionProperties;
     @Mock CreateNotificationUseCase createNotificationUseCase;
+    @Mock SessionValidationService sessionValidationService;
 
     SubmitRealtimeInspectionService service;
 
     @BeforeEach
     void setUp() {
         service = new SubmitRealtimeInspectionService(
-                tokenStorePort,
                 findUserByIdPort,
                 loadAnalysisTargetPort,
                 loadCameraSourcePort,
@@ -74,7 +73,8 @@ class SubmitRealtimeInspectionServiceTest {
                 inputRecorder,
                 eventLogger,
                 decisionProperties,
-                createNotificationUseCase
+                createNotificationUseCase,
+                sessionValidationService
         );
     }
 
@@ -151,7 +151,6 @@ class SubmitRealtimeInspectionServiceTest {
     }
 
     private void givenActiveUser() {
-        when(tokenStorePort.getSessionId(1L)).thenReturn(Optional.of("session-1"));
         when(findUserByIdPort.findById(1L)).thenReturn(Optional.of(User.builder()
                 .userId(1L)
                 .organizationId(10L)
