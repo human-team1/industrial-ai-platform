@@ -5,6 +5,7 @@ import com.example.factoryguard.application.port.out.inspection.LoadInspectionRu
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionEventLogPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionInputPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionRunPort;
+import com.example.factoryguard.application.port.out.operation.SaveAsyncJobPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.file.model.StoredFile;
@@ -13,10 +14,15 @@ import com.example.factoryguard.domain.inspection.model.InspectionEventType;
 import com.example.factoryguard.domain.inspection.model.InspectionInput;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import com.example.factoryguard.domain.inspection.model.RunStatus;
+import com.example.factoryguard.domain.operation.model.AsyncJob;
+import com.example.factoryguard.domain.operation.vo.AsyncJobStatus;
+import com.example.factoryguard.domain.operation.vo.AsyncJobType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +33,7 @@ public class InspectionUploadTransactionService {
     private final PersistUploadedFilePort persistUploadedFilePort;
     private final SaveInspectionInputPort saveInspectionInputPort;
     private final SaveInspectionEventLogPort saveInspectionEventLogPort;
+    private final SaveAsyncJobPort saveAsyncJobPort;
 
     @Transactional
     public InspectionRun createPendingRun(InspectionRun run) {
@@ -59,6 +66,13 @@ public class InspectionUploadTransactionService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.INSPECTION_NOT_FOUND));
         saveInspectionRunPort.save(existing.toBuilder()
                 .runStatus(RunStatus.PROCESSING)
+                .build());
+        saveAsyncJobPort.save(AsyncJob.builder()
+                .jobType(AsyncJobType.AI_IMAGE_INFERENCE)
+                .jobStatus(AsyncJobStatus.PENDING)
+                .targetType("INSPECTION")
+                .targetId(inspectionId)
+                .createdAt(LocalDateTime.now())
                 .build());
         saveInspectionEventLogPort.save(event(inspectionId, InspectionEventType.PROCESS_STARTED, "processing queued"));
         return storedFile;

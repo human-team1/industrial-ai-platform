@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getAnalysisTargets, getInspectionEvents, getMyThresholds, uploadInspection } from '../api'
+import {
+  getAnalysisTargets,
+  getInspectionDetail,
+  getInspectionEvents,
+  getMyThresholds,
+  uploadInspection,
+} from '../api'
 import type {
   AnalysisTargetOption,
   BrowserCameraDevice,
+  InspectionDetail,
   InspectionEvent,
   SelectedInspectionFile,
   ThresholdOption,
@@ -12,6 +19,8 @@ import type {
 const MAX_UPLOAD_SIZE = 2 * 1024 * 1024 * 1024
 const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const POLLING_INTERVAL_MS = 2000
+const POLLING_TIMEOUT_MS = 180000
 
 export function useUploadInspection() {
   const [selectedFile, setSelectedFileState] = useState<SelectedInspectionFile | null>(null)
@@ -27,6 +36,7 @@ export function useUploadInspection() {
   const [uploadResult, setUploadResult] = useState<UploadInspectionResponse | null>(null)
   const [requestDurationMs, setRequestDurationMs] = useState<number | null>(null)
   const objectUrlRef = useRef<string | null>(null)
+  const pollingStartedAtRef = useRef<number | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -58,6 +68,31 @@ export function useUploadInspection() {
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current)
     }
   }, [])
+
+  useEffect(() => {
+    if (!uploadResult || uploadResult.runStatus !== 'PROCESSING') return
+
+    pollingStartedAtRef.current = Date.now()
+    const controller = new AbortController()
+    const intervalId = window.setInterval(() => {
+      if (!uploadResult) return
+      if (pollingStartedAtRef.current && Date.now() - pollingStartedAtRef.current > POLLING_TIMEOUT_MS) {
+        window.clearInterval(intervalId)
+        setNoticeMessage('AI 분석이 지연되고 있습니다. 잠시 후 검사 상세에서 상태를 다시 확인해주세요.')
+        return
+      }
+      void getInspectionDetail(uploadResult.inspectionId, controller.signal)
+        .then((detail) => {
+          applyInspectionDetail(detail, setUploadResult, setNoticeMessage, intervalId)
+        })
+        .catch(() => undefined)
+    }, POLLING_INTERVAL_MS)
+
+    return () => {
+      controller.abort()
+      window.clearInterval(intervalId)
+    }
+  }, [uploadResult])
 
   const selectedThreshold = useMemo(
     () => thresholdOptions.find((option) => option.id === selectedThresholdId) ?? null,
@@ -194,6 +229,7 @@ export function useRealtimeInspection() {
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const [uploadResult, setUploadResult] = useState<UploadInspectionResponse | null>(null)
   const [requestDurationMs, setRequestDurationMs] = useState<number | null>(null)
+  const pollingStartedAtRef = useRef<number | null>(null)
 
   const refreshDevices = useCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) {
@@ -307,6 +343,31 @@ export function useRealtimeInspection() {
   useEffect(() => {
     if (currentInspectionId) void refreshEvents()
   }, [currentInspectionId, refreshEvents])
+
+  useEffect(() => {
+    if (!uploadResult || uploadResult.runStatus !== 'PROCESSING') return
+
+    pollingStartedAtRef.current = Date.now()
+    const controller = new AbortController()
+    const intervalId = window.setInterval(() => {
+      if (!uploadResult) return
+      if (pollingStartedAtRef.current && Date.now() - pollingStartedAtRef.current > POLLING_TIMEOUT_MS) {
+        window.clearInterval(intervalId)
+        setNoticeMessage('AI 분석이 지연되고 있습니다. 잠시 후 검사 상세에서 상태를 다시 확인해주세요.')
+        return
+      }
+      void getInspectionDetail(uploadResult.inspectionId, controller.signal)
+        .then((detail) => {
+          applyInspectionDetail(detail, setUploadResult, setNoticeMessage, intervalId)
+        })
+        .catch(() => undefined)
+    }, POLLING_INTERVAL_MS)
+
+    return () => {
+      controller.abort()
+      window.clearInterval(intervalId)
+    }
+  }, [uploadResult])
 
   const captureFrame = useCallback(async () => {
     const video = videoRef.current
@@ -427,4 +488,35 @@ function validateInspectionFile(file: File) {
 function createInspectionIdempotencyKey(prefix: string) {
   const random = Math.random().toString(36).slice(2, 10)
   return `${prefix}-${Date.now()}-${random}`
+}
+
+function applyInspectionDetail(
+  detail: InspectionDetail,
+  setUploadResult: (value: UploadInspectionResponse | null | ((prev: UploadInspectionResponse | null) => UploadInspectionResponse | null)) => void,
+  setNoticeMessage: (value: string | null) => void,
+  intervalId: number,
+) {
+  setUploadResult((prev) =>
+    prev
+      ? {
+          ...prev,
+          runStatus: detail.runStatus,
+        }
+      : prev,
+  )
+
+  if (detail.runStatus === 'COMPLETED') {
+    window.clearInterval(intervalId)
+    setNoticeMessage('AI 분석이 완료되었습니다. 검사 결과를 확인해주세요.')
+    return
+  }
+
+  if (detail.runStatus === 'FAILED') {
+    window.clearInterval(intervalId)
+    setNoticeMessage(
+      detail.errorCode
+        ? `AI 분석이 실패했습니다. errorCode: ${detail.errorCode}`
+        : 'AI 분석이 실패했습니다. 검사 상세에서 실패 사유를 확인해주세요.',
+    )
+  }
 }

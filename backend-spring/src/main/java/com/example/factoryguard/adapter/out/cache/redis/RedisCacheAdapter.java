@@ -31,6 +31,14 @@ public class RedisCacheAdapter {
         redisTemplate.delete(key);
     }
 
+    public boolean hasKey(String key) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
+    }
+
+    public void expire(String key, Duration ttl) {
+        redisTemplate.expire(key, ttl);
+    }
+
     public boolean ping() {
         try {
             return Boolean.TRUE.equals(redisTemplate.execute((RedisCallback<Boolean>) connection ->

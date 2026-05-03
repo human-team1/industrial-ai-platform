@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +20,7 @@ public class RefreshTokenService implements RefreshTokenUseCase {
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenStorePort tokenStorePort;
     private final JwtProperties jwtProperties;
+    private final ActiveSessionService activeSessionService;
 
     @Override
     public RefreshTokenResult execute(String refreshToken) {
@@ -31,21 +31,24 @@ public class RefreshTokenService implements RefreshTokenUseCase {
         Long userId = jwtTokenProvider.extractUserId(refreshToken);
         String role = jwtTokenProvider.extractRole(refreshToken);
         Long organizationId = jwtTokenProvider.extractOrganizationId(refreshToken);
+        String sessionId = jwtTokenProvider.extractSessionId(refreshToken);
 
-        String stored = tokenStorePort.getRefreshToken(userId)
+        String stored = tokenStorePort.getRefreshToken(userId, sessionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN));
 
         if (!stored.equals(refreshToken)) {
             throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
+        activeSessionService.validateActiveSession(sessionId);
 
-        String newSessionId = UUID.randomUUID().toString();
         Duration ttl = Duration.ofDays(jwtProperties.getRefreshExpireDays());
 
         String newAccessToken = jwtTokenProvider.generateAccessToken(
-                userId, UserRole.valueOf(role), organizationId, newSessionId);
+                userId, UserRole.valueOf(role), organizationId, sessionId);
 
-        tokenStorePort.saveSessionId(userId, newSessionId, ttl);
+        tokenStorePort.saveRefreshToken(userId, sessionId, refreshToken, ttl);
+        tokenStorePort.saveSessionId(userId, sessionId, ttl);
+        activeSessionService.refreshSession(sessionId);
 
         return RefreshTokenResult.builder()
                 .accessToken(newAccessToken)

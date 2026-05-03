@@ -2,9 +2,9 @@ package com.example.factoryguard.application.service.user;
 
 import com.example.factoryguard.application.dto.user.UserMeResult;
 import com.example.factoryguard.application.port.in.user.GetMyProfileUseCase;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.organization.FindOrganizationByIdPort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.user.model.User;
@@ -17,13 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class GetMyProfileService implements GetMyProfileUseCase {
 
-    private final TokenStorePort tokenStorePort;
     private final FindUserByIdPort findUserByIdPort;
     private final FindOrganizationByIdPort findOrganizationByIdPort;
+    private final SessionValidationService sessionValidationService;
 
     @Override
     public UserMeResult execute(Long userId, String sessionId) {
-        validateSession(userId, sessionId);
+        sessionValidationService.validate(userId, sessionId);
 
         User user = findUserByIdPort.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
@@ -43,21 +43,5 @@ public class GetMyProfileService implements GetMyProfileUseCase {
         return findOrganizationByIdPort.findById(organizationId)
                 .map(o -> o.getOrganizationName())
                 .orElse(null);
-    }
-
-    private void validateSession(Long userId, String sessionId) {
-        if (sessionId == null) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-
-        String currentSessionId = tokenStorePort.getSessionId(userId).orElse(null);
-
-        if (currentSessionId == null || currentSessionId.isBlank()) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-
-        if (!currentSessionId.equals(sessionId)) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
     }
 }

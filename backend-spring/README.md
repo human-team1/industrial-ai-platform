@@ -124,3 +124,47 @@ Copy-Item .env.example .env
 - 최종발표 도메인 예시: `APP_CORS_ALLOWED_ORIGINS=https://your-domain.com`
 - 운영/외부 공개 기준에서 `*`는 사용하지 않습니다.
 - 프론트가 `/api/v1` 상대경로를 사용하고 Nginx가 같은 origin에서 프록시하면 CORS 의존도를 줄일 수 있습니다.
+## Async Inspection Worker
+
+- `POST /api/v1/inspections/upload` 는 FastAPI 추론 완료를 기다리지 않고 `runStatus=PROCESSING` 으로 즉시 응답합니다.
+- 업로드 요청이 성공하면 `async_job(job_type=AI_IMAGE_INFERENCE, job_status=PENDING)` 를 함께 생성합니다.
+- Spring 내부 worker 가 pending job 을 1건씩 선점해 FastAPI `/ai/v1/internal/vision/infer-image` 를 호출합니다.
+- 성공 시 `inspection_result`, `result_artifact`, `image`, `inspection_event_log` 를 저장하고 `inspection_run` 을 `COMPLETED` 로 전이합니다.
+- 실패 시 `inspection_run`, `async_job` 을 `FAILED` 로 확정하고 실패 사유를 남깁니다.
+- 프론트는 `inspectionId` 기준 polling 으로 `PROCESSING -> COMPLETED/FAILED` 상태를 확인합니다.
+
+관련 환경 변수:
+
+- `AI_JOB_WORKER_ENABLED=true`
+- `AI_JOB_WORKER_CONCURRENCY=1`
+- `AI_JOB_POLL_INTERVAL_MS=1000`
+- `AI_JOB_BATCH_SIZE=1`
+- `AI_JOB_MAX_RETRY=0`
+- `AI_REQUEST_TIMEOUT_SECONDS=180`
+
+발표/시연 환경의 FastAPI 는 worker 1개 기준으로 실행합니다.
+
+```powershell
+cd ..\ai-server
+uvicorn main:app --host 0.0.0.0 --port 8001 --workers 1
+```
+
+## Active Session Limit
+
+- 집컴 시연 서버 안정성을 위해 활성 세션 수를 최대 3개로 제한합니다.
+- 제한 기준은 Nginx connection 이 아니라 Spring 인증/세션 기준입니다.
+- 4번째 로그인은 `429 ACTIVE_USER_LIMIT_EXCEEDED` 로 차단됩니다.
+- 로그아웃 시 해당 세션 슬롯이 즉시 반환됩니다.
+- `ACTIVE_SESSION_TTL_SECONDS` 가 지나면 active session 이 자동 만료되고, stale session 은 count 계산 전에 정리됩니다.
+- `/api/v1/auth/me` 호출 시 active session TTL 이 갱신됩니다.
+
+관련 환경 변수:
+
+- `MAX_ACTIVE_USERS=3`
+- `ACTIVE_SESSION_TTL_SECONDS=1800`
+
+## Pending E2E Note
+
+- 업로드 검사 정상 추론 E2E 는 현재 `MEMORY_BANK` 및 활성 모델 배포 seed 가 없어 보류했습니다.
+- 현재 확인된 worker 실패 원인은 `active model deployment not found` 입니다.
+- `MEMORY_BANK` 및 모델 산출물 seed 확보 후 정상 추론 E2E 를 재검증할 예정입니다.

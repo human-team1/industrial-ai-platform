@@ -3,6 +3,13 @@ export type UploadInspectionResponse = {
   runStatus: string
 }
 
+export type InspectionDetail = {
+  inspectionId: number
+  runStatus: string
+  errorCode?: string | null
+  completedAt?: string | null
+}
+
 export type InspectionInputMode = 'IMAGE' | 'VIDEO'
 export type InspectionSourceType = 'IMAGE' | 'BROWSER_CAMERA'
 export type InspectionRoiMode = 'FULL_FRAME' | 'FIXED'

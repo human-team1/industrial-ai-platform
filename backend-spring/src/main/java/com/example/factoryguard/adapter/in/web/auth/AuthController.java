@@ -73,7 +73,8 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletResponse response) {
         try {
-            logoutUseCase.execute(securityUtils.getCurrentUserId());
+            AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
+            logoutUseCase.execute(principal.userId(), principal.sessionId());
         } catch (Exception ignored) {
         }
         response.addHeader(HttpHeaders.SET_COOKIE, clearRefreshCookie().toString());

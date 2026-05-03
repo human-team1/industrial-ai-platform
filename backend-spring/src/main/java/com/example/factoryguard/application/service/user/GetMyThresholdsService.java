@@ -2,10 +2,10 @@ package com.example.factoryguard.application.service.user;
 
 import com.example.factoryguard.application.dto.user.UserThresholdResult;
 import com.example.factoryguard.application.port.in.user.GetMyThresholdsUseCase;
-import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.user.FindActiveThresholdByUserIdPort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
 import com.example.factoryguard.application.port.out.user.LoadUserThresholdHistoryPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.user.model.User;
@@ -20,14 +20,14 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class GetMyThresholdsService implements GetMyThresholdsUseCase {
 
-    private final TokenStorePort tokenStorePort;
     private final FindUserByIdPort findUserByIdPort;
     private final FindActiveThresholdByUserIdPort findActiveThresholdByUserIdPort;
     private final LoadUserThresholdHistoryPort loadUserThresholdHistoryPort;
+    private final SessionValidationService sessionValidationService;
 
     @Override
     public UserThresholdResult execute(Long userId, String sessionId) {
-        validateSession(userId, sessionId);
+        sessionValidationService.validate(userId, sessionId);
         validateUserStatus(userId);
 
         UserThreshold threshold = findActiveThresholdByUserIdPort.findActiveByUserId(userId)
@@ -40,23 +40,6 @@ public class GetMyThresholdsService implements GetMyThresholdsUseCase {
 
         return UserThresholdResult.fromUserThreshold(threshold, latestVersion);
     }
-
-    private void validateSession(Long userId, String sessionId) {
-        if (sessionId == null) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-
-        String currentSessionId = tokenStorePort.getSessionId(userId).orElse(null);
-
-        if (currentSessionId == null || currentSessionId.isBlank()) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-
-        if (!currentSessionId.equals(sessionId)) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-    }
-
     private void validateUserStatus(Long userId) {
         User user = findUserByIdPort.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));

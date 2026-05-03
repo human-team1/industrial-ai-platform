@@ -15,6 +15,7 @@ import com.example.factoryguard.application.port.out.inspection.LoadInspectionRu
 import com.example.factoryguard.application.port.out.result.LoadInspectionResultPort;
 import com.example.factoryguard.application.port.out.review.LoadReviewQueuePort;
 import com.example.factoryguard.application.port.out.user.FindUserByIdPort;
+import com.example.factoryguard.application.service.auth.SessionValidationService;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.common.validation.FileValidator;
@@ -64,10 +65,11 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
     private final MinioProperties minioProperties;
     private final RecordOperationLogUseCase recordOperationLogUseCase;
     private final InspectionIdempotencyCachePort inspectionIdempotencyCachePort;
+    private final SessionValidationService sessionValidationService;
 
     @Override
     public SubmitInspectionResult execute(SubmitInspectionCommand command) {
-        validateSession(command.getUserId(), command.getSessionId());
+        sessionValidationService.validate(command.getUserId(), command.getSessionId());
         User user = validateUserStatus(command.getUserId());
         fileValidator.validate(command.getFile());
 
@@ -323,16 +325,6 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
             return "";
         }
         return filename.substring(dot + 1).toLowerCase(Locale.ROOT);
-    }
-
-    private void validateSession(Long userId, String sessionId) {
-        if (sessionId == null) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
-        String current = tokenStorePort.getSessionId(userId).orElse(null);
-        if (current == null || current.isBlank() || !current.equals(sessionId)) {
-            throw new BusinessException(ErrorCode.SESSION_INVALID);
-        }
     }
 
     private User validateUserStatus(Long userId) {
