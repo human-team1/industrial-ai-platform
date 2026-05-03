@@ -14,21 +14,30 @@ ON DUPLICATE KEY UPDATE
   file_size = VALUES(file_size),
   created_by = VALUES(created_by);
 
-INSERT INTO model (model_id, model_name, model_type, created_at)
+INSERT INTO model (model_id, model_name, model_type, description, created_at)
 VALUES
-  (93001, 'visual-anomaly-detector', 'VISION_ANOMALY', '2025-05-01 09:00:00')
+  (93001, 'visual-anomaly-detector', 'PATCHCORE', '샘플 결과 확인용 텍스처 이상 탐지 모델', '2025-05-01 09:00:00')
 ON DUPLICATE KEY UPDATE
   model_name = VALUES(model_name),
-  model_type = VALUES(model_type);
+  model_type = VALUES(model_type),
+  description = VALUES(description);
 
 INSERT INTO model_version (
-  model_version_id, model_id, file_id, version_name, accuracy, precision_score, recall_score,
+  model_version_id, model_id, file_id, version_name, model_category, model_profile, framework, input_size,
+  threshold_default, accuracy, precision_score, recall_score, f1_score, auroc_score,
   deploy_status, is_active, validated_at, validated_by, created_at
 )
 VALUES
-  (94001, 93001, 92001, 'v1.2.0', 0.9820, 0.9610, 0.9540, 'DEPLOYED', TRUE, '2025-05-18 10:30:00', 91002, '2025-05-18 09:00:00')
+  (94001, 93001, 92001, 'v1.2.0', 'TEXTURE', 'PERFORMANCE', 'PYTORCH', '256x256',
+   0.6500, 0.9820, 0.9610, 0.9540, 0.9570, 0.9910,
+   'DEPLOYED', TRUE, '2025-05-18 10:30:00', 91002, '2025-05-18 09:00:00')
 ON DUPLICATE KEY UPDATE
   version_name = VALUES(version_name),
+  model_category = VALUES(model_category),
+  model_profile = VALUES(model_profile),
+  framework = VALUES(framework),
+  input_size = VALUES(input_size),
+  threshold_default = VALUES(threshold_default),
   deploy_status = VALUES(deploy_status),
   is_active = VALUES(is_active),
   validated_at = VALUES(validated_at);

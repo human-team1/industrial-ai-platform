@@ -1,4 +1,5 @@
 import { useOperationPolicies } from '../features/operation/model/useOperationPolicies'
+import { ModelManagementPanel } from '../features/model/ui/ModelManagementPanel'
 import { SiteAdminSettingsView } from '../widgets/operation/SiteAdminSettingsView'
 
 export function SiteAdminSettingsPage() {
@@ -39,6 +40,14 @@ export function SiteAdminSettingsPage() {
           savePolicy={savePolicy}
         />
       )}
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">모델 운영 관리</h2>
+          <p className="text-sm text-slate-500">등록, 선택, 버전 업로드, 활성화, 배포, 이력 확인 순서로 진행합니다.</p>
+        </div>
+        <ModelManagementPanel />
+      </section>
     </div>
   )
 }

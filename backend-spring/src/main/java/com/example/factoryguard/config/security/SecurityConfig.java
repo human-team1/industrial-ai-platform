@@ -42,6 +42,7 @@ public class SecurityConfig {
                 .antMatchers(HttpMethod.PATCH, "/api/v1/signup-requests/*/approve").hasRole("SITE_ADMIN")
                 .antMatchers(HttpMethod.PATCH, "/api/v1/signup-requests/*/reject").hasRole("SITE_ADMIN")
                 .antMatchers("/api/v1/admin/**", "/api/v1/operations/**").hasRole("SITE_ADMIN")
+                .antMatchers("/api/v1/models/**", "/api/v1/model-versions/**", "/api/v1/model-deployments/**").hasRole("SITE_ADMIN")
                 .antMatchers(HttpMethod.GET, "/api/v1/organizations/public").permitAll()
                 .anyRequest().authenticated())
             .httpBasic(basic -> basic.disable())
