@@ -15,8 +15,15 @@ export function labelDecision(value?: string | null): string {
 
 export function labelRunType(value?: string | null): string {
   if (!value) return '-'
-  if (value === 'REALTIME') return '실시간 탐지'
-  if (['UPLOAD', 'IMAGE_UPLOAD', 'VIDEO_UPLOAD'].includes(value)) return '업로드 탐지'
+  if (value === 'REALTIME') return '실시간 검사'
+  if (['UPLOAD', 'IMAGE_UPLOAD', 'VIDEO_UPLOAD'].includes(value)) return '업로드 검사'
+  return value
+}
+
+export function labelSourceType(value?: string | null): string {
+  if (!value) return '-'
+  if (value === 'BROWSER_CAMERA') return '카메라 캡처'
+  if (['IMAGE', 'UPLOAD', 'IMAGE_UPLOAD', 'VIDEO_UPLOAD'].includes(value)) return '이미지 업로드'
   return value
 }
 
@@ -45,14 +52,15 @@ export function formatDateMinute(value?: string | null): string {
 
 export function mapResultListRow(item: ResultSummary) {
   const decision = item.finalDecisionCode ?? item.decisionCode
-  const targetLine = [item.equipmentName, item.targetName ?? item.location].filter(Boolean).join(' · ') || '-'
+  const targetLine = [item.equipmentName, item.targetName ?? item.location].filter(Boolean).join(' / ') || '-'
+  const sourceTypeLabel = labelSourceType(item.sourceType)
 
   return {
     resultId: item.resultId,
     inspectionId: item.inspectionId,
     inspectedAt: formatDateMinute(item.startedAt ?? item.createdAt),
     targetLine,
-    runTypeLabel: labelRunType(item.runType),
+    runTypeLabel: `${labelRunType(item.runType)} · ${sourceTypeLabel}`,
     decision,
     score: item.score,
     statusLabel: formatResultStatus(item.resultStatus),

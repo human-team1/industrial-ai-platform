@@ -19,6 +19,7 @@ export type ResultSummary = {
   productName?: string | null
   runType?: string | null
   inputType?: string | null
+  sourceType?: string | null
   score?: number | null
   confidence?: number | null
   decisionCode?: ResultDecision | string | null

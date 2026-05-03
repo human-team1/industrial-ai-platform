@@ -1,8 +1,8 @@
-import type { DragEvent, ReactNode } from 'react'
+import type { DragEvent, ReactNode, RefObject } from 'react'
 import { useRef, useState } from 'react'
 import type {
   AnalysisTargetOption,
-  CameraSource,
+  BrowserCameraDevice,
   InspectionEvent,
   SelectedInspectionFile,
   ThresholdOption,
@@ -18,47 +18,47 @@ type FileProps = {
 }
 
 export function RealtimeControlBar({
-  isRunning,
-  isStarting,
-  isStopping,
-  canStart,
-  elapsedSeconds,
-  runStatus,
-  onStart,
-  onStop,
-  onSnapshot,
+  isCameraReady,
+  isPreparing,
+  isCapturing,
+  canCapture,
+  requestDurationMs,
+  onCapture,
 }: {
-  isRunning: boolean
-  isStarting: boolean
-  isStopping: boolean
-  canStart: boolean
-  elapsedSeconds: number
-  runStatus: string
-  onStart: () => void
-  onStop: () => void
-  onSnapshot: () => void
+  isCameraReady: boolean
+  isPreparing: boolean
+  isCapturing: boolean
+  canCapture: boolean
+  requestDurationMs: number | null
+  onCapture: () => void
 }) {
-  const statusLabel = isRunning ? '라이브 스트리밍' : runStatus === 'STOPPED' ? '중지됨' : '대기 중'
+  const statusLabel = isCapturing
+    ? '캡처 검사 진행 중'
+    : isCameraReady
+      ? '카메라 준비 완료'
+      : isPreparing
+        ? '카메라 연결 중'
+        : '대기 중'
 
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center gap-4">
         <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <span className={`h-2.5 w-2.5 rounded-full ${isRunning ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+          <span className={`h-2.5 w-2.5 rounded-full ${isCameraReady ? 'bg-emerald-500' : 'bg-slate-400'}`} />
           {statusLabel}
         </span>
-        <span className="font-mono text-sm text-slate-500">{formatElapsed(elapsedSeconds)}</span>
-        {isRunning ? <Badge tone="blue">PROCESSING</Badge> : null}
+        <span className="text-sm text-slate-500">
+          최근 요청 시간: {requestDurationMs == null ? '-' : `${(requestDurationMs / 1000).toFixed(2)}초`}
+        </span>
       </div>
       <div className="flex gap-2">
-        <button type="button" className="btn-blue" disabled={!canStart || isStarting || isRunning} onClick={onStart}>
-          {isStarting ? '시작 중...' : '시작'}
-        </button>
-        <button type="button" className="btn-secondary" disabled={!isRunning || isStopping} onClick={onStop}>
-          {isStopping ? '중지 중...' : '중지'}
-        </button>
-        <button type="button" className="btn-secondary" onClick={onSnapshot} disabled>
-          스냅샷
+        <button
+          type="button"
+          className="btn-blue"
+          disabled={!canCapture || isPreparing || isCapturing}
+          onClick={onCapture}
+        >
+          {isCapturing ? '검사 요청 중...' : '현재 화면 검사'}
         </button>
       </div>
     </section>
@@ -66,120 +66,98 @@ export function RealtimeControlBar({
 }
 
 export function LiveStreamPanel({
-  selectedCamera,
-  isRunning,
+  videoRef,
+  devices,
+  selectedDeviceId,
+  isCameraReady,
+  isCameraLoading,
+  onSelectDevice,
 }: {
-  selectedCamera: CameraSource | null
-  isRunning: boolean
+  videoRef: RefObject<HTMLVideoElement>
+  devices: BrowserCameraDevice[]
+  selectedDeviceId: string | null
+  isCameraReady: boolean
+  isCameraLoading: boolean
+  onSelectDevice: (deviceId: string | null) => void
 }) {
-  const streamUrl = selectedCamera?.streamUrl
-  const canRenderMedia = Boolean(streamUrl?.startsWith('http://') || streamUrl?.startsWith('https://'))
-
   return (
-    <Card title="라이브 영상" className="min-h-[520px]">
-      <div className="relative flex min-h-[440px] items-center justify-center overflow-hidden rounded-lg bg-slate-950 text-slate-300">
-        {isRunning && canRenderMedia ? (
-          <video src={streamUrl} controls autoPlay muted className="h-full max-h-[520px] w-full object-contain" />
-        ) : (
-          <div className="px-6 text-center">
-            <p className="text-base font-semibold">
-              {!selectedCamera
-                ? '카메라를 선택하고 시작 버튼을 눌러주세요.'
-                : isRunning
-                  ? '실시간 스트림 연결 대기 중입니다.'
-                  : '실시간 탐지를 시작하려면 카메라를 선택하고 시작 버튼을 눌러주세요.'}
-            </p>
-            {isRunning ? <p className="mt-3 text-sm text-blue-200">AI 분석 연동 준비 중</p> : null}
-          </div>
-        )}
+    <Card title="카메라 프리뷰" className="min-h-[520px]">
+      <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_240px]">
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium text-slate-700">브라우저 카메라</span>
+          <select
+            className="control w-full"
+            value={selectedDeviceId ?? ''}
+            onChange={(event) => onSelectDevice(event.target.value || null)}
+            disabled={isCameraLoading || devices.length === 0}
+          >
+            <option value="">카메라를 선택해 주세요</option>
+            {devices.map((device) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          지속 스트리밍 업로드는 이번 MVP에서 사용하지 않습니다. 버튼을 누른 순간의 프레임 1장만 캡처합니다.
+        </div>
+      </div>
 
-        {isRunning ? (
-          <div className="absolute left-4 top-4">
-            <Badge tone="green">탐지 결과 대기 중</Badge>
+      <div className="relative flex min-h-[440px] items-center justify-center overflow-hidden rounded-lg bg-slate-950 text-slate-300">
+        <video ref={videoRef} autoPlay muted playsInline className="h-full max-h-[520px] w-full object-contain" />
+
+        <div className="pointer-events-none absolute inset-[18%_22%] rounded-2xl border-2 border-dashed border-amber-300/90 shadow-[0_0_0_9999px_rgba(15,23,42,0.28)]">
+          <div className="absolute -top-7 left-0 rounded-full bg-amber-300 px-3 py-1 text-[11px] font-semibold text-slate-900">
+            중앙 고정 영역
+          </div>
+        </div>
+
+        {!isCameraReady ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/75 px-6 text-center">
+            <p className="text-base font-semibold">
+              {isCameraLoading
+                ? '카메라 프리뷰를 준비하고 있습니다.'
+                : '브라우저 카메라 권한을 허용하면 프리뷰가 표시됩니다.'}
+            </p>
           </div>
         ) : null}
 
+        <div className="absolute left-4 top-4">
+          <Badge tone={isCameraReady ? 'green' : 'blue'}>
+            {isCameraReady ? 'PREVIEW READY' : 'WAITING'}
+          </Badge>
+        </div>
+
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/55 px-4 py-3 text-xs text-slate-200">
           <div className="flex gap-4">
-            <span>{isRunning ? 'LIVE' : 'READY'}</span>
-            <span>FPS -</span>
-            <span>해상도 -</span>
+            <span>{isCameraReady ? 'LIVE PREVIEW' : 'READY'}</span>
+            <span>캡처 방식: 단건 이미지</span>
           </div>
           <span>{new Date().toLocaleTimeString('ko-KR')}</span>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        ROI UI가 아직 없어 이번 MVP에서는 <code>FULL_FRAME</code>으로 전송합니다. 검사 대상이 중앙 고정 영역 안에 오도록 배치해 주세요.
       </div>
     </Card>
   )
 }
 
-export function CameraList({
-  cameras,
-  selectedCameraId,
-  loading,
-  onSelect,
-}: {
-  cameras: CameraSource[]
-  selectedCameraId: number | null
-  loading: boolean
-  onSelect: (cameraId: number) => void
-}) {
-  return (
-    <Card title="카메라 목록">
-      {loading ? (
-        <p className="text-sm text-slate-500">카메라 목록을 불러오는 중입니다.</p>
-      ) : cameras.length === 0 ? (
-        <p className="rounded-md bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-          등록된 카메라가 없습니다.
-        </p>
-      ) : (
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          {cameras.map((camera) => {
-            const selected = camera.cameraId === selectedCameraId
-            return (
-              <button
-                key={camera.cameraId}
-                type="button"
-                onClick={() => onSelect(camera.cameraId)}
-                className={`min-w-[210px] rounded-lg border bg-white p-3 text-left transition ${
-                  selected ? 'border-blue-500 ring-2 ring-blue-100' : 'border-slate-200 hover:border-blue-200'
-                }`}
-              >
-                <div className="mb-3 flex h-24 items-center justify-center rounded-md bg-slate-100 text-slate-400">
-                  <VideoIcon />
-                </div>
-                <p className="truncate text-sm font-semibold text-slate-900">{camera.cameraName}</p>
-                <p className="mt-1 truncate text-xs text-slate-500">{camera.streamUrl ?? '-'}</p>
-                <span className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-600">
-                  <span className={`h-2 w-2 rounded-full ${isCameraActive(camera) ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                  {camera.status ?? '-'}
-                </span>
-              </button>
-            )
-          })}
-          <div className="flex min-w-[160px] items-center justify-center rounded-lg border border-dashed border-slate-300 p-3 text-sm text-slate-400">
-            카메라 추가 준비 중
-          </div>
-        </div>
-      )}
-    </Card>
-  )
-}
-
 export function CurrentDetectionResultCard({
-  isRunning,
-  runStatus,
+  uploadResult,
 }: {
-  isRunning: boolean
-  runStatus: string
+  uploadResult: UploadInspectionResponse | null
 }) {
   return (
-    <Card title="현재 탐지 결과">
+    <Card title="현재 검사 상태">
       <div className="space-y-4 text-sm">
-        <InfoRow label="이상점수" value={isRunning ? '분석 대기' : runStatus === 'STOPPED' ? '결과 없음' : '-'} />
-        <InfoRow label="판정 결과" value={isRunning ? 'PROCESSING' : runStatus === 'STOPPED' ? '결과 없음' : '대기'} />
-        <InfoRow label="신뢰도" value="-" />
+        <InfoRow label="입력 출처" value={uploadResult ? '카메라 캡처' : '-'} />
+        <InfoRow label="inspectionId" value={uploadResult ? String(uploadResult.inspectionId) : '-'} />
+        <InfoRow label="runStatus" value={uploadResult?.runStatus ?? '대기'} />
         <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-500">
-          실제 AI 결과 API 연결 후 score, confidence, decisionCode를 표시합니다.
+          품질 실패나 경계 구간 응답은 결과 화면에서 재검사 필요로 표시됩니다.
         </div>
       </div>
     </Card>
@@ -195,12 +173,16 @@ export function RecentDetectionEventsCard({
 }) {
   return (
     <Card
-      title="최근 탐지 이벤트"
-      action={<button type="button" className="text-xs font-semibold text-blue-600" onClick={onRefresh}>새로고침</button>}
+      title="최근 검사 이벤트"
+      action={
+        <button type="button" className="text-xs font-semibold text-blue-600" onClick={onRefresh}>
+          새로고침
+        </button>
+      }
     >
       {events.length === 0 ? (
         <p className="rounded-md bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-          최근 탐지 이벤트가 없습니다.
+          최근 검사 이벤트가 없습니다.
         </p>
       ) : (
         <div className="space-y-3">
@@ -217,16 +199,15 @@ export function RecentDetectionEventsCard({
   )
 }
 
-export function EquipmentInfoCard({ selectedCamera }: { selectedCamera: CameraSource | null }) {
+export function EquipmentInfoCard({ selectedDeviceLabel }: { selectedDeviceLabel: string | null }) {
   return (
-    <Card title="검사 중 설비 정보">
+    <Card title="입력 정보">
       <div className="space-y-3 text-sm">
-        <InfoRow label="설비명" value={selectedCamera?.cameraName ?? '-'} />
-        <InfoRow label="설비ID" value={selectedCamera ? String(selectedCamera.cameraId) : '-'} />
-        <InfoRow label="설비 유형" value="-" />
-        <InfoRow label="위치" value="-" />
-        <InfoRow label="상태" value={selectedCamera?.status ?? '-'} />
-        <InfoRow label="최근 점검일" value="-" />
+        <InfoRow label="입력 방식" value="브라우저 카메라 캡처" />
+        <InfoRow label="선택 카메라" value={selectedDeviceLabel ?? '-'} />
+        <InfoRow label="ROI 모드" value="FULL_FRAME" />
+        <InfoRow label="품질 게이트" value="사용" />
+        <InfoRow label="프레임 수" value="1" />
       </div>
     </Card>
   )
@@ -254,7 +235,7 @@ export function FileUploadCard({
   }
 
   return (
-    <Card title="1. 파일 업로드" className="xl:col-span-7">
+    <Card title="1. 이미지 업로드" className="xl:col-span-7">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
         <div
           role="button"
@@ -277,21 +258,21 @@ export function FileUploadCard({
           <UploadIcon />
           <div>
             <p className="text-base font-semibold text-slate-800">
-              파일을 드래그하거나 클릭하여 업로드하세요
+              이미지를 드래그하거나 클릭해서 업로드해 주세요
             </p>
-            <p className="mt-2 text-sm text-slate-500">
-              이미지 (JPG, PNG) 또는 비디오 (MP4, MOV, AVI)
+            <p className="mt-2 text-sm text-slate-500">JPG, PNG, WEBP 이미지 파일만 지원합니다.</p>
+            <p className="mt-1 text-xs text-slate-400">
+              영상 파일과 자동 프레임 업로드는 MVP 범위에서 제외됩니다.
             </p>
-            <p className="mt-1 text-xs text-slate-400">최대 2GB</p>
           </div>
           <button type="button" className="btn-blue mt-2" disabled={uploading}>
-            파일 선택
+            이미지 선택
           </button>
           <input
             ref={inputRef}
             className="hidden"
             type="file"
-            accept=".jpg,.jpeg,.png,.mp4,.mov,.avi,image/jpeg,image/png,video/mp4,video/quicktime,video/x-msvideo"
+            accept="image/jpeg,image/png,image/webp"
             disabled={uploading}
             onChange={(event) => onFileSelect(event.target.files?.[0] ?? null)}
           />
@@ -322,46 +303,38 @@ function SelectedFilePanel({
   return (
     <aside className="rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-800">
-          선택된 파일 ({selectedFile ? 1 : 0})
-        </h3>
+        <h3 className="text-sm font-semibold text-slate-800">선택된 파일</h3>
         <button
           type="button"
           className="text-xs font-medium text-slate-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
           disabled={!selectedFile || uploading}
           onClick={onClear}
         >
-          모두 삭제
+          제거
         </button>
       </div>
 
       {!selectedFile ? (
         <p className="mt-10 rounded-md bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-          선택된 파일이 없습니다.
+          선택된 이미지가 없습니다.
         </p>
       ) : (
         <div className="mt-4 space-y-4">
           <div className="h-32 overflow-hidden rounded-md border border-slate-200 bg-slate-100">
-            {selectedFile.fileKind === 'image' ? (
-              <img
-                src={selectedFile.previewUrl}
-                alt="선택된 파일 썸네일"
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-slate-400">
-                <VideoIcon />
-              </div>
-            )}
+            <img
+              src={selectedFile.previewUrl}
+              alt="선택한 이미지 미리보기"
+              className="h-full w-full object-cover"
+            />
           </div>
           <div className="min-w-0 space-y-2 text-sm">
             <p className="truncate font-semibold text-slate-900" title={selectedFile.file.name}>
               {selectedFile.file.name}
             </p>
-            <Badge tone="blue">{selectedFile.fileKind === 'image' ? '이미지' : '비디오'}</Badge>
+            <Badge tone="blue">이미지</Badge>
             <InfoRow label="해상도" value={formatResolution(selectedFile)} />
             <InfoRow label="크기" value={formatFileSize(selectedFile.file.size)} />
-            <InfoRow label="업로드 시간" value={formatDateTime(selectedFile.selectedAt)} />
+            <InfoRow label="선택 시각" value={formatDateTime(selectedFile.selectedAt)} />
           </div>
         </div>
       )}
@@ -380,31 +353,21 @@ export function PreviewCard({
     <Card
       title="2. 미리보기"
       className="xl:col-span-5"
-      action={selectedFile ? <Badge tone="blue">{selectedFile.fileKind === 'image' ? '이미지' : '비디오'}</Badge> : null}
+      action={selectedFile ? <Badge tone="blue">이미지</Badge> : null}
     >
       <div className="relative flex min-h-[360px] items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
         {!selectedFile ? (
-          <p className="text-sm text-slate-500">파일을 선택하면 미리보기가 표시됩니다.</p>
-        ) : selectedFile.fileKind === 'image' ? (
-          <img src={selectedFile.previewUrl} alt="검사 파일 미리보기" className="max-h-[420px] w-full object-contain" />
+          <p className="text-sm text-slate-500">이미지를 선택하면 미리보기가 표시됩니다.</p>
         ) : (
-          <video src={selectedFile.previewUrl} controls className="max-h-[420px] w-full" />
+          <img src={selectedFile.previewUrl} alt="검사 이미지 미리보기" className="max-h-[420px] w-full object-contain" />
         )}
 
         {uploadResult ? (
           <div className="absolute left-4 top-4 flex gap-2">
-            <Badge tone="green">분석 요청 접수됨</Badge>
-            <Badge tone="blue">결과 생성 대기 중</Badge>
+            <Badge tone="green">요청 접수 완료</Badge>
+            <Badge tone="blue">PROCESSING</Badge>
           </div>
         ) : null}
-      </div>
-
-      <div className="mt-3 flex items-center justify-end gap-2 text-xs text-slate-500">
-        <span className="rounded border border-slate-200 px-2 py-1">100%</span>
-        {/* TODO: 실제 줌/전체화면 동작은 결과 뷰어 구현 시 연결한다. */}
-        <button type="button" className="icon-button" disabled>−</button>
-        <button type="button" className="icon-button" disabled>+</button>
-        <button type="button" className="icon-button" disabled>⛶</button>
       </div>
     </Card>
   )
@@ -442,11 +405,16 @@ export function InspectionRunCard({
   const thresholdSelectable = thresholdOptions.some((option) => option.id)
 
   return (
-    <Card title="3. 탐지 실행" className="xl:col-span-4">
+    <Card title="3. 검사 실행" className="xl:col-span-4">
       <div className="space-y-4">
-        <Field label="탐지모델">
+        <Field label="검사 모델">
           <div className="flex gap-2">
-            <select className="control min-w-0 flex-1" value={selectedModel} onChange={(event) => onModelChange(event.target.value)} disabled={uploading}>
+            <select
+              className="control min-w-0 flex-1"
+              value={selectedModel}
+              onChange={(event) => onModelChange(event.target.value)}
+              disabled={uploading}
+            >
               <option value="default">기본 이상 탐지 모델</option>
               <option value="conveyor">컨베이어 벨트 이상 탐지 모델</option>
             </select>
@@ -463,9 +431,11 @@ export function InspectionRunCard({
             onChange={(event) => onTargetChange(event.target.value ? Number(event.target.value) : null)}
             disabled={uploading || loadingOptions}
           >
-            <option value="">검사 대상 선택 안 함</option>
+            <option value="">검사 대상을 선택해 주세요</option>
             {targetOptions.map((target) => (
-              <option key={target.id} value={target.id}>{target.name}</option>
+              <option key={target.id} value={target.id}>
+                {target.name}
+              </option>
             ))}
           </select>
         </Field>
@@ -478,13 +448,17 @@ export function InspectionRunCard({
             disabled={uploading || loadingOptions || !thresholdSelectable}
           >
             <option value="">기본 임계값 사용</option>
-            {thresholdOptions.filter((threshold) => threshold.id).map((threshold) => (
-              <option key={threshold.id} value={threshold.id}>{threshold.name}</option>
-            ))}
+            {thresholdOptions
+              .filter((threshold) => threshold.id)
+              .map((threshold) => (
+                <option key={threshold.id} value={threshold.id}>
+                  {threshold.name}
+                </option>
+              ))}
           </select>
           {!thresholdSelectable && thresholdOptions[0] ? (
             <p className="mt-1 text-xs text-slate-500">
-              현재 조회된 임계값은 ID가 없어 업로드 요청에는 포함하지 않습니다.
+              조회된 임계값 중 선택 가능한 항목이 없어 기본 정책으로 요청합니다.
             </p>
           ) : null}
         </Field>
@@ -495,13 +469,14 @@ export function InspectionRunCard({
           disabled={!selectedFile || uploading}
           onClick={onSubmit}
         >
-          {uploading ? '요청 중...' : '탐지 실행'}
+          {uploading ? '요청 중...' : '검사 실행'}
         </button>
 
         <div className="space-y-1 rounded-md bg-slate-50 p-3 text-xs leading-5 text-slate-500">
-          <p>모델 유형: 이미지 분류 + 객체 탐지</p>
-          <p>예상 요청 시간: 5~10초</p>
-          <p>분석 완료 시간은 후속 처리 상태에 따라 달라질 수 있습니다.</p>
+          <p>입력 모드: IMAGE</p>
+          <p>입력 출처: 이미지 업로드</p>
+          <p>ROI 모드: FULL_FRAME</p>
+          <p>ROI UI가 아직 없어 전체 프레임 기준으로 요청합니다.</p>
         </div>
       </div>
     </Card>
@@ -520,10 +495,10 @@ export function ProgressStatusCard({
   requestDurationMs: number | null
 }) {
   const steps = [
-    getStep('파일 업로드', !selectedFile ? '대기' : uploading ? '진행 중' : uploadResult ? '완료' : '준비'),
-    getStep('전처리', uploadResult ? '처리 예정' : '대기'),
-    getStep('모델추론', uploadResult ? '처리 예정' : '대기'),
-    getStep('결과분석', uploadResult ? '처리 예정' : '대기'),
+    getStep('이미지 선택', !selectedFile ? '대기' : uploading ? '진행 중' : uploadResult ? '완료' : '준비'),
+    getStep('업로드 검증', uploadResult ? '처리 예정' : '대기'),
+    getStep('모델 추론', uploadResult ? '처리 예정' : '대기'),
+    getStep('결과 생성', uploadResult ? '처리 예정' : '대기'),
   ]
 
   return (
@@ -567,11 +542,11 @@ export function ResultSummaryCard({
   onReset: () => void
 }) {
   return (
-    <Card title="5. 탐지 결과 요약" className="xl:col-span-4">
+    <Card title="5. 검사 요청 요약" className="xl:col-span-4">
       {!uploadResult ? (
         <Placeholder
-          title="아직 탐지 결과가 없습니다."
-          description="파일을 업로드하고 탐지 실행을 눌러주세요."
+          title="아직 검사 요청이 없습니다."
+          description="이미지를 업로드하고 검사 실행 버튼을 눌러 주세요."
         />
       ) : (
         <div className="space-y-4">
@@ -582,11 +557,15 @@ export function ResultSummaryCard({
             <InfoRow label="임계값" value={formatThreshold(selectedThreshold)} />
           </div>
           <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-            결과 생성 대기 중입니다. AI 분석 결과는 처리 완료 후 결과 화면에서 확인할 수 있습니다.
+            AI 분석이 완료되면 결과 목록과 상세 화면에서 판정, 시각화, 설명을 확인할 수 있습니다.
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn-secondary" onClick={onGoResults}>결과 목록으로 이동</button>
-            <button type="button" className="btn-blue" onClick={onReset}>새 검사</button>
+            <button type="button" className="btn-secondary" onClick={onGoResults}>
+              결과 목록으로 이동
+            </button>
+            <button type="button" className="btn-blue" onClick={onReset}>
+              새 검사
+            </button>
           </div>
         </div>
       )}
@@ -602,20 +581,21 @@ export function AnalysisInsightCard({
   onGoResults: () => void
 }) {
   return (
-    <Card title="6. 주요 분석 인사이트" className="xl:col-span-4">
+    <Card title="6. 분석 안내" className="xl:col-span-4">
       {!uploadResult ? (
         <Placeholder
-          title="분석 인사이트는 검사 결과 생성 후 표시됩니다."
-          description="현재 화면에서는 실제 분석 수치나 이상 항목을 임의로 표시하지 않습니다."
+          title="분석 안내는 검사 요청 후 표시됩니다."
+          description="현재 화면에서는 업로드 가능한 이미지 범위와 요청 흐름만 안내합니다."
         />
       ) : (
         <div className="space-y-3 text-sm text-slate-600">
           <Alert variant="success">검사 요청이 접수되었습니다.</Alert>
           <p>현재 AI 분석 결과 생성 대기 중입니다.</p>
-          <p>결과가 생성되면 이상 확률, 탐지 항목, 관련 인사이트를 표시할 예정입니다.</p>
+          <p>결과가 생성되면 이상 점수, 판정 결과, 근거 설명을 결과 화면에서 확인할 수 있습니다.</p>
           <div className="flex flex-wrap gap-2 pt-2">
-            <button type="button" className="btn-secondary" disabled>결과 다운로드</button>
-            <button type="button" className="btn-blue" onClick={onGoResults}>탐지이력 보기</button>
+            <button type="button" className="btn-blue" onClick={onGoResults}>
+              검사 이력 보기
+            </button>
           </div>
         </div>
       )}
@@ -655,7 +635,10 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function Alert({ variant, children }: { variant: 'success' | 'error'; children: ReactNode }) {
-  const color = variant === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'
+  const color =
+    variant === 'success'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : 'border-red-200 bg-red-50 text-red-700'
   return <p className={`mt-4 rounded-md border px-3 py-2 text-sm ${color}`}>{children}</p>
 }
 
@@ -687,12 +670,18 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 function getStep(label: string, status: string) {
-  const color = status === '완료' ? 'bg-emerald-500' : status === '진행 중' ? 'bg-blue-500' : status === '준비' ? 'bg-amber-400' : 'bg-slate-300'
+  const color =
+    status === '완료'
+      ? 'bg-emerald-500'
+      : status === '진행 중'
+        ? 'bg-blue-500'
+        : status === '준비'
+          ? 'bg-amber-400'
+          : 'bg-slate-300'
   return { label, status, color }
 }
 
 function formatResolution(selectedFile: SelectedInspectionFile) {
-  if (selectedFile.fileKind !== 'image') return '-'
   if (!selectedFile.width || !selectedFile.height) return '-'
   return `${selectedFile.width} x ${selectedFile.height}`
 }
@@ -719,18 +708,6 @@ function formatThreshold(threshold: ThresholdOption | null) {
   return `${threshold.name}${detail}`
 }
 
-function formatElapsed(seconds: number) {
-  const hour = Math.floor(seconds / 3600)
-  const minute = Math.floor((seconds % 3600) / 60)
-  const second = seconds % 60
-  return [hour, minute, second].map((value) => String(value).padStart(2, '0')).join(':')
-}
-
-function isCameraActive(camera: CameraSource) {
-  const status = camera.status?.toUpperCase()
-  return status === 'ACTIVE' || status === 'ONLINE'
-}
-
 function formatStringDateTime(value?: string) {
   if (!value) return '-'
   return value.slice(0, 16).replace('T', ' ')
@@ -741,15 +718,6 @@ function UploadIcon() {
     <svg className="h-12 w-12 text-blue-500" fill="none" viewBox="0 0 48 48" stroke="currentColor" strokeWidth={1.6}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M24 31V12m0 0-7 7m7-7 7 7" />
       <path strokeLinecap="round" d="M12 30v4a4 4 0 0 0 4 4h16a4 4 0 0 0 4-4v-4" />
-    </svg>
-  )
-}
-
-function VideoIcon() {
-  return (
-    <svg className="h-12 w-12" fill="none" viewBox="0 0 48 48" stroke="currentColor" strokeWidth={1.6}>
-      <rect x="9" y="12" width="30" height="24" rx="3" />
-      <path strokeLinejoin="round" d="m22 19 10 5-10 5z" />
     </svg>
   )
 }

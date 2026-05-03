@@ -12,6 +12,10 @@ public class SubmitInspectionCommand {
     private final String sessionId;
     private final Long targetId;
     private final Long thresholdId;
+    private final String inputMode;
+    private final String sourceType;
+    private final String roiMode;
+    private final Boolean qualityGateEnabled;
     private final MultipartFile file;
     private final String idempotencyKey;
 }
