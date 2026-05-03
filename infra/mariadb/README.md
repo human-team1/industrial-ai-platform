@@ -101,7 +101,7 @@ docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p
 
 ```powershell
 cd infra
-docker compose down -v
+docker compose down
 docker compose --env-file .env up -d
 ```
 

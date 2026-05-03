@@ -39,13 +39,13 @@ MARIADB_PASSWORD=...
 
 ```powershell
 cd infra
-docker compose down -v
+docker compose down
 docker compose --env-file .env up -d
 ```
 
 주의:
 
-- `docker compose down -v`는 MariaDB, Redis, MinIO, ChromaDB의 로컬 데이터를 모두 삭제합니다.
+- 데이터 볼륨 보호를 위해 `docker compose down -v`는 사용하지 않습니다.
 - 기존 데이터를 유지해야 한다면 `docs/db/mariadb-schema-delta-from-develop.md`의 ALTER SQL을 검토합니다.
 
 ## 4. Init SQL 수동 실행
@@ -177,7 +177,7 @@ docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p
 
 ```powershell
 cd infra
-docker compose down -v
+docker compose down
 docker compose --env-file .env up -d
 
 Get-Content -Raw -Encoding UTF8 .\mariadb\init\industrial-ai-platform.sql |
@@ -194,7 +194,7 @@ init SQL이 아직 적용되지 않은 상태입니다. `infra` 폴더에서 Ini
 
 ### Table already exists 오류
 
-기존 테이블이 남아 있는 상태에서 init SQL을 다시 실행한 경우입니다. 로컬 데이터를 삭제해도 되면 `docker compose down -v` 후 다시 진행합니다.
+기존 테이블이 남아 있는 상태에서 init SQL을 다시 실행한 경우입니다. 볼륨은 유지한 채 `docker compose down` 후 다시 진행합니다.
 
 ### Docker daemon 연결 실패
 

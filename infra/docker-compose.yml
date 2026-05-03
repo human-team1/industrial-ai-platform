@@ -5,6 +5,7 @@ services:
     container_name: industrial-mariadb
     restart: unless-stopped
     command:
+      - --port=3307
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     environment:
@@ -14,9 +15,14 @@ services:
       MARIADB_PASSWORD: ${MARIADB_PASSWORD}
       TZ: Asia/Seoul
     ports:
-      - "3307:3306"
+      - "3307:3307"
     volumes:
       - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-P", "3307", "-uroot", "-p${MARIADB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7

@@ -47,10 +47,12 @@ docker compose ps
 이미 컨테이너 볼륨까지 완전히 비우고 새로 시작하려면 아래 순서로 실행합니다.
 
 ```powershell
-docker compose down -v
+docker compose down
 docker compose --env-file .env up -d
 .\scripts\db-reset.ps1 -Force
 ```
+
+주의: 데이터 볼륨 보호를 위해 로컬 재기동 시 `docker compose down -v`는 사용하지 않습니다.
 
 3. 개별 단계만 다시 실행하고 싶을 때
 
