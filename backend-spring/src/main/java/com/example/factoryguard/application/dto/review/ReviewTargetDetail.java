@@ -13,4 +13,5 @@ public class ReviewTargetDetail {
     private final String decisionCode;
     private final String finalDecisionCode;
     private final String failureReason;
+    private final ReviewModelInfo model;
 }

@@ -16,4 +16,7 @@ public class ReviewQueueSummary {
     private final ReviewQueueStatus queueStatus;
     private final ReviewQueuedReason queuedReason;
     private final LocalDateTime queuedAt;
+    private final Long modelVersionId;
+    private final String modelCategory;
+    private final String modelProfile;
 }

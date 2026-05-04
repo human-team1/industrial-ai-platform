@@ -35,20 +35,26 @@ public class FilePersistenceAdapter implements LoadFilePort, CheckFileAccessPort
             return Optional.empty();
         }
         Object[] row = rows.get(0);
-        return Optional.of(StoredFile.builder()
-                .fileId(toLong(row[0]))
-                .storageType(toStorageType(row[1]))
-                .bucketName(toString(row[2]))
-                .objectKey(toString(row[3]))
-                .filePath(toString(row[4]))
-                .fileName(toString(row[5]))
-                .fileExt(toString(row[6]))
-                .mimeType(toString(row[7]))
-                .fileSize(toLong(row[8]))
-                .checksum(toString(row[9]))
-                .createdAt(toLocalDateTime(row[10]))
-                .createdBy(toLong(row[11]))
-                .build());
+        return Optional.of(toStoredFile(row));
+    }
+
+    @Override
+    public Optional<StoredFile> findByObjectKey(String objectKey) {
+        Query query = entityManager.createNativeQuery("""
+                SELECT file_id, storage_type, bucket_name, object_key, file_path, file_name,
+                       file_ext, mime_type, file_size, checksum, created_at, created_by
+                FROM file
+                WHERE object_key = :objectKey
+                ORDER BY file_id DESC
+                LIMIT 1
+                """);
+        query.setParameter("objectKey", objectKey);
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = query.getResultList();
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(toStoredFile(rows.get(0)));
     }
 
     @Override
@@ -141,5 +147,22 @@ public class FilePersistenceAdapter implements LoadFilePort, CheckFileAccessPort
             return dateTime;
         }
         return ((Timestamp) value).toLocalDateTime();
+    }
+
+    private StoredFile toStoredFile(Object[] row) {
+        return StoredFile.builder()
+                .fileId(toLong(row[0]))
+                .storageType(toStorageType(row[1]))
+                .bucketName(toString(row[2]))
+                .objectKey(toString(row[3]))
+                .filePath(toString(row[4]))
+                .fileName(toString(row[5]))
+                .fileExt(toString(row[6]))
+                .mimeType(toString(row[7]))
+                .fileSize(toLong(row[8]))
+                .checksum(toString(row[9]))
+                .createdAt(toLocalDateTime(row[10]))
+                .createdBy(toLong(row[11]))
+                .build();
     }
 }

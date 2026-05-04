@@ -9,10 +9,13 @@ import com.example.factoryguard.application.port.in.model.*;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.common.response.ApiResponse;
+import com.example.factoryguard.config.security.SecurityUtils;
+import com.example.factoryguard.config.web.RequestIdFilter;
 import com.example.factoryguard.domain.model.vo.DeploymentScope;
 import com.example.factoryguard.domain.model.vo.ModelCategory;
 import com.example.factoryguard.domain.model.vo.ModelProfile;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.MDC;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,6 +42,8 @@ public class ModelAdminController {
     private final DeployModelVersionUseCase deployModelVersionUseCase;
     private final DeactivateModelDeploymentUseCase deactivateModelDeploymentUseCase;
     private final RollbackModelDeploymentUseCase rollbackModelDeploymentUseCase;
+    private final GenerateModelVersionFromNormalImagesUseCase generateModelVersionFromNormalImagesUseCase;
+    private final SecurityUtils securityUtils;
 
     @GetMapping("/api/v1/models")
     public ResponseEntity<ApiResponse<ModelPageResponse<ModelSummaryResponse>>> listModels(
@@ -141,6 +146,44 @@ public class ModelAdminController {
                         .build()),
                 "모델 버전을 업로드했습니다."
         ));
+    }
+
+    @PostMapping(value = "/api/v1/models/{modelId}/versions/from-normal-images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<GenerateModelVersionsFromNormalImagesResponse>> generateFromNormalImages(
+            @PathVariable Long modelId,
+            @RequestPart("normalImages") List<MultipartFile> normalImages,
+            @RequestPart("modelCategory") String modelCategory,
+            @RequestPart(value = "modelProfile", required = false) String modelProfile,
+            @RequestPart("organizationId") String organizationId,
+            @RequestPart(value = "targetId", required = false) String targetId,
+            @RequestPart("deploymentScope") String deploymentScope,
+            @RequestPart(value = "versionName", required = false) String versionName,
+            @RequestPart(value = "thresholdDefault", required = false) String thresholdDefault,
+            @RequestPart(value = "reason", required = false) String reason
+    ) {
+        ModelProfile parsedProfile = modelProfile == null || modelProfile.trim().isEmpty()
+                ? null
+                : parseModelProfile(modelProfile);
+        GenerateModelVersionsFromNormalImagesResponse response = generateModelVersionFromNormalImagesUseCase.generateFromNormalImages(
+                GenerateModelVersionFromNormalImagesCommand.builder()
+                        .modelId(modelId)
+                        .organizationId(parseLong(organizationId, "organizationId"))
+                        .targetId(parseNullableLong(targetId, "targetId"))
+                        .deploymentScope(parseDeploymentScope(deploymentScope))
+                        .modelCategory(parseModelCategory(modelCategory))
+                        .modelProfile(parsedProfile)
+                        .versionName(versionName)
+                        .thresholdDefault(parseDecimal(thresholdDefault))
+                        .reason(reason)
+                        .normalImages(normalImages)
+                        .actorUserId(securityUtils.getCurrentUserId())
+                        .requestId(MDC.get(RequestIdFilter.MDC_KEY))
+                        .build()
+        );
+        String message = parsedProfile == null
+                ? "정상 이미지셋 기반 속도형/성능형 모델 버전이 생성되고 배포되었습니다."
+                : "정상 이미지셋 기반 모델 버전이 생성되고 배포되었습니다.";
+        return ResponseEntity.ok(ApiResponse.success(response, message));
     }
 
     @GetMapping("/api/v1/model-versions/{versionId}")
@@ -271,6 +314,21 @@ public class ModelAdminController {
         } catch (NumberFormatException exception) {
             throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "숫자 형식이 올바르지 않습니다.");
         }
+    }
+
+    private Long parseLong(String value, String fieldName) {
+        try {
+            return Long.valueOf(requiredText(value));
+        } catch (NumberFormatException exception) {
+            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, fieldName + " 형식이 올바르지 않습니다.");
+        }
+    }
+
+    private Long parseNullableLong(String value, String fieldName) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return parseLong(value, fieldName);
     }
 
     private String requiredText(String value) {
