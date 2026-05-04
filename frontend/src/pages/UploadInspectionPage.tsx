@@ -31,34 +31,39 @@ export function UploadInspectionPage() {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        <FileUploadCard
-          selectedFile={inspection.selectedFile}
-          uploading={inspection.uploading}
-          errorMessage={inspection.errorMessage}
-          noticeMessage={inspection.noticeMessage}
-          onFileSelect={inspection.setSelectedFile}
-        />
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <div className="flex flex-col gap-5">
+          <FileUploadCard
+            selectedFile={inspection.selectedFile}
+            uploading={inspection.uploading}
+            errorMessage={inspection.errorMessage}
+            noticeMessage={inspection.noticeMessage}
+            onFileSelect={inspection.setSelectedFile}
+          />
+          <InspectionRunCard
+            selectedFile={inspection.selectedFile}
+            targetOptions={inspection.targetOptions}
+            thresholdOptions={inspection.thresholdOptions}
+            selectedTargetId={inspection.selectedTargetId}
+            selectedThresholdId={inspection.selectedThresholdId}
+            selectedModel={inspection.selectedModel}
+            loadingOptions={inspection.loadingOptions}
+            uploading={inspection.uploading}
+            onTargetChange={inspection.setSelectedTargetId}
+            onThresholdChange={inspection.setSelectedThresholdId}
+            onModelChange={inspection.setSelectedModel}
+            onSubmit={inspection.submit}
+            onSettingClick={() =>
+              setSettingMessage(
+                '설정 기능은 준비 중입니다. 현재는 기본 ROI와 품질 게이트 설정으로 검사합니다.',
+              )
+            }
+          />
+        </div>
         <PreviewCard selectedFile={inspection.selectedFile} uploadResult={inspection.uploadResult} />
-        <InspectionRunCard
-          selectedFile={inspection.selectedFile}
-          targetOptions={inspection.targetOptions}
-          thresholdOptions={inspection.thresholdOptions}
-          selectedTargetId={inspection.selectedTargetId}
-          selectedThresholdId={inspection.selectedThresholdId}
-          selectedModel={inspection.selectedModel}
-          loadingOptions={inspection.loadingOptions}
-          uploading={inspection.uploading}
-          onTargetChange={inspection.setSelectedTargetId}
-          onThresholdChange={inspection.setSelectedThresholdId}
-          onModelChange={inspection.setSelectedModel}
-          onSubmit={inspection.submit}
-          onSettingClick={() =>
-            setSettingMessage(
-              '설정 기능은 준비 중입니다. 현재는 기본 ROI와 품질 게이트 설정으로 검사합니다.',
-            )
-          }
-        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
         <ProgressStatusCard
           selectedFile={inspection.selectedFile}
           uploading={inspection.uploading}
