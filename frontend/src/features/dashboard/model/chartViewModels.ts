@@ -26,7 +26,7 @@ export function toDashboardEquipmentChart(data: DashboardOverview): BarChartView
     title: '설비별 이상 탐지율',
     unit: '%',
     caption: '상위 설비',
-    points: data.topEquipmentAnomalyRates.map((row) => ({
+    points: data.topEquipmentAnomalyRates.slice(0, 5).map((row) => ({
       label: truncateChartLabel(row.equipmentName),
       value: row.anomalyRate,
     })),
