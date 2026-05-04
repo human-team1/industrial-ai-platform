@@ -31,7 +31,7 @@ public class InspectionResultJpaEntity {
     @Column(name = "inspection_id", nullable = false)
     private Long inspectionId;
 
-    @Column(name = "score", precision = 6, scale = 4)
+    @Column(name = "score", precision = 8, scale = 4)
     private BigDecimal score;
 
     @Column(name = "confidence", precision = 6, scale = 4)
