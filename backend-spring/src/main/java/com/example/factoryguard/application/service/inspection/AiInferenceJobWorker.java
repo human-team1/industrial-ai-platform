@@ -147,6 +147,8 @@ public class AiInferenceJobWorker {
             InspectionInput input = loadInspectionInputPort.findByInspectionId(run.getInspectionId()).stream()
                     .findFirst()
                     .orElseThrow(() -> new IllegalStateException("inspection input not found"));
+            // TODO: MVP 단계에서는 사용자 활성/시스템 기본 임계값만 사용한다.
+            //       후속 PR에서 사용자 설정 -> 회사/설비(target/organization) 기본값으로의 fallback 체인을 추가해야 한다.
             ResolvedThreshold threshold = resolveInspectionThresholdService.resolve(
                     run.getUserId(), null);
             AiInspectionResult result = callAiInspectionPort.call(buildAiCommand(run, input, threshold));
