@@ -1,8 +1,10 @@
 package com.example.factoryguard.domain.inspection.model;
 
+import com.example.factoryguard.domain.inspection.vo.RoiMode;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -19,5 +21,12 @@ public class InspectionInput {
     private final String mimeType;
     private final Integer durationSec;
     private final Integer frameCount;
+    private final RoiMode roiMode;
+    private final String roiCoordinateType;
+    private final BigDecimal roiX;
+    private final BigDecimal roiY;
+    private final BigDecimal roiWidth;
+    private final BigDecimal roiHeight;
+    private final Boolean qualityGateEnabled;
     private final LocalDateTime createdAt;
 }

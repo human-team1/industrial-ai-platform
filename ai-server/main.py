@@ -27,7 +27,9 @@ async def attach_request_id(request: Request, call_next):
 async def handle_validation_exception(request: Request, exc: RequestValidationError) -> JSONResponse:
     errors = exc.errors()
     status_code = 422
-    if any(error.get("type") in {"missing", "json_invalid"} for error in errors):
+    # JSON 본체 자체가 깨진 경우만 400으로 분리. 필수 필드 누락(missing)이나
+    # 형식 위반은 422 (RFC 9457 / 422 Unprocessable Entity) 로 일관 처리.
+    if any(error.get("type") == "json_invalid" for error in errors):
         status_code = 400
     return JSONResponse(
         status_code=status_code,

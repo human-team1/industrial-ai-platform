@@ -105,25 +105,104 @@ def test_no13_quality_detects_low_contrast():
     assert metrics.reason == "LOW_CONTRAST"
 
 
-def test_no14_missing_memory_bank_file_key_returns_400():
+def test_no14_missing_memory_bank_file_key_returns_422():
     service, _ = build_service()
     payload = base_payload()
     del payload["model"]["memoryBankFileKey"]
     app.dependency_overrides[get_vision_inference_service] = lambda: service
     client = TestClient(app)
     response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
-    assert response.status_code == 400
+    assert response.status_code == 422
     app.dependency_overrides.clear()
 
 
-def test_no14_missing_ckpt_file_key_returns_400():
+def test_no14_missing_ckpt_file_key_returns_422():
     service, _ = build_service()
     payload = base_payload()
     del payload["model"]["ckptFileKey"]
     app.dependency_overrides[get_vision_inference_service] = lambda: service
     client = TestClient(app)
     response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_no14_missing_config_file_key_returns_422():
+    service, _ = build_service()
+    payload = base_payload()
+    del payload["model"]["configFileKey"]
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_no14_blank_memory_bank_file_key_returns_422():
+    service, _ = build_service()
+    payload = base_payload()
+    payload["model"]["memoryBankFileKey"] = "   "
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_no14_json_invalid_still_returns_400():
+    service, _ = build_service()
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post(
+        "/ai/v1/internal/vision/infer-image",
+        data="{invalid json",
+        headers={"Content-Type": "application/json"},
+    )
     assert response.status_code == 400
+    app.dependency_overrides.clear()
+
+
+def test_no12_invalid_input_size_returns_422():
+    service, _ = build_service()
+    payload = base_payload()
+    payload["model"]["inputSize"] = "abc"
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_no12_input_size_with_asterisk_returns_422():
+    service, _ = build_service()
+    payload = base_payload()
+    payload["model"]["inputSize"] = "224*224"
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_no12_input_size_single_dimension_passes():
+    service, _ = build_service()
+    payload = base_payload()
+    payload["model"]["inputSize"] = "224"
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code != 422
+    app.dependency_overrides.clear()
+
+
+def test_no12_input_size_wxh_passes():
+    service, _ = build_service()
+    payload = base_payload()
+    payload["model"]["inputSize"] = "224x224"
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code != 422
     app.dependency_overrides.clear()
 
 

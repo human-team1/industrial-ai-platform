@@ -57,7 +57,9 @@ public enum ErrorCode {
     NOTIFICATION_FORBIDDEN("NOTIFICATION-403", HttpStatus.FORBIDDEN, "다른 사용자의 알림에는 접근할 수 없습니다."),
     NOTIFICATION_INVALID_TYPE("NOTIFICATION-422", HttpStatus.UNPROCESSABLE_ENTITY, "알림 유형 값이 올바르지 않습니다."),
     UPLOAD_SIZE_EXCEEDED("UPLOAD-413", HttpStatus.PAYLOAD_TOO_LARGE, "업로드 가능한 파일 크기를 초과했습니다."),
-    MULTIPART_PARSE_FAILED("UPLOAD-415", HttpStatus.UNSUPPORTED_MEDIA_TYPE, "multipart/form-data 요청을 해석할 수 없습니다.");
+    MULTIPART_PARSE_FAILED("UPLOAD-415", HttpStatus.UNSUPPORTED_MEDIA_TYPE, "multipart/form-data 요청을 해석할 수 없습니다."),
+    INVALID_ROI_REQUIRED("ROI-422A", HttpStatus.UNPROCESSABLE_ENTITY, "roiMode=FIXED일 때 roiX, roiY, roiWidth, roiHeight는 필수입니다."),
+    INVALID_ROI_RANGE("ROI-422B", HttpStatus.UNPROCESSABLE_ENTITY, "ROI 좌표 값이 허용 범위(0~1)를 벗어났습니다.");
 
     private final String code;
     private final HttpStatus status;
