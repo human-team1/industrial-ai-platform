@@ -682,11 +682,25 @@ MVP 프론트의 브라우저 카메라 검사는 `/inspections/upload`로 단�
 
 모델 관리 API는 `ROLE_SITE_ADMIN` 전용이다.
 
-고객사 샘플 이미지 50장 업로드/학습 실행은 MVP API 범위에 포함하지 않는다.
+정상 이미지셋 업로드를 통한 `memory_bank` 생성은 모델 관리 API 범위에 포함한다.
 
-MVP에서는 운영자가 생성된 모델 산출물(`model.ckpt`, `config.json`, `memory_bank`)을 등록하고, 조직 또는 검사대상에 배포/교체/롤백하는 기능만 제공한다.
+단, `ckpt/config`를 새로 학습하거나 생성하지는 않는다.
+`ckpt/config`는 4개 고정 모델 프로필에서 재사용하고, 업로드된 정상 이미지셋으로 `memory_bank`만 생성한다.
+
+고정 모델 프로필은 아래 4가지를 사용한다.
+
+| modelProfile | modelCategory | 설명 |
+| --- | --- | --- |
+| `SPEED` | `OBJECT` | Object 계열 속도형 프로필 |
+| `SPEED` | `TEXTURE` | Texture 계열 속도형 프로필 |
+| `PERFORMANCE` | `OBJECT` | Object 계열 성능형 프로필 |
+| `PERFORMANCE` | `TEXTURE` | Texture 계열 성능형 프로필 |
 
 PatchCore 계열 모델은 `ckptFile`, `configFile`, `memoryBankFile`이 모두 있어야 실제 추론과 모델 버전 활성화가 가능하다.
+
+같은 `ckpt/config`를 사용하더라도 `memory_bank`가 다르면 다른 모델 버전으로 관리한다.
+
+생성된 `memory_bank`는 기존 `MODEL_VERSION / MODEL_ARTIFACT / MODEL_DEPLOYMENT` 구조에 연결한다.
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
@@ -694,7 +708,8 @@ PatchCore 계열 모델은 `ckptFile`, `configFile`, `memoryBankFile`이 모두 
 | POST | `/models` | 모델 기본 정보 등록 | SITE_ADMIN |
 | GET | `/models/{modelId}` | 모델 상세 조회 | SITE_ADMIN |
 | GET | `/models/{modelId}/versions` | 모델 버전 목록 조회 | SITE_ADMIN |
-| POST | `/models/{modelId}/versions` | 모델 버전 및 산출물 업로드 | SITE_ADMIN |
+| POST | `/models/{modelId}/versions` | 모델 버전 및 산출물 수동 업로드 | SITE_ADMIN |
+| POST | `/models/{modelId}/versions/from-normal-images` | 정상 이미지셋으로 memory bank를 생성하고 모델 버전/배포 자동 생성 | SITE_ADMIN |
 | GET | `/model-versions/{versionId}` | 모델 버전 상세 조회 | SITE_ADMIN |
 | GET | `/model-versions/{versionId}/artifacts` | 모델 버전 산출물 목록 조회 | SITE_ADMIN |
 | PATCH | `/model-versions/{versionId}/activate` | 모델 버전 활성화 | SITE_ADMIN |
@@ -834,6 +849,10 @@ PatchCore 계열 모델은 `ckptFile`, `configFile`, `memoryBankFile`이 모두 
 ## 15.5 POST `/models/{modelId}/versions`
 
 모델 버전과 실행에 필요한 산출물 파일을 함께 등록한다.
+
+이 API는 이미 생성된 `ckpt/config/memory_bank` 산출물을 직접 등록하는 수동 등록 API다.
+
+정상 이미지셋을 업로드해 `memory_bank`를 자동 생성하는 경우에는 `POST /models/{modelId}/versions/from-normal-images`를 사용한다.
 
 PatchCore 계열 모델은 정상 feature 기준 데이터인 `memoryBankFile`이 별도 산출물로 필요하다.
 
@@ -1223,6 +1242,122 @@ PatchCore 계열 모델 버전은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 �
 
 ---
 
+## 15.14 POST `/models/{modelId}/versions/from-normal-images`
+
+정상 이미지셋을 업로드하여 `memory_bank`를 생성하고, 고정 `ckpt/config`와 조합해 모델 버전 및 배포를 자동 생성한다.
+
+이 API는 검사 업로드 API가 아니다.
+
+검사용 이미지 업로드는 `/inspections/upload`를 사용한다.
+
+처리 흐름은 다음과 같다.
+
+```
+정상 이미지셋 업로드
+→ Spring이 정상 이미지 파일을 MinIO에 저장
+→ modelCategory 기준으로 SPEED/PERFORMANCE 2개 프로필 대상 확정
+→ 각 프로필별 고정 ckpt/config 선택
+→ FastAPI memory-bank 생성 API를 SPEED, PERFORMANCE 각각 1회씩 호출
+→ FastAPI가 memory_bank 생성 후 MinIO에 저장
+→ Spring이 memory_bank 파일 메타를 FILE에 등록
+→ MODEL_VERSION 생성
+→ MODEL_ARTIFACT 생성
+   - CKPT
+   - CONFIG
+   - MEMORY_BANK
+→ MODEL_VERSION 활성화
+→ MODEL_DEPLOYMENT 생성 또는 기존 활성 배포 비활성화 후 신규 배포
+```
+
+`multipart/form-data`
+
+| Field | Type | Required | 설명 |
+| --- | --- | --- | --- |
+| `normalImages` | File[] | Y | memory bank 생성을 위한 정상 이미지 파일 목록 |
+| `modelCategory` | String | Y | `OBJECT / TEXTURE` |
+| `modelProfile` | String | N  | 특정 프로필만 재생성할 때 사용. 미전송 시 `SPEED`와 `PERFORMANCE`를 모두 생성 |
+| `organizationId` | Long | Y | 모델을 적용할 조직 ID |
+| `targetId` | Long | N | 특정 검사대상에 적용할 경우 사용 |
+| `deploymentScope` | String | Y | `ORGANIZATION / TARGET` |
+| `versionName` | String | N | 모델 버전명. 미전송 시 서버에서 자동 생성 가능 |
+| `thresholdDefault` | Decimal | N | 기본 이상 점수 임계값 |
+| `reason` | String | N | 모델 생성 및 배포 사유 |
+
+### 요청 예시
+
+```
+normalImages=normal_001.jpg
+normalImages=normal_002.jpg
+normalImages=normal_003.jpg
+modelCategory=TEXTURE
+modelProfile=PERFORMANCE
+organizationId=1001
+targetId=10
+deploymentScope=TARGET
+versionName=v1.0.0-texture-performance-org1001-target10
+thresholdDefault=0.7500
+reason=고객사 A 프레스 검사대상 정상 이미지셋 기준 memory bank 생성
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "modelId": 1,
+    "modelCategory": "TEXTURE",
+    "normalImageCount": 1,
+    "createdVersions": [
+      {
+        "modelProfile": "SPEED",
+        "modelVersionId": 11,
+        "versionName": "v1.0.0-texture-speed-org1001-target10",
+        "deployStatus": "DEPLOYED",
+        "isActive": true,
+        "memoryBankFileId": 601,
+        "deploymentId": 3002
+      },
+      {
+        "modelProfile": "PERFORMANCE",
+        "modelVersionId": 12,
+        "versionName": "v1.0.0-texture-performance-org1001-target10",
+        "deployStatus": "DEPLOYED",
+        "isActive": true,
+        "memoryBankFileId": 602,
+        "deploymentId": 3003
+      }
+    ]
+  },
+  "message": "정상 이미지셋 기반 속도형/성능형 모델 버전이 생성되고 배포되었습니다."
+}
+```
+
+### 검증 기준
+
+| 조건 | 실패 처리 |
+| --- | --- |
+| `normalImages` 누락 | 400 |
+| 정상 이미지 파일 개수가 1개 미만 | 422 |
+| 지원하지 않는 이미지 MIME | 422 |
+| 손상 이미지 포함 | 422 |
+| `modelCategory`가 허용값이 아님 | 422 |
+| `modelProfile`이 허용값이 아님 | 422 |
+| `modelProfile` 미전송 시 SPEED/PERFORMANCE 둘 다 생성 실패 | 500  |
+| 고정 `ckpt/config` 매핑을 찾을 수 없음 | 404 |
+| 존재하지 않는 `modelId` | 404 |
+| 존재하지 않는 `organizationId` | 404 |
+| `deploymentScope=TARGET`인데 `targetId` 누락 | 422 |
+| `targetId`가 해당 조직 소속이 아님 | 422 |
+| `thresholdDefault`가 0~1 범위를 벗어남 | 422 |
+| 동일 모델 내 중복 `versionName` | 409 |
+| 정상 이미지 MinIO 저장 실패 | 500 |
+| FastAPI memory bank 생성 실패 | 500 |
+| memory bank 파일 등록 실패 | 500 |
+| 모델 버전/산출물/배포 생성 실패 | 500 |
+
+---
+
 # 16. Dashboard
 
 | Method | Endpoint | 설명 | 권한 |
@@ -1241,6 +1376,7 @@ Spring 내부 연동용 API다. 외부 사용자에게 직접 노출하지 않�
 | POST | `/ai/v1/internal/vision/infer-image` | 이미지 추론 | Spring |
 | POST | `/ai/v1/internal/vision/infer-video` | 영상 추론 | Spring |
 | POST | `/ai/v1/internal/vision/infer-frame` | 실시간 프레임 추론 | Spring |
+| POST | `/ai/v1/internal/models/memory-bank` | 정상 이미지 파일 키 목록과 고정 ckpt/config를 받아 memory_bank 생성 | Spring |
 
 ---
 
@@ -1430,9 +1566,69 @@ FastAPI는 전달받은 `ckptFileKey`, `configFileKey`, `memoryBankFileKey`를 �
   }
 }
 ```
-## Async Upload Notes
 
-- `POST /inspections/upload` 는 FastAPI 추론 완료를 기다리지 않고 `runStatus=PROCESSING` 을 즉시 반환한다.
-- 업로드 요청이 성공하면 Spring 이 `inspection_run` 과 `async_job(job_type=AI_IMAGE_INFERENCE)` 를 생성한다.
-- 실제 AI 추론은 Spring worker 가 `ASYNC_JOB` 을 순차 처리하면서 FastAPI `/ai/v1/internal/vision/infer-image` 를 호출한다.
-- 프론트는 `inspectionId` 기준 polling 으로 `PROCESSING -> COMPLETED/FAILED` 상태를 확인한다.
+---
+
+## 17.4 POST `/ai/v1/internal/models/memory-bank`
+
+정상 이미지 파일 키 목록과 고정 `ckpt/config` 파일 키를 받아 `memory_bank`를 생성한다.
+
+이 API는 Spring 내부 연동용이다.
+
+외부 사용자 또는 프론트엔드에서 직접 호출하지 않는다.
+
+Spring은 정상 이미지 파일을 먼저 MinIO에 저장한 뒤, 해당 파일 키 목록을 이 API에 전달한다.
+
+FastAPI는 전달받은 정상 이미지 파일과 고정 모델 산출물을 이용해 `memory_bank`를 생성하고, 생성된 `memory_bank`를 MinIO에 저장한 뒤 파일 키를 반환한다.
+
+### Request
+
+```json
+{
+  "modelCategory": "TEXTURE",
+  "modelProfile": "PERFORMANCE",
+  "normalImageFileKeys": [
+    "models/tmp/normal/org-1001/target-10/normal_001.jpg",
+    "models/tmp/normal/org-1001/target-10/normal_002.jpg",
+    "models/tmp/normal/org-1001/target-10/normal_003.jpg"
+  ],
+  "configFileKey": "models/base/performance-texture/config.json",
+  "ckptFileKey": "models/base/performance-texture/model.ckpt",
+  "outputPrefix": "models/generated/org-1001/target-10/performance-texture"
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "memoryBankFileKey": "models/generated/org-1001/target-10/performance-texture/memory_bank.pt",
+    "normalImageCount": 1,
+    "modelCategory": "TEXTURE",
+    "modelProfile": "PERFORMANCE",
+    "createdAt": "2026-05-04T10:10:00"
+  },
+  "message": "메모리뱅크가 생성되었습니다."
+}
+```
+
+### 검증 기준
+
+| 조건 | 실패 처리 |
+| --- | --- |
+| `normalImageFileKeys` 누락 | 400 |
+| 정상 이미지 파일 키 개수가 100개 미만 | 422 |
+| `modelCategory`가 허용값이 아님 | 422 |
+| `modelProfile`이 허용값이 아님 | 422 |
+| `ckptFileKey` 누락 | 400 |
+| `configFileKey` 누락 | 400 |
+| `outputPrefix` 누락 | 400 |
+| 정상 이미지 파일을 찾을 수 없음 | 404 |
+| `ckptFileKey` 파일을 찾을 수 없음 | 404 |
+| `configFileKey` 파일을 찾을 수 없음 | 404 |
+| 이미지 로드 또는 전처리 실패 | 500 |
+| ckpt/config 로드 실패 | 500 |
+| memory bank 생성 실패 | 500 |
+| memory bank MinIO 저장 실패 | 500 |
