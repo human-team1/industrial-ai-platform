@@ -105,25 +105,113 @@ def test_no13_quality_detects_low_contrast():
     assert metrics.reason == "LOW_CONTRAST"
 
 
-def test_no14_missing_memory_bank_file_key_returns_400():
+# No.14: 내부 추론 API(/ai/v1/internal/vision/infer-image) 기준 검증 정책.
+# - 필수 필드 누락(memoryBankFileKey/ckptFileKey/configFileKey 등)은 Pydantic ValidationError 로 보고 422 통일.
+# - JSON 본체 자체가 깨진 경우(json_invalid)만 400 으로 분리(handle_validation_exception 주석 참고).
+# 외부 공개 API의 "필수 파라미터 자체 누락 = 400" 정책과는 분리되어 있음.
+def test_no14_missing_memory_bank_file_key_returns_422():
+    """[내부 추론 API] memoryBankFileKey 누락 -> 422 (Pydantic missing)."""
     service, _ = build_service()
     payload = base_payload()
     del payload["model"]["memoryBankFileKey"]
     app.dependency_overrides[get_vision_inference_service] = lambda: service
     client = TestClient(app)
     response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
-    assert response.status_code == 400
+    assert response.status_code == 422
     app.dependency_overrides.clear()
 
 
-def test_no14_missing_ckpt_file_key_returns_400():
+def test_no14_missing_ckpt_file_key_returns_422():
+    """[내부 추론 API] ckptFileKey 누락 -> 422 (Pydantic missing)."""
     service, _ = build_service()
     payload = base_payload()
     del payload["model"]["ckptFileKey"]
     app.dependency_overrides[get_vision_inference_service] = lambda: service
     client = TestClient(app)
     response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_no14_missing_config_file_key_returns_422():
+    """[내부 추론 API] configFileKey 누락 -> 422 (Pydantic missing)."""
+    service, _ = build_service()
+    payload = base_payload()
+    del payload["model"]["configFileKey"]
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_no14_blank_memory_bank_file_key_returns_422():
+    """[내부 추론 API] memoryBankFileKey 공백 -> 422 (field_validator 형식 위반)."""
+    service, _ = build_service()
+    payload = base_payload()
+    payload["model"]["memoryBankFileKey"] = "   "
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_no14_json_invalid_still_returns_400():
+    """[내부 추론 API] 요청 JSON 본체 자체가 깨진 경우(json_invalid)는 422가 아닌 400 유지."""
+    service, _ = build_service()
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post(
+        "/ai/v1/internal/vision/infer-image",
+        data="{invalid json",
+        headers={"Content-Type": "application/json"},
+    )
     assert response.status_code == 400
+    app.dependency_overrides.clear()
+
+
+def test_no12_invalid_input_size_returns_422():
+    service, _ = build_service()
+    payload = base_payload()
+    payload["model"]["inputSize"] = "abc"
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_no12_input_size_with_asterisk_returns_422():
+    service, _ = build_service()
+    payload = base_payload()
+    payload["model"]["inputSize"] = "224*224"
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code == 422
+    app.dependency_overrides.clear()
+
+
+def test_no12_input_size_single_dimension_passes():
+    service, _ = build_service()
+    payload = base_payload()
+    payload["model"]["inputSize"] = "224"
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code != 422
+    app.dependency_overrides.clear()
+
+
+def test_no12_input_size_wxh_passes():
+    service, _ = build_service()
+    payload = base_payload()
+    payload["model"]["inputSize"] = "224x224"
+    app.dependency_overrides[get_vision_inference_service] = lambda: service
+    client = TestClient(app)
+    response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
+    assert response.status_code != 422
     app.dependency_overrides.clear()
 
 

@@ -85,7 +85,8 @@ class SubmitInspectionServiceTest {
                 minioProperties,
                 recordOperationLogUseCase,
                 inspectionIdempotencyCachePort,
-                sessionValidationService
+                sessionValidationService,
+                new RoiInputValidator()
         );
     }
 
@@ -103,7 +104,7 @@ class SubmitInspectionServiceTest {
                 .thenReturn(storedFile());
 
         SubmitInspectionResult result = service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, file, null
+                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, null
         ));
 
         assertThat(result.getInspectionId()).isEqualTo(1001L);
@@ -130,7 +131,7 @@ class SubmitInspectionServiceTest {
                         eq("sample.png"), eq("image/png"), any());
 
         assertThatThrownBy(() -> service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, file, null
+                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, null
         ))).isInstanceOf(BusinessException.class);
 
         verify(inspectionUploadTransactionService)
@@ -151,7 +152,7 @@ class SubmitInspectionServiceTest {
                 .thenReturn(true);
 
         assertThatThrownBy(() -> service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, file, null
+                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, null
         ))).isInstanceOf(BusinessException.class);
 
         verify(minioStorageAdapter).delete(eq("inspection-artifacts"), startsWith("inspections/1001/inputs/"));
@@ -177,7 +178,7 @@ class SubmitInspectionServiceTest {
                 .thenThrow(new RuntimeException("redis down"));
 
         SubmitInspectionResult result = service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, file, "key-1"
+                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, "key-1"
         ));
 
         assertThat(result.getInspectionId()).isEqualTo(1001L);
@@ -197,7 +198,7 @@ class SubmitInspectionServiceTest {
                 .thenReturn(Optional.of(existing));
 
         SubmitInspectionResult result = service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, file, "key-1"
+                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, "key-1"
         ));
 
         assertThat(result.getInspectionId()).isEqualTo(1001L);
@@ -213,7 +214,7 @@ class SubmitInspectionServiceTest {
                 .thenReturn(Optional.of("different"));
 
         assertThatThrownBy(() -> service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, file, "key-1"
+                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, "key-1"
         ))).isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.IDEMPOTENCY_CONFLICT.getDefaultMessage());
     }
@@ -224,7 +225,7 @@ class SubmitInspectionServiceTest {
         doThrow(new BusinessException(ErrorCode.INVALID_FILE_EMPTY)).when(fileValidator).validate(null);
 
         assertThatThrownBy(() -> service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, null, null
+                1L, "session-1", null, null, null, null, null, null, null, null, null, null, null, null
         ))).isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.INVALID_FILE_EMPTY.getDefaultMessage());
     }
@@ -241,7 +242,7 @@ class SubmitInspectionServiceTest {
                 .build()));
 
         assertThatThrownBy(() -> service.execute(new SubmitInspectionCommand(
-                1L, "session-1", 99L, null, null, null, null, null, file, null
+                1L, "session-1", 99L, null, null, null, null, null, null, null, null, null, file, null
         ))).isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.FORBIDDEN.getDefaultMessage());
     }

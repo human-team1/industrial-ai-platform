@@ -1,7 +1,10 @@
+import re
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+INPUT_SIZE_PATTERN = re.compile(r"^\d+(x\d+)?$")
 
 
 class ApiSuccessResponse(BaseModel):
@@ -74,6 +77,18 @@ class VisionModelRequest(BaseModel):
             raise ValueError("file key must not be blank")
         return value.strip()
 
+    @field_validator("inputSize")
+    @classmethod
+    def validate_input_size(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if normalized == "":
+            return None
+        if not INPUT_SIZE_PATTERN.match(normalized):
+            raise ValueError("inputSize must be 'W' or 'WxH' format (e.g. '224' or '224x224')")
+        return normalized
+
 
 class InferImageRequest(BaseModel):
     inspectionId: int
@@ -111,7 +126,10 @@ class InferImageResponseData(BaseModel):
     modelVersionId: int
     score: float | None = None
     confidence: float
-    decisionCode: str
+    # Deprecated: Spring DecisionCalculator is the source of truth.
+    # FastAPI returns its internal hint here for diagnostics/back-compat only;
+    # Spring ignores this field when computing the final decisionCode.
+    decisionCode: str | None = None
     quality: QualityResponse
     artifacts: list[ArtifactResponse] = Field(default_factory=list)
     regions: list[Any] = Field(default_factory=list)

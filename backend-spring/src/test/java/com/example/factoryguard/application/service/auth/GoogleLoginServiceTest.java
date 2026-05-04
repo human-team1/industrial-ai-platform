@@ -4,15 +4,19 @@ import com.example.factoryguard.application.dto.auth.AuthStatus;
 import com.example.factoryguard.application.dto.auth.GoogleLoginCommand;
 import com.example.factoryguard.application.dto.auth.GoogleLoginResult;
 import com.example.factoryguard.application.dto.auth.GoogleTokenInfo;
+import com.example.factoryguard.application.dto.operation.RecordOperationLogCommand;
 import com.example.factoryguard.application.port.in.operation.RecordOperationLogUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.auth.VerifyGoogleTokenPort;
 import com.example.factoryguard.application.port.out.user.FindUserByGoogleSubPort;
+import com.example.factoryguard.common.exception.BusinessException;
+import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.config.security.JwtProperties;
 import com.example.factoryguard.config.security.JwtTokenProvider;
 import com.example.factoryguard.domain.user.model.User;
 import com.example.factoryguard.domain.user.model.UserRole;
 import com.example.factoryguard.domain.user.model.UserStatus;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,6 +29,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -32,6 +37,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -109,6 +115,30 @@ class GoogleLoginServiceTest {
 
         assertThat(result.getUserStatus()).isEqualTo(AuthStatus.REJECTED);
         assertThat(result.getAccessToken()).isNull();
+    }
+
+    @Test
+    @DisplayName("No.1-2 INACTIVE 사용자 - ACCOUNT_INACTIVE 예외, 토큰/세션 미생성, LOGIN_FAILED 운영 로그 기록")
+    void blocksInactiveUserWithAccountInactiveException() {
+        User user = baseUser(UserStatus.INACTIVE);
+        when(findUserByGoogleSubPort.findByGoogleSub(anyString())).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> googleLoginService.execute(new GoogleLoginCommand("id-token")))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.ACCOUNT_INACTIVE);
+
+        verify(jwtTokenProvider, never()).generateAccessToken(anyLong(), any(), anyLong(), anyString());
+        verify(jwtTokenProvider, never()).generateRefreshToken(anyLong(), any(), anyLong(), anyString());
+        verifyNoInteractions(tokenStorePort);
+        verify(activeSessionService, never()).registerSession(anyLong(), anyString());
+
+        ArgumentCaptor<RecordOperationLogCommand> captor = ArgumentCaptor.forClass(RecordOperationLogCommand.class);
+        verify(recordOperationLogUseCase).recordOperationLog(captor.capture());
+        RecordOperationLogCommand recorded = captor.getValue();
+        assertThat(recorded.getEventType()).isEqualTo("LOGIN_FAILED");
+        assertThat(recorded.getEventStatus()).isEqualTo("FAILED");
+        assertThat(recorded.getActorUserId()).isEqualTo(1L);
     }
 
     @Test

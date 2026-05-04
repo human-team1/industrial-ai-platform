@@ -1,13 +1,19 @@
 package com.example.factoryguard.adapter.out.cache.redis;
 
 import java.time.Duration;
+import java.util.LinkedHashSet;
 import java.util.Optional;
+import java.util.Set;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RedisCacheAdapter {
+
+    private static final long SCAN_COUNT = 256L;
 
     private final StringRedisTemplate redisTemplate;
 
@@ -29,6 +35,28 @@ public class RedisCacheAdapter {
 
     public void delete(String key) {
         redisTemplate.delete(key);
+    }
+
+    public void deleteAll(Set<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return;
+        }
+        redisTemplate.delete(keys);
+    }
+
+    public Set<String> scanKeys(String matchPattern) {
+        Set<String> keys = new LinkedHashSet<>();
+        ScanOptions options = ScanOptions.scanOptions().match(matchPattern).count(SCAN_COUNT).build();
+        try (Cursor<byte[]> cursor = redisTemplate.executeWithStickyConnection(connection ->
+                connection.scan(options))) {
+            if (cursor == null) {
+                return keys;
+            }
+            while (cursor.hasNext()) {
+                keys.add(new String(cursor.next()));
+            }
+        }
+        return keys;
     }
 
     public boolean hasKey(String key) {

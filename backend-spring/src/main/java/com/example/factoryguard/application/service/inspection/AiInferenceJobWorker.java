@@ -3,6 +3,7 @@ package com.example.factoryguard.application.service.inspection;
 import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
 import com.example.factoryguard.application.dto.inspection.AiInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.AiInspectionResult;
+import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
 import com.example.factoryguard.application.dto.operation.RecordOperationLogCommand;
 import com.example.factoryguard.application.exception.ai.AiInvalidRequestException;
 import com.example.factoryguard.application.exception.ai.AiServerException;
@@ -15,6 +16,7 @@ import com.example.factoryguard.application.port.out.inspection.LoadInspectionRu
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionResultPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionRunPort;
 import com.example.factoryguard.application.port.out.model.ModelManagementPort;
+import com.example.factoryguard.application.port.out.notification.SaveNotificationPort;
 import com.example.factoryguard.application.port.out.operation.ClaimAsyncJobPort;
 import com.example.factoryguard.application.port.out.operation.SaveAsyncJobPort;
 import com.example.factoryguard.application.port.out.result.SaveResultArtifactPort;
@@ -33,8 +35,12 @@ import com.example.factoryguard.domain.inspection.model.InspectionInput;
 import com.example.factoryguard.domain.inspection.model.InspectionResult;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import com.example.factoryguard.domain.inspection.model.RunStatus;
+import com.example.factoryguard.domain.inspection.vo.RoiMode;
 import com.example.factoryguard.domain.model.vo.ModelArtifactType;
 import com.example.factoryguard.domain.model.vo.ModelUsagePurpose;
+import com.example.factoryguard.domain.notification.model.Notification;
+import com.example.factoryguard.domain.notification.vo.NotificationSeverity;
+import com.example.factoryguard.domain.notification.vo.NotificationType;
 import com.example.factoryguard.domain.operation.model.AsyncJob;
 import com.example.factoryguard.domain.operation.vo.AsyncJobStatus;
 import com.example.factoryguard.domain.operation.vo.AsyncJobType;
@@ -85,10 +91,13 @@ public class AiInferenceJobWorker {
     private final SaveResultArtifactPort saveResultArtifactPort;
     private final SaveResultImagePort saveResultImagePort;
     private final SaveReviewQueuePort saveReviewQueuePort;
+    private final SaveNotificationPort saveNotificationPort;
     private final PersistUploadedFilePort persistUploadedFilePort;
     private final InspectionEventLogger inspectionEventLogger;
     private final RecordOperationLogUseCase recordOperationLogUseCase;
     private final MinioProperties minioProperties;
+    private final ResolveInspectionThresholdService resolveInspectionThresholdService;
+    private final InspectionDecisionEvaluator inspectionDecisionEvaluator;
 
     private final AtomicBoolean running = new AtomicBoolean(false);
 
@@ -138,8 +147,15 @@ public class AiInferenceJobWorker {
 
         try {
             inspectionEventLogger.log(inspectionId, InspectionEventType.AI_CALLED, "worker started ai inference");
-            AiInspectionResult result = callAiInspectionPort.call(buildAiCommand(run));
-            persistSuccessfulResult(run, job, result);
+            InspectionInput input = loadInspectionInputPort.findByInspectionId(run.getInspectionId()).stream()
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("inspection input not found"));
+            // TODO: MVP 단계에서는 사용자 활성/시스템 기본 임계값만 사용한다.
+            //       후속 PR에서 사용자 설정 -> 회사/설비(target/organization) 기본값으로의 fallback 체인을 추가해야 한다.
+            ResolvedThreshold threshold = resolveInspectionThresholdService.resolve(
+                    run.getUserId(), null);
+            AiInspectionResult result = callAiInspectionPort.call(buildAiCommand(run, input, threshold));
+            persistSuccessfulResult(run, job, result, input, threshold);
 
             long latencyMs = System.currentTimeMillis() - startedAt;
             log.info("[AI_JOB_COMPLETED] requestId={} inspectionId={} jobId={} latencyMs={}",
@@ -175,10 +191,7 @@ public class AiInferenceJobWorker {
         }
     }
 
-    private AiInspectionCommand buildAiCommand(InspectionRun run) {
-        InspectionInput input = loadInspectionInputPort.findByInspectionId(run.getInspectionId()).stream()
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("inspection input not found"));
+    private AiInspectionCommand buildAiCommand(InspectionRun run, InspectionInput input, ResolvedThreshold threshold) {
         if (input.getFileId() == null) {
             throw new IllegalStateException("INPUT_FILE_NOT_FOUND");
         }
@@ -197,6 +210,21 @@ public class AiInferenceJobWorker {
         StoredFile memoryBank = requiredArtifact(artifactFiles, ModelArtifactType.MEMORY_BANK);
         StoredFile labels = artifactFiles.get(ModelArtifactType.LABELS);
 
+        RoiMode roiMode = input.getRoiMode() == null ? RoiMode.FULL_FRAME : input.getRoiMode();
+        AiInspectionCommand.Roi.RoiBuilder roiBuilder = AiInspectionCommand.Roi.builder()
+                .roiMode(roiMode.name())
+                .roiCoordinateType(input.getRoiCoordinateType() == null ? "NORMALIZED" : input.getRoiCoordinateType());
+        if (roiMode == RoiMode.FIXED) {
+            roiBuilder
+                    .roiX(toDouble(input.getRoiX()))
+                    .roiY(toDouble(input.getRoiY()))
+                    .roiWidth(toDouble(input.getRoiWidth()))
+                    .roiHeight(toDouble(input.getRoiHeight()));
+        }
+        boolean qualityGateEnabled = input.getQualityGateEnabled() == null
+                ? true
+                : input.getQualityGateEnabled();
+
         return AiInspectionCommand.builder()
                 .inspectionId(run.getInspectionId())
                 .fileKey(originalFile.getObjectKey())
@@ -212,15 +240,32 @@ public class AiInferenceJobWorker {
                         .memoryBankFileKey(memoryBank.getObjectKey())
                         .labelsFileKey(labels == null ? null : labels.getObjectKey())
                         .build())
-                .roi(AiInspectionCommand.Roi.builder()
-                        .roiMode("FULL_FRAME")
-                        .roiCoordinateType("NORMALIZED")
-                        .build())
-                .qualityGateEnabled(true)
+                .roi(roiBuilder.build())
+                .qualityGateEnabled(qualityGateEnabled)
                 .threshold(AiInspectionCommand.Threshold.builder()
-                        .anomalyThreshold(run.getAppliedThreshold() == null ? 0.75d : run.getAppliedThreshold().doubleValue())
-                        .lowConfidenceThreshold(0.55d)
+                        .anomalyThreshold(threshold.getAnomalyThreshold())
+                        .lowConfidenceThreshold(threshold.getLowConfidenceThreshold())
                         .build())
+                .build();
+    }
+
+    private Double toDouble(BigDecimal value) {
+        return value == null ? null : value.doubleValue();
+    }
+
+    private Notification buildInspectionNotification(InspectionRun run, Long resultId, DecisionCode decisionCode) {
+        boolean defect = decisionCode == DecisionCode.DEFECT;
+        return Notification.builder()
+                .userId(run.getUserId())
+                .notificationType(defect ? NotificationType.DEFECT_DETECTED : NotificationType.REINSPECTION_REQUIRED)
+                .severity(defect ? NotificationSeverity.CRITICAL : NotificationSeverity.WARNING)
+                .title(defect ? "이상이 감지되었습니다." : "재검사가 필요합니다.")
+                .message("inspectionId=" + run.getInspectionId() + ", resultId=" + resultId)
+                .relatedType("INSPECTION_RESULT")
+                .relatedId(resultId)
+                .targetUrl("/inspections/" + run.getInspectionId())
+                .dedupKey("inspection-result:" + resultId)
+                .isRead(false)
                 .build();
     }
 
@@ -239,8 +284,11 @@ public class AiInferenceJobWorker {
         return file;
     }
 
-    private void persistSuccessfulResult(InspectionRun run, AsyncJob job, AiInspectionResult result) {
-        DecisionCode decisionCode = DecisionCode.valueOf(result.getDecisionCode());
+    private void persistSuccessfulResult(InspectionRun run, AsyncJob job, AiInspectionResult result,
+                                         InspectionInput input, ResolvedThreshold threshold) {
+        InspectionDecisionEvaluator.Outcome outcome = inspectionDecisionEvaluator.evaluate(result, input, threshold);
+        DecisionCode decisionCode = outcome.decisionCode();
+        ReviewQueuedReason queuedReason = outcome.queuedReason();
         String resultStatus = decisionCode == DecisionCode.RECHECK ? RESULT_STATUS_REVIEW_REQUIRED : RESULT_STATUS_SUCCESS;
         InspectionResult saved = saveInspectionResultPort.save(InspectionResult.builder()
                 .inspectionId(run.getInspectionId())
@@ -249,9 +297,9 @@ public class AiInferenceJobWorker {
                 .decisionCode(decisionCode)
                 .finalDecisionCode(decisionCode)
                 .resultStatus(resultStatus)
-                .thresholdSource("SYSTEM_DEFAULT")
-                .thresholdId(null)
-                .thresholdVersion(null)
+                .thresholdSource(threshold.getSource() == null ? "SYSTEM_DEFAULT" : threshold.getSource().name())
+                .thresholdId(threshold.getThresholdId())
+                .thresholdVersion(threshold.getThresholdVersion())
                 .modelVersionId(result.getModelVersionId())
                 .failureReason(null)
                 .build());
@@ -262,8 +310,12 @@ public class AiInferenceJobWorker {
             saveReviewQueuePort.save(ReviewQueue.builder()
                     .resultId(saved.getResultId())
                     .queueStatus(ReviewQueueStatus.WAITING)
-                    .queuedReason(ReviewQueuedReason.LOW_CONFIDENCE)
+                    .queuedReason(queuedReason)
                     .build());
+        }
+
+        if (decisionCode == DecisionCode.DEFECT || decisionCode == DecisionCode.RECHECK) {
+            saveNotificationPort.save(buildInspectionNotification(run, saved.getResultId(), decisionCode));
         }
 
         saveInspectionRunPort.save(run.toBuilder()

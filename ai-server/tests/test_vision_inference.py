@@ -164,14 +164,14 @@ def test_infer_image_success():
     assert ("inspection-artifacts", "inspections/1001/artifacts/heatmap.png") in storage.objects
 
 
-def test_missing_memory_bank_file_key_returns_400():
+def test_missing_memory_bank_file_key_returns_422():
     service, _ = build_service()
     payload = base_payload()
     del payload["model"]["memoryBankFileKey"]
     app.dependency_overrides[get_vision_inference_service] = lambda: service
     client = TestClient(app)
     response = client.post("/ai/v1/internal/vision/infer-image", json=payload)
-    assert response.status_code == 400
+    assert response.status_code == 422
 
 
 def test_invalid_threshold_returns_422():
