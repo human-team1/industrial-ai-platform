@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { ResultListQuery } from '../api/types'
 
-export const RESULT_PAGE_SIZE = 20
+export const RESULT_PAGE_SIZE = 7
 
 export const DEFAULT_RESULT_FILTERS: ResultListQuery = {
   keyword: '',
