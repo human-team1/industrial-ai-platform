@@ -131,4 +131,15 @@ class FileValidatorTest {
         org.assertj.core.api.Assertions.assertThatCode(() -> validator.validate(file))
                 .doesNotThrowAnyException();
     }
+
+    @Test
+    @DisplayName("No.6 공백 포함 파일명(sample image.jpg) 차단 - INVALID_FILE_NAME")
+    void blocksFilenameWithSpace() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "sample image.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        assertThatThrownBy(() -> validator.validate(file))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_NAME);
+    }
 }
