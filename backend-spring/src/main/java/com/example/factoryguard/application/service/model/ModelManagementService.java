@@ -6,9 +6,14 @@ import com.example.factoryguard.adapter.out.persistence.model.ModelJpaEntity;
 import com.example.factoryguard.adapter.out.persistence.model.ModelVersionJpaEntity;
 import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
 import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
+import com.example.factoryguard.application.dto.ai.GenerateMemoryBankCommand;
+import com.example.factoryguard.application.dto.ai.GenerateMemoryBankResult;
 import com.example.factoryguard.application.dto.model.CreateModelCommand;
+import com.example.factoryguard.application.dto.model.CreatedModelVersionResponse;
 import com.example.factoryguard.application.dto.model.DeactivateModelDeploymentCommand;
 import com.example.factoryguard.application.dto.model.DeployModelVersionCommand;
+import com.example.factoryguard.application.dto.model.GenerateModelVersionFromNormalImagesCommand;
+import com.example.factoryguard.application.dto.model.GenerateModelVersionsFromNormalImagesResponse;
 import com.example.factoryguard.application.dto.model.ListModelDeploymentsQuery;
 import com.example.factoryguard.application.dto.model.ListModelVersionsQuery;
 import com.example.factoryguard.application.dto.model.ListModelsQuery;
@@ -28,6 +33,7 @@ import com.example.factoryguard.application.port.in.model.CreateModelUseCase;
 import com.example.factoryguard.application.port.in.model.DeactivateModelDeploymentUseCase;
 import com.example.factoryguard.application.port.in.model.DeprecateModelVersionUseCase;
 import com.example.factoryguard.application.port.in.model.DeployModelVersionUseCase;
+import com.example.factoryguard.application.port.in.model.GenerateModelVersionFromNormalImagesUseCase;
 import com.example.factoryguard.application.port.in.model.GetModelUseCase;
 import com.example.factoryguard.application.port.in.model.GetModelVersionUseCase;
 import com.example.factoryguard.application.port.in.model.ListModelArtifactsUseCase;
@@ -37,12 +43,15 @@ import com.example.factoryguard.application.port.in.model.ListModelsUseCase;
 import com.example.factoryguard.application.port.in.model.RollbackModelDeploymentUseCase;
 import com.example.factoryguard.application.port.in.model.UploadModelVersionUseCase;
 import com.example.factoryguard.application.port.in.operation.RecordAdminActionLogUseCase;
+import com.example.factoryguard.application.port.out.ai.GenerateMemoryBankPort;
+import com.example.factoryguard.application.port.out.file.LoadFilePort;
 import com.example.factoryguard.application.port.out.file.PersistUploadedFilePort;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
 import com.example.factoryguard.application.port.out.model.ModelManagementPort;
 import com.example.factoryguard.application.port.out.organization.FindOrganizationByIdPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
+import com.example.factoryguard.config.model.ModelMemoryBankProperties;
 import com.example.factoryguard.config.security.SecurityUtils;
 import com.example.factoryguard.domain.file.model.StoredFile;
 import com.example.factoryguard.domain.file.vo.StorageType;
@@ -50,11 +59,15 @@ import com.example.factoryguard.domain.inspection.model.AnalysisTarget;
 import com.example.factoryguard.domain.model.vo.DeploymentScope;
 import com.example.factoryguard.domain.model.vo.DeploymentStatus;
 import com.example.factoryguard.domain.model.vo.ModelArtifactType;
+import com.example.factoryguard.domain.model.vo.ModelCategory;
 import com.example.factoryguard.domain.model.vo.ModelDeployStatus;
+import com.example.factoryguard.domain.model.vo.ModelProfile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -67,6 +80,9 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Service
@@ -84,16 +100,63 @@ public class ModelManagementService implements
         ListModelDeploymentsUseCase,
         DeployModelVersionUseCase,
         DeactivateModelDeploymentUseCase,
-        RollbackModelDeploymentUseCase {
+        RollbackModelDeploymentUseCase,
+        GenerateModelVersionFromNormalImagesUseCase {
+
+    private static final Set<String> NORMAL_IMAGE_MIME_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
 
     private final ModelManagementPort modelManagementPort;
+    private final GenerateMemoryBankPort generateMemoryBankPort;
     private final PersistUploadedFilePort persistUploadedFilePort;
+    private final LoadFilePort loadFilePort;
     private final MinioStorageAdapter minioStorageAdapter;
     private final MinioProperties minioProperties;
+    private final ModelMemoryBankProperties modelMemoryBankProperties;
     private final SecurityUtils securityUtils;
     private final FindOrganizationByIdPort findOrganizationByIdPort;
     private final LoadAnalysisTargetPort loadAnalysisTargetPort;
     private final RecordAdminActionLogUseCase recordAdminActionLogUseCase;
+    private final TransactionTemplate transactionTemplate;
+
+    @Override
+    public GenerateModelVersionsFromNormalImagesResponse generateFromNormalImages(GenerateModelVersionFromNormalImagesCommand command) {
+        ModelJpaEntity model = loadModel(command.getModelId());
+        validateGenerateCommand(command);
+
+        String requestId = blankToNull(command.getRequestId());
+        if (requestId == null) {
+            requestId = blankToNull(MDC.get("requestId"));
+        }
+        if (requestId == null) {
+            requestId = UUID.randomUUID().toString();
+        }
+
+        List<StoredFile> normalImageFiles = uploadNormalImages(command, requestId);
+        List<ModelProfile> profiles = resolveProfiles(command.getModelProfile());
+        List<GeneratedMemoryBank> generatedMemoryBanks = new ArrayList<>();
+        for (ModelProfile profile : profiles) {
+            FixedProfileFiles fixedProfile = resolveFixedProfile(command.getModelCategory(), profile);
+            String outputPrefix = buildOutputPrefix(command.getOrganizationId(), command.getTargetId(), command.getDeploymentScope(), profile, command.getModelCategory());
+            GenerateMemoryBankResult memoryBankResult = callMemoryBank(command, normalImageFiles, fixedProfile, outputPrefix, profile, requestId);
+            generatedMemoryBanks.add(new GeneratedMemoryBank(profile, fixedProfile, memoryBankResult));
+        }
+
+        final String finalRequestId = requestId;
+        List<CreatedModelVersionResponse> createdVersions = transactionTemplate.execute(status -> {
+            List<CreatedModelVersionResponse> responses = new ArrayList<>();
+            for (GeneratedMemoryBank generated : generatedMemoryBanks) {
+                responses.add(saveGeneratedModelVersion(model, command, generated, normalImageFiles, finalRequestId, profiles.size()));
+            }
+            return responses;
+        });
+
+        return GenerateModelVersionsFromNormalImagesResponse.builder()
+                .modelId(model.getModelId())
+                .modelCategory(command.getModelCategory().name())
+                .normalImageCount(normalImageFiles.size())
+                .createdVersions(createdVersions == null ? List.of() : createdVersions)
+                .build();
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -306,6 +369,227 @@ public class ModelManagementService implements
         );
         recordAction("MODEL_ROLLED_BACK", restored.getDeploymentId(), "MODEL_DEPLOYMENT", blankToNull(command.getReason()));
         return toDeploymentResponse(restored);
+    }
+
+    private void validateGenerateCommand(GenerateModelVersionFromNormalImagesCommand command) {
+        if (command.getModelCategory() == null) {
+            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "modelCategory는 필수입니다.");
+        }
+        if (command.getDeploymentScope() == null) {
+            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "deploymentScope는 필수입니다.");
+        }
+        validateDeployment(command.getOrganizationId(), command.getTargetId(), command.getDeploymentScope());
+        validateThreshold(command.getThresholdDefault());
+        List<MultipartFile> normalImages = command.getNormalImages();
+        if (normalImages == null || normalImages.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "normalImages는 필수입니다.");
+        }
+        int minCount = modelMemoryBankProperties.getMemoryBank().getMinNormalImageCount();
+        if (normalImages.size() < minCount) {
+            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "정상 이미지 개수가 최소 기준보다 적습니다.");
+        }
+        for (MultipartFile image : normalImages) {
+            if (image == null || image.isEmpty()) {
+                throw new BusinessException(ErrorCode.INVALID_FILE_EMPTY);
+            }
+            String contentType = image.getContentType();
+            if (contentType == null || !NORMAL_IMAGE_MIME_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
+                throw new BusinessException(ErrorCode.INVALID_FILE_MIME);
+            }
+        }
+    }
+
+    private List<StoredFile> uploadNormalImages(GenerateModelVersionFromNormalImagesCommand command, String requestId) {
+        List<StoredFile> uploaded = new ArrayList<>();
+        for (MultipartFile image : command.getNormalImages()) {
+            String fileName = buildUniqueFileName(image.getOriginalFilename(), "normal");
+            String objectKey = buildNormalImageObjectKey(command.getOrganizationId(), command.getTargetId(), command.getDeploymentScope(), requestId, fileName);
+            String checksum = calculateChecksum(image);
+            try (InputStream inputStream = image.getInputStream()) {
+                minioStorageAdapter.upload(
+                        minioProperties.getBucketModels(),
+                        objectKey,
+                        inputStream,
+                        image.getSize(),
+                        fileName,
+                        image.getContentType(),
+                        checksum
+                );
+            } catch (IOException | RuntimeException exception) {
+                log.error("Failed to upload normal image, organizationId={}, targetId={}, requestId={}",
+                        command.getOrganizationId(), command.getTargetId(), requestId, exception);
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "정상 이미지 저장 중 오류가 발생했습니다.");
+            }
+            StoredFile storedFile = StoredFile.builder()
+                    .storageType(StorageType.MINIO)
+                    .bucketName(minioProperties.getBucketModels())
+                    .objectKey(objectKey)
+                    .filePath(null)
+                    .fileName(fileName)
+                    .fileExt(extension(fileName))
+                    .mimeType(image.getContentType())
+                    .fileSize(image.getSize())
+                    .checksum(checksum)
+                    .createdAt(LocalDateTime.now())
+                    .createdBy(securityUtils.getCurrentUserId())
+                    .build();
+            uploaded.add(transactionTemplate.execute(status -> persistUploadedFilePort.save(storedFile)));
+        }
+        return uploaded;
+    }
+
+    private List<ModelProfile> resolveProfiles(ModelProfile requestedProfile) {
+        if (requestedProfile != null) {
+            return List.of(requestedProfile);
+        }
+        return List.of(ModelProfile.SPEED, ModelProfile.PERFORMANCE);
+    }
+
+    private FixedProfileFiles resolveFixedProfile(ModelCategory category, ModelProfile profile) {
+        String key = profile.name().toLowerCase(Locale.ROOT) + "-" + category.name().toLowerCase(Locale.ROOT);
+        ModelMemoryBankProperties.FixedProfile fixedProfile = modelMemoryBankProperties.getFixedProfiles().get(key);
+        if (fixedProfile == null || blankToNull(fixedProfile.getCkptFileKey()) == null || blankToNull(fixedProfile.getConfigFileKey()) == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "고정 모델 프로필 매핑을 찾을 수 없습니다.");
+        }
+        StoredFile ckptFile = loadOrCreateFixedProfileFile(fixedProfile.getCkptFileKey(), "application/octet-stream");
+        StoredFile configFile = loadOrCreateFixedProfileFile(fixedProfile.getConfigFileKey(), "application/json");
+        return new FixedProfileFiles(ckptFile, configFile, fixedProfile.getFramework(), fixedProfile.getInputSize());
+    }
+
+    private StoredFile loadOrCreateFixedProfileFile(String objectKey, String mimeType) {
+        return loadFilePort.findByObjectKey(objectKey)
+                .orElseGet(() -> transactionTemplate.execute(status -> persistUploadedFilePort.save(StoredFile.builder()
+                        .storageType(StorageType.MINIO)
+                        .bucketName(minioProperties.getBucketModels())
+                        .objectKey(objectKey)
+                        .filePath(null)
+                        .fileName(fileNameFromObjectKey(objectKey))
+                        .fileExt(extension(objectKey))
+                        .mimeType(mimeType)
+                        .fileSize(0L)
+                        .checksum(null)
+                        .createdAt(LocalDateTime.now())
+                        .createdBy(securityUtils.getCurrentUserId())
+                        .build())));
+    }
+
+    private GenerateMemoryBankResult callMemoryBank(GenerateModelVersionFromNormalImagesCommand command,
+                                                    List<StoredFile> normalImageFiles,
+                                                    FixedProfileFiles fixedProfile,
+                                                    String outputPrefix,
+                                                    ModelProfile profile,
+                                                    String requestId) {
+        try {
+            log.info("Requesting memory_bank generation, requestId={}, modelId={}, organizationId={}, targetId={}, modelCategory={}, modelProfile={}, normalImageCount={}",
+                    requestId, command.getModelId(), command.getOrganizationId(), command.getTargetId(),
+                    command.getModelCategory(), profile, normalImageFiles.size());
+            return generateMemoryBankPort.generateMemoryBank(GenerateMemoryBankCommand.builder()
+                    .modelCategory(command.getModelCategory())
+                    .modelProfile(profile)
+                    .normalImageFileKeys(normalImageFiles.stream().map(StoredFile::getObjectKey).toList())
+                    .configFileKey(fixedProfile.configFile().getObjectKey())
+                    .ckptFileKey(fixedProfile.ckptFile().getObjectKey())
+                    .outputPrefix(outputPrefix)
+                    .build());
+        } catch (TimeoutException exception) {
+            log.error("memory_bank generation timed out, requestId={}, modelId={}, modelProfile={}",
+                    requestId, command.getModelId(), profile, exception);
+            throw new BusinessException(ErrorCode.AI_TIMEOUT, "AI 서버 memory_bank 생성 시간이 초과되었습니다.");
+        } catch (RuntimeException exception) {
+            log.error("memory_bank generation failed, requestId={}, modelId={}, modelProfile={}",
+                    requestId, command.getModelId(), profile, exception);
+            throw new BusinessException(ErrorCode.AI_SERVER_ERROR, "AI 서버 memory_bank 생성에 실패했습니다.");
+        }
+    }
+
+    private CreatedModelVersionResponse saveGeneratedModelVersion(ModelJpaEntity model,
+                                                                  GenerateModelVersionFromNormalImagesCommand command,
+                                                                  GeneratedMemoryBank generated,
+                                                                  List<StoredFile> normalImageFiles,
+                                                                  String requestId,
+                                                                  int profileCount) {
+        String versionName = resolveVersionName(command, generated.profile(), profileCount);
+        if (modelManagementPort.existsVersionByModelIdAndVersionName(model.getModelId(), versionName)) {
+            throw new BusinessException(ErrorCode.MODEL_VERSION_CONFLICT, "동일한 modelId/versionName 조합이 이미 존재합니다.");
+        }
+        StoredFile memoryBankFile = persistUploadedFilePort.save(StoredFile.builder()
+                .storageType(StorageType.MINIO)
+                .bucketName(minioProperties.getBucketModels())
+                .objectKey(generated.result().getMemoryBankFileKey())
+                .filePath(null)
+                .fileName(fileNameFromObjectKey(generated.result().getMemoryBankFileKey()))
+                .fileExt(extension(generated.result().getMemoryBankFileKey()))
+                .mimeType("application/octet-stream")
+                .fileSize(0L)
+                .checksum(null)
+                .createdAt(LocalDateTime.now())
+                .createdBy(securityUtils.getCurrentUserId())
+                .build());
+
+        LocalDateTime now = LocalDateTime.now();
+        ModelVersionJpaEntity version = modelManagementPort.saveModelVersion(ModelVersionJpaEntity.builder()
+                .modelId(model.getModelId())
+                .fileId(memoryBankFile.getFileId())
+                .versionName(versionName)
+                .modelCategory(command.getModelCategory())
+                .modelProfile(generated.profile())
+                .framework(blankToNull(generated.fixedProfile().framework()))
+                .inputSize(blankToNull(generated.fixedProfile().inputSize()))
+                .thresholdDefault(command.getThresholdDefault())
+                .deployStatus(ModelDeployStatus.DEPLOYED)
+                .isActive(true)
+                .validatedAt(now)
+                .validatedBy(securityUtils.getCurrentUserId())
+                .build());
+
+        modelManagementPort.saveArtifacts(List.of(
+                artifact(version.getModelVersionId(), generated.fixedProfile().ckptFile(), ModelArtifactType.CKPT),
+                artifact(version.getModelVersionId(), generated.fixedProfile().configFile(), ModelArtifactType.CONFIG),
+                artifact(version.getModelVersionId(), memoryBankFile, ModelArtifactType.MEMORY_BANK)
+        ));
+
+        for (ModelDeploymentJpaEntity activeDeployment : modelManagementPort.findActiveDeployments(
+                command.getOrganizationId(), command.getTargetId(), command.getDeploymentScope())) {
+            activeDeployment.deactivate("정상 이미지셋 기반 신규 모델 배포로 자동 비활성화");
+            modelManagementPort.saveDeployment(activeDeployment);
+        }
+
+        ModelDeploymentJpaEntity deployment = modelManagementPort.saveDeployment(ModelDeploymentJpaEntity.builder()
+                .organizationId(command.getOrganizationId())
+                .targetId(command.getDeploymentScope() == DeploymentScope.TARGET ? command.getTargetId() : null)
+                .modelVersionId(version.getModelVersionId())
+                .deploymentScope(command.getDeploymentScope())
+                .deployStatus(DeploymentStatus.DEPLOYED)
+                .isActive(true)
+                .deployedAt(now)
+                .deployedBy(securityUtils.getCurrentUserId())
+                .reason(blankToNull(command.getReason()))
+                .rollbackFlag(false)
+                .build());
+
+        recordAction("MODEL_MEMORY_BANK_GENERATE", version.getModelVersionId(), "MODEL_VERSION", blankToNull(command.getReason()));
+        recordAction("MODEL_DEPLOY", deployment.getDeploymentId(), "MODEL_DEPLOYMENT", blankToNull(command.getReason()));
+        log.info("Created model version from normal images, requestId={}, modelVersionId={}, deploymentId={}, memoryBankFileId={}, normalImageCount={}",
+                requestId, version.getModelVersionId(), deployment.getDeploymentId(), memoryBankFile.getFileId(), normalImageFiles.size());
+
+        return CreatedModelVersionResponse.builder()
+                .modelProfile(generated.profile().name())
+                .modelVersionId(version.getModelVersionId())
+                .versionName(version.getVersionName())
+                .deployStatus(version.getDeployStatus().name())
+                .isActive(version.getIsActive())
+                .memoryBankFileId(memoryBankFile.getFileId())
+                .deploymentId(deployment.getDeploymentId())
+                .build();
+    }
+
+    private ModelArtifactJpaEntity artifact(Long versionId, StoredFile file, ModelArtifactType artifactType) {
+        return ModelArtifactJpaEntity.builder()
+                .modelVersionId(versionId)
+                .fileId(file.getFileId())
+                .artifactType(artifactType)
+                .checksum(file.getChecksum())
+                .build();
     }
 
     private void validateUploadCommand(UploadModelVersionCommand command) {
@@ -526,6 +810,45 @@ public class ModelManagementService implements
         return value == null || value.trim().isEmpty() ? null : value.trim();
     }
 
+    private String resolveVersionName(GenerateModelVersionFromNormalImagesCommand command, ModelProfile profile, int profileCount) {
+        String requested = blankToNull(command.getVersionName());
+        if (requested != null) {
+            return profileCount > 1 ? requested + "-" + profile.name().toLowerCase(Locale.ROOT) : requested;
+        }
+        String scopeToken = command.getDeploymentScope() == DeploymentScope.TARGET
+                ? "target" + command.getTargetId()
+                : "org";
+        return "v" + LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+                + "-" + command.getModelCategory().name().toLowerCase(Locale.ROOT)
+                + "-" + profile.name().toLowerCase(Locale.ROOT)
+                + "-org" + command.getOrganizationId()
+                + "-" + scopeToken;
+    }
+
+    private String buildOutputPrefix(Long organizationId, Long targetId, DeploymentScope scope, ModelProfile profile, ModelCategory category) {
+        String targetSegment = scope == DeploymentScope.TARGET ? "target-" + targetId : "organization";
+        return "models/generated/org-" + organizationId + "/" + targetSegment + "/"
+                + profile.name().toLowerCase(Locale.ROOT) + "-" + category.name().toLowerCase(Locale.ROOT);
+    }
+
+    private String buildNormalImageObjectKey(Long organizationId, Long targetId, DeploymentScope scope, String requestId, String fileName) {
+        String targetSegment = scope == DeploymentScope.TARGET ? "target-" + targetId : "organization";
+        return "models/tmp/normal/org-" + organizationId + "/" + targetSegment + "/request-" + requestId + "/" + fileName;
+    }
+
+    private String buildUniqueFileName(String originalFilename, String defaultBaseName) {
+        String safeName = fileNameFromObjectKey(blankToNull(originalFilename) == null ? defaultBaseName : originalFilename);
+        return UUID.randomUUID() + "-" + safeName.replaceAll("[^A-Za-z0-9._-]", "_");
+    }
+
+    private String fileNameFromObjectKey(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return "file";
+        }
+        int index = objectKey.lastIndexOf('/');
+        return index >= 0 ? objectKey.substring(index + 1) : objectKey;
+    }
+
     private String extension(String fileName) {
         if (fileName == null) {
             return null;
@@ -535,5 +858,11 @@ public class ModelManagementService implements
             return null;
         }
         return fileName.substring(index + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private record FixedProfileFiles(StoredFile ckptFile, StoredFile configFile, String framework, String inputSize) {
+    }
+
+    private record GeneratedMemoryBank(ModelProfile profile, FixedProfileFiles fixedProfile, GenerateMemoryBankResult result) {
     }
 }

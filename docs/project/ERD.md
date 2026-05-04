@@ -90,6 +90,8 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
+| score | DECIMAL(8,4) | 이미지 또는 집계 결과 이상 점수 |
+| confidence | DECIMAL(6,4) | 추론 신뢰도. 0~1 범위 기준 |
 | threshold_version | INT | 적용 임계값 버전 |
 | analyzed_frame_count | INT | 실제 추론한 프레임 수 |
 | skipped_frame_count | INT | 건너뛴 프레임 수 |

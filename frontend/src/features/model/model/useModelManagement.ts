@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import type {
   CreateModelRequest,
   DeployModelVersionRequest,
+  GenerateModelVersionsForm,
+  GenerateModelVersionsResponse,
   Model,
   ModelDeployment,
   ModelVersion,
@@ -16,6 +18,7 @@ import {
   fetchModelDeployments,
   fetchModelVersions,
   fetchModels,
+  generateModelVersionsFromNormalImages,
   rollbackModelDeployment,
   uploadModelVersion,
 } from '../api'
@@ -23,6 +26,7 @@ import {
 type BusyState = {
   create: boolean
   upload: boolean
+  generate: boolean
   deploy: boolean
   refresh: boolean
   actionId?: string | null
@@ -41,6 +45,7 @@ export function useModelManagement() {
   const [busy, setBusy] = useState<BusyState>({
     create: false,
     upload: false,
+    generate: false,
     deploy: false,
     refresh: false,
     actionId: null,
@@ -140,6 +145,25 @@ export function useModelManagement() {
     }
   }
 
+  async function submitGenerateFromNormalImages(form: GenerateModelVersionsForm): Promise<GenerateModelVersionsResponse | null> {
+    if (!selectedModelId) return null
+
+    setBusy((prev) => ({ ...prev, generate: true }))
+    setError(null)
+    try {
+      const result = await generateModelVersionsFromNormalImages(selectedModelId, form)
+      const versionIds = result.createdVersions.map((version) => `${version.modelProfile} #${version.modelVersionId}`).join(', ')
+      setMessage(`정상 이미지셋 기반 모델 생성이 완료되었습니다. ${versionIds}`)
+      await Promise.all([loadVersions(selectedModelId), loadDeployments()])
+      return result
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : '정상 이미지셋 기반 모델 생성에 실패했습니다.')
+      return null
+    } finally {
+      setBusy((prev) => ({ ...prev, generate: false }))
+    }
+  }
+
   async function submitActivateVersion(versionId: number, reason: string) {
     setBusy((prev) => ({ ...prev, actionId: `activate-${versionId}` }))
     setError(null)
@@ -226,6 +250,7 @@ export function useModelManagement() {
     reloadAll,
     submitCreateModel,
     submitUploadVersion,
+    submitGenerateFromNormalImages,
     submitActivateVersion,
     submitDeprecateVersion,
     submitDeployVersion,

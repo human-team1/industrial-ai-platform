@@ -266,8 +266,8 @@
   CREATE TABLE inspection_result (
     result_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     inspection_id BIGINT NOT NULL UNIQUE,
-    score DOUBLE,
-    confidence DOUBLE,
+    score DECIMAL(8,4),
+    confidence DECIMAL(6,4),
     decision_code VARCHAR(20),
     final_decision_code VARCHAR(20),
     result_status VARCHAR(20),

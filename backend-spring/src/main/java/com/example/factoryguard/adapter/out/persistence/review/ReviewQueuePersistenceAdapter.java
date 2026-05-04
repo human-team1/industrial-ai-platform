@@ -42,6 +42,11 @@ public class ReviewQueuePersistenceAdapter implements SaveReviewQueuePort, LoadR
     }
 
     @Override
+    public Optional<ReviewQueue> findById(Long reviewQueueId) {
+        return reviewQueueJpaRepository.findById(reviewQueueId).map(this::toDomain);
+    }
+
+    @Override
     public List<ReviewQueue> findAllByStatus(ReviewQueueStatus queueStatus) {
         return reviewQueueJpaRepository.findAllByQueueStatusOrderByQueuedAtAsc(queueStatus).stream()
                 .map(this::toDomain)

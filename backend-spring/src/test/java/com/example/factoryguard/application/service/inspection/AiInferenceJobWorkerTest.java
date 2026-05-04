@@ -6,6 +6,7 @@ import com.example.factoryguard.adapter.out.persistence.model.ModelVersionJpaEnt
 import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
 import com.example.factoryguard.application.dto.inspection.AiInspectionResult;
 import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
+import com.example.factoryguard.application.dto.model.ResolvedModelDeployment;
 import com.example.factoryguard.application.port.in.operation.RecordOperationLogUseCase;
 import com.example.factoryguard.application.port.out.file.LoadFilePort;
 import com.example.factoryguard.application.port.out.file.PersistUploadedFilePort;
@@ -21,6 +22,7 @@ import com.example.factoryguard.application.port.out.result.SaveResultArtifactPo
 import com.example.factoryguard.application.port.out.result.SaveResultImagePort;
 import com.example.factoryguard.application.port.out.notification.SaveNotificationPort;
 import com.example.factoryguard.application.port.out.review.SaveReviewQueuePort;
+import com.example.factoryguard.application.service.model.ActiveModelDeploymentResolver;
 import com.example.factoryguard.config.inspection.AiJobWorkerProperties;
 import com.example.factoryguard.domain.file.model.StoredFile;
 import com.example.factoryguard.domain.file.vo.StorageType;
@@ -85,6 +87,7 @@ class AiInferenceJobWorkerTest {
     @Mock RecordOperationLogUseCase recordOperationLogUseCase;
     @Mock MinioProperties minioProperties;
     @Mock ResolveInspectionThresholdService resolveInspectionThresholdService;
+    @Mock ActiveModelDeploymentResolver activeModelDeploymentResolver;
 
     private AiInferenceJobWorker worker;
 
@@ -99,6 +102,7 @@ class AiInferenceJobWorkerTest {
                 properties, claimAsyncJobPort, saveAsyncJobPort,
                 loadInspectionRunPort, saveInspectionRunPort,
                 loadInspectionInputPort, loadFilePort, modelManagementPort,
+                activeModelDeploymentResolver,
                 callAiInspectionPort, saveInspectionResultPort,
                 saveResultArtifactPort, saveResultImagePort, saveReviewQueuePort,
                 saveNotificationPort,
@@ -118,6 +122,11 @@ class AiInferenceJobWorkerTest {
         lenient().when(modelManagementPort.findActiveDeployments(org.mockito.ArgumentMatchers.eq(1L), any(), any()))
                 .thenReturn(List.of(deployment()));
         lenient().when(modelManagementPort.findModelVersionById(50L)).thenReturn(Optional.of(version()));
+        lenient().when(activeModelDeploymentResolver.resolve(any(), any(), any()))
+                .thenReturn(ResolvedModelDeployment.builder()
+                        .deployment(deployment())
+                        .version(version())
+                        .build());
         lenient().when(modelManagementPort.findArtifactsByVersionId(50L)).thenReturn(List.of(
                 artifact(ModelArtifactType.CKPT, 11L),
                 artifact(ModelArtifactType.CONFIG, 12L),
@@ -337,7 +346,7 @@ class AiInferenceJobWorkerTest {
             ModelVersionJpaEntity entity = ctor.newInstance();
             setField(entity, "modelVersionId", 50L);
             setField(entity, "modelCategory", ModelCategory.OBJECT);
-            setField(entity, "modelProfile", ModelProfile.SPEED);
+            setField(entity, "modelProfile", ModelProfile.PERFORMANCE);
             setField(entity, "framework", "PYTORCH");
             setField(entity, "inputSize", "224x224");
             return entity;
