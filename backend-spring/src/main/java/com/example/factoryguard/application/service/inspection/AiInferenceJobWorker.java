@@ -49,6 +49,8 @@ import org.slf4j.MDC;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+
 import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.List;
@@ -242,8 +244,8 @@ public class AiInferenceJobWorker {
         String resultStatus = decisionCode == DecisionCode.RECHECK ? RESULT_STATUS_REVIEW_REQUIRED : RESULT_STATUS_SUCCESS;
         InspectionResult saved = saveInspectionResultPort.save(InspectionResult.builder()
                 .inspectionId(run.getInspectionId())
-                .score(result.getScore())
-                .confidence(result.getConfidence())
+                .score(toBigDecimal(result.getScore()))
+                .confidence(toBigDecimal(result.getConfidence()))
                 .decisionCode(decisionCode)
                 .finalDecisionCode(decisionCode)
                 .resultStatus(resultStatus)
@@ -423,5 +425,9 @@ public class AiInferenceJobWorker {
             return "image/webp";
         }
         return "application/octet-stream";
+    }
+
+    private BigDecimal toBigDecimal(Double value) {
+        return value == null ? null : BigDecimal.valueOf(value);
     }
 }

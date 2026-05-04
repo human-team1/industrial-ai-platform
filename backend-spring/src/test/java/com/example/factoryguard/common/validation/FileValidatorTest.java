@@ -67,4 +67,68 @@ class FileValidatorTest {
                 .extracting(ex -> ((BusinessException) ex).getErrorCode())
                 .isEqualTo(ErrorCode.INVALID_FILE_NAME);
     }
+
+    @Test
+    @DisplayName("No.6 NUL 바이트 포함 파일명 차단 - INVALID_FILE_NAME")
+    void blocksNulByteInName() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "evil\u0000name.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        assertThatThrownBy(() -> validator.validate(file))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_NAME);
+    }
+
+    @Test
+    @DisplayName("No.6 제어문자(개행) 포함 파일명 차단 - INVALID_FILE_NAME")
+    void blocksControlChar() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "evil\nname.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        assertThatThrownBy(() -> validator.validate(file))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_NAME);
+    }
+
+    @Test
+    @DisplayName("No.6 Windows 절대경로(C:) 차단 - INVALID_FILE_NAME")
+    void blocksWindowsAbsolutePath() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "C:evil.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        assertThatThrownBy(() -> validator.validate(file))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_NAME);
+    }
+
+    @Test
+    @DisplayName("No.6 Windows 예약어(CON.jpg) 차단 - INVALID_FILE_NAME")
+    void blocksWindowsReservedName() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "CON.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        assertThatThrownBy(() -> validator.validate(file))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_NAME);
+    }
+
+    @Test
+    @DisplayName("No.6 비ASCII 특수문자(@#$) 차단 - INVALID_FILE_NAME")
+    void blocksDisallowedSpecialChars() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "ev!l@.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        assertThatThrownBy(() -> validator.validate(file))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_FILE_NAME);
+    }
+
+    @Test
+    @DisplayName("No.6 한글 파일명(샘플.jpg) 통과")
+    void allowsKoreanFilename() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "샘플.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        org.assertj.core.api.Assertions.assertThatCode(() -> validator.validate(file))
+                .doesNotThrowAnyException();
+    }
 }

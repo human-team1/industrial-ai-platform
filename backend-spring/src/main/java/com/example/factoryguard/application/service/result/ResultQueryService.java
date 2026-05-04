@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -39,10 +40,14 @@ public class ResultQueryService implements
         GetResultExplanationUseCase {
 
     private static final int MAX_PAGE_SIZE = 100;
+    private static final int MAX_KEYWORD_LENGTH = 100;
+    private static final int MAX_NAME_FILTER_LENGTH = 100;
+    private static final Pattern KEYWORD_WHITELIST = Pattern.compile("^[A-Za-z0-9 _\\-./()\\uAC00-\\uD7A3]+$");
     private static final Set<String> ALLOWED_DECISIONS = Set.of("NORMAL", "DEFECT", "RECHECK");
     private static final Set<String> ALLOWED_RESULT_STATUSES = Set.of(
             "SUCCESS", "FAILED", "REVIEW_REQUIRED", "CORRECTED"
     );
+    private static final Set<String> ALLOWED_RUN_TYPES = Set.of("UPLOAD", "REALTIME");
 
     private final ResultQueryPort resultQueryPort;
     private final LoadResultArtifactPort loadResultArtifactPort;
@@ -227,6 +232,44 @@ public class ResultQueryService implements
         }
         if (query.getResultStatus() != null && !ALLOWED_RESULT_STATUSES.contains(toUpper(query.getResultStatus()))) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "허용되지 않는 결과 상태입니다.");
+        }
+        if (query.getRunType() != null && !ALLOWED_RUN_TYPES.contains(toUpper(query.getRunType()))) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "허용되지 않는 runType입니다.");
+        }
+        validateKeyword(query.getKeyword());
+        validateNameFilter(query.getEquipmentName(), "equipmentName");
+        validateNameFilter(query.getProductName(), "productName");
+    }
+
+    private void validateKeyword(String keyword) {
+        if (keyword == null) {
+            return;
+        }
+        String trimmed = keyword.trim();
+        if (trimmed.isEmpty()) {
+            return;
+        }
+        if (trimmed.length() > MAX_KEYWORD_LENGTH) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "keyword는 100자 이하여야 합니다.");
+        }
+        if (!KEYWORD_WHITELIST.matcher(trimmed).matches()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "keyword에 허용되지 않은 문자가 포함되어 있습니다.");
+        }
+    }
+
+    private void validateNameFilter(String value, String fieldName) {
+        if (value == null) {
+            return;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            return;
+        }
+        if (trimmed.length() > MAX_NAME_FILTER_LENGTH) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, fieldName + "는 100자 이하여야 합니다.");
+        }
+        if (!KEYWORD_WHITELIST.matcher(trimmed).matches()) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, fieldName + "에 허용되지 않은 문자가 포함되어 있습니다.");
         }
     }
 

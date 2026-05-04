@@ -5,6 +5,7 @@ import com.example.factoryguard.domain.inspection.model.InspectionResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,8 +19,8 @@ class InspectionResultTest {
         InspectionResult result = InspectionResult.builder()
                 .resultId(7001L)
                 .inspectionId(2001L)
-                .score(0.8123)
-                .confidence(0.91)
+                .score(new BigDecimal("0.8123"))
+                .confidence(new BigDecimal("0.9100"))
                 .decisionCode(DecisionCode.DEFECT)
                 .finalDecisionCode(DecisionCode.DEFECT)
                 .resultStatus("SUCCESS")
@@ -31,7 +32,8 @@ class InspectionResultTest {
                 .build();
 
         assertThat(result.getResultId()).isEqualTo(7001L);
-        assertThat(result.getScore()).isEqualTo(0.8123);
+        assertThat(result.getScore()).isEqualByComparingTo("0.8123");
+        assertThat(result.getConfidence()).isEqualByComparingTo("0.91");
         assertThat(result.getDecisionCode()).isEqualTo(DecisionCode.DEFECT);
         assertThat(result.getModelVersionId()).isEqualTo(10L);
         assertThat(result.getThresholdId()).isEqualTo(500L);

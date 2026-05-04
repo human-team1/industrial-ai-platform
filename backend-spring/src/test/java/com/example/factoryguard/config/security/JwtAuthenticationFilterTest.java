@@ -83,4 +83,63 @@ class JwtAuthenticationFilterTest {
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
+
+    @Test
+    @DisplayName("No.4-4 위조 role(예: ROLE_HACKER) - SecurityContext 비움")
+    void rejectsForgedRoleClaim() throws Exception {
+        JwtProperties properties = new JwtProperties();
+        properties.setSecret("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        properties.setExpireMinutes(30);
+        JwtTokenProvider provider = new JwtTokenProvider(properties);
+
+        java.util.Date now = new java.util.Date();
+        java.util.Date expiry = new java.util.Date(now.getTime() + 60_000L);
+        String forged = io.jsonwebtoken.Jwts.builder()
+                .setSubject("3")
+                .claim("role", "ROLE_HACKER")
+                .claim("orgId", 10L)
+                .claim("sid", "sess-x")
+                .setIssuedAt(now)
+                .setExpiration(expiry)
+                .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                        properties.getSecret().getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                        io.jsonwebtoken.SignatureAlgorithm.HS256)
+                .compact();
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer " + forged);
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    @DisplayName("No.4-5 빈 role claim - SecurityContext 비움")
+    void rejectsEmptyRoleClaim() throws Exception {
+        JwtProperties properties = new JwtProperties();
+        properties.setSecret("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        JwtTokenProvider provider = new JwtTokenProvider(properties);
+
+        java.util.Date now = new java.util.Date();
+        java.util.Date expiry = new java.util.Date(now.getTime() + 60_000L);
+        String empty = io.jsonwebtoken.Jwts.builder()
+                .setSubject("3")
+                .claim("role", "")
+                .claim("orgId", 10L)
+                .claim("sid", "sess-y")
+                .setIssuedAt(now)
+                .setExpiration(expiry)
+                .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                        properties.getSecret().getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                        io.jsonwebtoken.SignatureAlgorithm.HS256)
+                .compact();
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer " + empty);
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
 }

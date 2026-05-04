@@ -108,6 +108,42 @@ class ResultQueryServiceTest {
     }
 
     @Test
+    @DisplayName("No.19 잘못된 runType - 검증 실패")
+    void invalidRunTypeRejected() {
+        ListInspectionResultsQuery query = new ListInspectionResultsQuery(
+                null, null, null, null, null, "DRONE",
+                null, null, null, 0, 20);
+        assertThatThrownBy(() -> service.execute(query))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_REQUEST);
+    }
+
+    @Test
+    @DisplayName("No.19 keyword 길이 초과(101자) - 검증 실패")
+    void overlongKeywordRejected() {
+        ListInspectionResultsQuery query = new ListInspectionResultsQuery(
+                null, null, "a".repeat(101), null, null, null,
+                null, null, null, 0, 20);
+        assertThatThrownBy(() -> service.execute(query))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_REQUEST);
+    }
+
+    @Test
+    @DisplayName("No.19 keyword 허용되지 않은 문자(SQL meta) - 검증 실패")
+    void disallowedKeywordCharactersRejected() {
+        ListInspectionResultsQuery query = new ListInspectionResultsQuery(
+                null, null, "abc'; DROP", null, null, null,
+                null, null, null, 0, 20);
+        assertThatThrownBy(() -> service.execute(query))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.INVALID_REQUEST);
+    }
+
+    @Test
     @DisplayName("No.19 페이지 size 100 초과 - 검증 실패")
     void oversizedPageRejected() {
         ListInspectionResultsQuery query = new ListInspectionResultsQuery(

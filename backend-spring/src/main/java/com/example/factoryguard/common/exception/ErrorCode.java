@@ -55,7 +55,9 @@ public enum ErrorCode {
     USER_SETTING_SAVE_FAILED("USER-SETTING-500", HttpStatus.INTERNAL_SERVER_ERROR, "사용자 설정 저장 중 오류가 발생했습니다."),
     NOTIFICATION_NOT_FOUND("NOTIFICATION-404", HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."),
     NOTIFICATION_FORBIDDEN("NOTIFICATION-403", HttpStatus.FORBIDDEN, "다른 사용자의 알림에는 접근할 수 없습니다."),
-    NOTIFICATION_INVALID_TYPE("NOTIFICATION-422", HttpStatus.UNPROCESSABLE_ENTITY, "알림 유형 값이 올바르지 않습니다.");
+    NOTIFICATION_INVALID_TYPE("NOTIFICATION-422", HttpStatus.UNPROCESSABLE_ENTITY, "알림 유형 값이 올바르지 않습니다."),
+    UPLOAD_SIZE_EXCEEDED("UPLOAD-413", HttpStatus.PAYLOAD_TOO_LARGE, "업로드 가능한 파일 크기를 초과했습니다."),
+    MULTIPART_PARSE_FAILED("UPLOAD-415", HttpStatus.UNSUPPORTED_MEDIA_TYPE, "multipart/form-data 요청을 해석할 수 없습니다.");
 
     private final String code;
     private final HttpStatus status;

@@ -3,6 +3,7 @@ package com.example.factoryguard.domain.inspection.model;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -11,8 +12,8 @@ public class InspectionResult {
 
     private final Long resultId;
     private final Long inspectionId;
-    private final Double score;
-    private final Double confidence;
+    private final BigDecimal score;
+    private final BigDecimal confidence;
     private final DecisionCode decisionCode;
     private final DecisionCode finalDecisionCode;
     private final String resultStatus;

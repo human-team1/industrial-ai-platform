@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import javax.validation.ConstraintViolation;
@@ -99,6 +101,29 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ErrorCode.INVALID_REQUEST;
         return ResponseEntity.status(errorCode.getStatus())
                 .body(toProblem(errorCode, exception.getMessage(), request.getDescription(false), null));
+    }
+
+    /**
+     * 업로드 파일이 spring.servlet.multipart.max-file-size를 초과 — 413 Payload Too Large.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ProblemDetailsResponse> handleMaxUploadSizeExceeded(
+            MaxUploadSizeExceededException exception, WebRequest request) {
+        ErrorCode errorCode = ErrorCode.UPLOAD_SIZE_EXCEEDED;
+        return ResponseEntity.status(errorCode.getStatus())
+                .body(toProblem(errorCode, errorCode.getDefaultMessage(), request.getDescription(false), null));
+    }
+
+    /**
+     * multipart/form-data 파싱 실패 (잘못된 boundary, 손상된 본문 등) — 415 Unsupported Media Type.
+     * MaxUploadSizeExceededException은 위에서 먼저 매칭되므로 일반 Multipart 오류만 잡는다.
+     */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ProblemDetailsResponse> handleMultipartException(
+            MultipartException exception, WebRequest request) {
+        ErrorCode errorCode = ErrorCode.MULTIPART_PARSE_FAILED;
+        return ResponseEntity.status(errorCode.getStatus())
+                .body(toProblem(errorCode, errorCode.getDefaultMessage(), request.getDescription(false), null));
     }
 
     @ExceptionHandler(Exception.class)

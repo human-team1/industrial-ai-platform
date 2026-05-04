@@ -83,7 +83,8 @@ class DocumentCrudServiceTest {
     @DisplayName("No.25 허용 형식 PDF 업로드 - 정상 생성")
     void createsDocumentWithAllowedPdf() {
         MockMultipartFile pdf = new MockMultipartFile(
-                "file", "manual.pdf", "application/pdf", new byte[]{1, 2, 3});
+                "file", "manual.pdf", "application/pdf",
+                new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x37});
         when(documentCrudPort.createDocument(anyLong(), anyLong(), anyString(), anyString(),
                 any(), any(), any(), any(), anyLong(), anyString()))
                 .thenReturn(DocumentCreateResult.builder()
@@ -129,6 +130,37 @@ class DocumentCrudServiceTest {
     }
 
     @Test
+    @DisplayName("No.25 magic byte 위장(.exe를 PDF MIME으로 위장) - VALIDATION_FAILED")
+    void rejectsMimeSpoofedExeAsPdf() {
+        MockMultipartFile fakePdf = new MockMultipartFile(
+                "file", "evil.pdf", "application/pdf",
+                new byte[]{0x4D, 0x5A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00});
+        CreateDocumentWithFileCommand command = CreateDocumentWithFileCommand.builder()
+                .userId(1L).organizationId(100L).file(fakePdf).title("위장 PDF").build();
+
+        assertThatThrownBy(() -> service.createDocument(command))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.VALIDATION_FAILED);
+    }
+
+    @Test
+    @DisplayName("No.25 magic byte 위장(잘못된 DOCX 헤더) - VALIDATION_FAILED")
+    void rejectsInvalidDocxMagicBytes() {
+        MockMultipartFile fakeDocx = new MockMultipartFile(
+                "file", "fake.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                new byte[]{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07});
+        CreateDocumentWithFileCommand command = CreateDocumentWithFileCommand.builder()
+                .userId(1L).organizationId(100L).file(fakeDocx).title("위장 DOCX").build();
+
+        assertThatThrownBy(() -> service.createDocument(command))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.VALIDATION_FAILED);
+    }
+
+    @Test
     @DisplayName("No.26 새 버전 추가 - createVersion Port 호출 및 documentId 유지")
     void addsNewVersionToExistingDocument() {
         long documentId = 10L;
@@ -139,7 +171,8 @@ class DocumentCrudServiceTest {
         when(documentCrudPort.findDocumentOrganizationId(documentId)).thenReturn(Optional.of(100L));
 
         MockMultipartFile pdf = new MockMultipartFile(
-                "file", "manual-v2.pdf", "application/pdf", new byte[]{4, 5, 6});
+                "file", "manual-v2.pdf", "application/pdf",
+                new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x37});
 
         when(documentCrudPort.createVersion(eq(documentId), eq(100L), anyBoolean(), anyLong(), anyString(), any()))
                 .thenReturn(DocumentVersionDetailResult.builder()

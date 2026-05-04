@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
@@ -215,6 +216,40 @@ public class DocumentCrudService implements DocumentCrudUseCase {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "허용되지 않은 MIME 타입입니다.");
         }
         validateMimeMatchesExtension(file.getOriginalFilename(), mimeType);
+        validateMagicBytes(file, ext);
+    }
+
+    private void validateMagicBytes(MultipartFile file, String ext) {
+        byte[] header;
+        try (InputStream input = file.getInputStream()) {
+            header = input.readNBytes(8);
+        } catch (IOException exception) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "파일 헤더를 읽을 수 없습니다.");
+        }
+        if (header.length < 4) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "파일 내용이 손상되었거나 너무 짧습니다.");
+        }
+        switch (ext) {
+            case "pdf" -> {
+                if (!(header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46)) {
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED, "PDF 파일 시그니처가 올바르지 않습니다.");
+                }
+            }
+            case "docx" -> {
+                if (!(header[0] == 0x50 && header[1] == 0x4B && header[2] == 0x03 && header[3] == 0x04)) {
+                    throw new BusinessException(ErrorCode.VALIDATION_FAILED, "DOCX 파일 시그니처가 올바르지 않습니다.");
+                }
+            }
+            case "md" -> {
+                for (int i = 0; i < Math.min(header.length, 4); i++) {
+                    byte b = header[i];
+                    if (b == 0x00) {
+                        throw new BusinessException(ErrorCode.VALIDATION_FAILED, "MD 파일에 NUL 바이트가 포함되어 있습니다.");
+                    }
+                }
+            }
+            default -> { /* allowedExtensions가 이미 제한 — 추가 분기 불필요 */ }
+        }
     }
 
     private void validateMimeMatchesExtension(String originalFilename, String mimeType) {

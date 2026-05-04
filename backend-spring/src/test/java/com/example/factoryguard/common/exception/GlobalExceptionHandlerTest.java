@@ -90,6 +90,36 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("No.50 MaxUploadSizeExceededException - 413 + UPLOAD-413 errorCode")
+    void uploadSizeExceededReturnsPayloadTooLarge() {
+        WebRequest req = mock(WebRequest.class);
+        when(req.getDescription(false)).thenReturn("uri=/api/v1/inspections/upload");
+        org.springframework.web.multipart.MaxUploadSizeExceededException ex =
+                new org.springframework.web.multipart.MaxUploadSizeExceededException(50L * 1024 * 1024);
+
+        ResponseEntity<ProblemDetailsResponse> response = handler.handleMaxUploadSizeExceeded(ex, req);
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(413);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getCode()).isEqualTo("UPLOAD-413");
+    }
+
+    @Test
+    @DisplayName("No.50 MultipartException - 415 + UPLOAD-415 errorCode")
+    void multipartParseFailureReturnsUnsupportedMediaType() {
+        WebRequest req = mock(WebRequest.class);
+        when(req.getDescription(false)).thenReturn("uri=/api/v1/documents");
+        org.springframework.web.multipart.MultipartException ex =
+                new org.springframework.web.multipart.MultipartException("malformed multipart");
+
+        ResponseEntity<ProblemDetailsResponse> response = handler.handleMultipartException(ex, req);
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(415);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getCode()).isEqualTo("UPLOAD-415");
+    }
+
+    @Test
     @DisplayName("No.50 일반 Exception - INTERNAL_ERROR(500) + about:blank type 응답")
     void unknownExceptionFallsBackToInternalError() {
         WebRequest req = mock(WebRequest.class);
