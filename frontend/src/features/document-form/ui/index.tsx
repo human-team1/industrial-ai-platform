@@ -58,48 +58,70 @@ export function DocumentForm({
         <p className="mt-2 text-sm leading-relaxed text-slate-600">{description}</p>
       </div>
 
-      <div className="page-panel space-y-8 pb-1">
-        <DocumentFileUpload
-          mode={mode}
-          file={file}
-          latestVersion={detail?.latestVersion ?? null}
-          errorMessage={fieldErrors.file}
-          onFileChange={onFileChange}
-        />
-        <DocumentMetadataFields values={values} fieldErrors={fieldErrors} onChange={onChange} />
-        <DocumentIndexingStatus mode={mode} latestVersion={detail?.latestVersion ?? null} />
-        <DocumentPreviewPanel
-          mode={mode}
-          latestVersion={detail?.latestVersion ?? null}
-          loading={previewLoading}
-          errorMessage={previewErrorMessage}
-          onPreviewOpen={onPreviewOpen}
-        />
-
-        {errorMessage ? (
-          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {errorMessage}
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-6">
-          <button
-            type="button"
-            className="btn-secondary inline-flex min-w-[5rem] items-center justify-center whitespace-nowrap px-5"
-            onClick={onCancel}
-            disabled={saving}
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            className="btn-primary inline-flex min-w-[5.5rem] items-center justify-center whitespace-nowrap px-5"
-            disabled={saving}
-            onClick={onSubmit}
-          >
-            {saving ? '저장 중...' : submitLabel}
-          </button>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <div className="space-y-5">
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <DocumentFileUpload
+              mode={mode}
+              file={file}
+              latestVersion={detail?.latestVersion ?? null}
+              errorMessage={fieldErrors.file}
+              onFileChange={onFileChange}
+            />
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <DocumentMetadataFields values={values} fieldErrors={fieldErrors} onChange={onChange} />
+          </div>
         </div>
+
+        <div className="space-y-5">
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <DocumentIndexingStatus mode={mode} latestVersion={detail?.latestVersion ?? null} />
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <DocumentPreviewPanel
+              mode={mode}
+              latestVersion={detail?.latestVersion ?? null}
+              loading={previewLoading}
+              errorMessage={previewErrorMessage}
+              onPreviewOpen={onPreviewOpen}
+            />
+          </div>
+        </div>
+      </div>
+
+      {errorMessage ? (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          className="btn-secondary inline-flex min-w-[5rem] items-center justify-center whitespace-nowrap px-5"
+          onClick={onCancel}
+          disabled={saving}
+        >
+          취소
+        </button>
+        <button
+          type="button"
+          className="btn-primary inline-flex min-w-[8rem] items-center justify-center whitespace-nowrap px-6"
+          disabled={saving}
+          onClick={onSubmit}
+        >
+          {saving ? '저장 중...' : submitLabel}
+        </button>
+        <button
+          type="button"
+          className="inline-flex min-w-[5.5rem] items-center justify-center whitespace-nowrap rounded border border-rose-200 bg-white px-5 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+          disabled={saving || mode !== 'edit'}
+          onClick={() => window.alert('문서 삭제 기능은 준비 중입니다. (UI 전용)')}
+          title={mode === 'edit' ? '문서 삭제 (준비 중)' : '신규 등록 화면에서는 사용할 수 없습니다.'}
+        >
+          문서 삭제
+        </button>
       </div>
     </section>
   )
@@ -245,6 +267,26 @@ function DocumentMetadataFields({
   )
 }
 
+const INDEXING_STEPS = ['업로드 완료', '텍스트 추출', '청크 분할', '임베딩 저장', '인덱싱 완료'] as const
+
+function activeStepFromStatus(status: IndexingStatus | null | undefined): number {
+  if (!status) return 0
+  if (status === 'PENDING') return 1
+  if (status === 'PROCESSING') return 3
+  if (status === 'COMPLETED') return INDEXING_STEPS.length
+  if (status === 'FAILED') return 2
+  return 0
+}
+
+function progressPercentFromStatus(status: IndexingStatus | null | undefined): number {
+  if (!status) return 0
+  if (status === 'PENDING') return 15
+  if (status === 'PROCESSING') return 78
+  if (status === 'COMPLETED') return 100
+  if (status === 'FAILED') return 40
+  return 0
+}
+
 function DocumentIndexingStatus({
   mode,
   latestVersion,
@@ -263,20 +305,97 @@ function DocumentIndexingStatus({
     )
   }
 
-  const status = latestVersion?.indexingStatus
+  const status = latestVersion?.indexingStatus ?? null
+  const activeStep = activeStepFromStatus(status)
+  const percent = progressPercentFromStatus(status)
+  const totalChunks = latestVersion?.indexedChunkCount ?? 0
+  // 와이어프레임 시각 placeholder (백엔드 응답에 부분 통계 필드가 없을 경우 표시 전용)
+  const processed = totalChunks > 0 ? Math.round(totalChunks * (percent / 100)) : 0
+  const queued = totalChunks > 0 ? Math.max(0, totalChunks - processed) : 0
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-4">
       <h2 className="text-sm font-semibold text-slate-800">인덱싱 상태</h2>
-      <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-5 text-sm md:grid-cols-2">
-        <Info label="상태" value={<StatusBadge status={status} />} />
-        <Info label="청크 수" value={formatChunkCount(latestVersion?.indexedChunkCount)} />
-        <Info label="반영 시각" value={formatDateTime(latestVersion?.indexedAt)} />
-        {status === 'FAILED' ? (
-          <Info label="실패 사유" value={latestVersion?.indexErrorMessage ?? '실패 사유가 제공되지 않았습니다.'} />
-        ) : null}
+
+      <IndexingStepper activeStep={activeStep} failed={status === 'FAILED'} />
+
+      <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200 bg-white p-5 md:grid-cols-[auto_minmax(0,1fr)]">
+        <CircularProgress percent={percent} status={status} />
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <StatusBadge status={status} />
+            <span className="text-xs text-slate-500">{formatDateTime(latestVersion?.indexedAt) || '시각 정보 없음'}</span>
+          </div>
+          <dl className="grid grid-cols-3 gap-3 pt-2 text-xs">
+            <div>
+              <dt className="text-slate-500">전체 청크</dt>
+              <dd className="mt-0.5 text-base font-semibold text-slate-900">{totalChunks.toLocaleString()}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">처리 완료</dt>
+              <dd className="mt-0.5 text-base font-semibold text-slate-900">{processed.toLocaleString()}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">대기/실패</dt>
+              <dd className="mt-0.5 text-base font-semibold text-slate-900">{queued.toLocaleString()}</dd>
+            </div>
+          </dl>
+        </div>
       </div>
+
+      {status === 'FAILED' ? (
+        <p className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+          실패 사유: {latestVersion?.indexErrorMessage ?? '제공되지 않았습니다.'}
+        </p>
+      ) : null}
+
+      <p className="text-[11px] text-slate-400">
+        ※ 단계 진행/원형 진행률/처리 통계는 시각 placeholder이며, 실제 단계별 상태 API 연동 후 정합화됩니다.
+      </p>
     </section>
+  )
+}
+
+function IndexingStepper({ activeStep, failed }: { activeStep: number; failed: boolean }) {
+  return (
+    <ol className="flex items-center justify-between gap-1">
+      {INDEXING_STEPS.map((label, index) => {
+        const stepNo = index + 1
+        const isDone = stepNo < activeStep || (!failed && stepNo === activeStep && activeStep === INDEXING_STEPS.length)
+        const isCurrent = stepNo === activeStep && !isDone
+        const tone = failed && isCurrent
+          ? 'bg-rose-500 text-white border-rose-500'
+          : isDone
+            ? 'bg-emerald-500 text-white border-emerald-500'
+            : isCurrent
+              ? 'bg-sky-500 text-white border-sky-500'
+              : 'bg-white text-slate-400 border-slate-300'
+        return (
+          <li key={label} className="flex flex-1 flex-col items-center gap-1 text-[11px]">
+            <div className="flex w-full items-center">
+              <span className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full border ${tone} text-xs font-semibold`}>
+                {isDone ? '✓' : stepNo}
+              </span>
+            </div>
+            <span className={`text-center ${isCurrent ? 'font-semibold text-slate-800' : 'text-slate-500'}`}>{label}</span>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
+
+function CircularProgress({ percent, status }: { percent: number; status: IndexingStatus | null }) {
+  const clamped = Math.max(0, Math.min(100, percent))
+  const color = status === 'FAILED' ? '#f43f5e' : status === 'COMPLETED' ? '#10b981' : '#0ea5e9'
+  const bg = `conic-gradient(${color} ${clamped * 3.6}deg, #e2e8f0 0deg)`
+  return (
+    <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full" style={{ background: bg }}>
+      <div className="flex h-[4.5rem] w-[4.5rem] flex-col items-center justify-center rounded-full bg-white">
+        <span className="text-lg font-bold text-slate-900">{clamped}%</span>
+        <span className="text-[10px] text-slate-500">진행률</span>
+      </div>
+    </div>
   )
 }
 
@@ -387,11 +506,6 @@ function formatFileSize(value?: number | null) {
   if (value < 1024) return `${value} B`
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`
   return `${(value / 1024 / 1024).toFixed(1)} MB`
-}
-
-function formatChunkCount(value?: number | null) {
-  if (value == null) return '-'
-  return `${value.toLocaleString()}개`
 }
 
 function formatDateTime(value?: string | null) {
