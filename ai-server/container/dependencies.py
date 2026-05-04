@@ -30,6 +30,7 @@ def get_anomaly_service() -> AnomalyService:
 
 def get_document_indexing_service() -> DocumentIndexingService:
     return DocumentIndexingService(
+        get_settings(),
         get_chroma_client(),
         get_minio_storage(),
         get_redis_status_store(),

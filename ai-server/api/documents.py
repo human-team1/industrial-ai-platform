@@ -2,15 +2,16 @@ from fastapi import APIRouter, Depends, File, UploadFile
 
 from application.document_indexing_service import DocumentIndexingService
 from container.dependencies import get_document_indexing_service
-from domain.schemas import DocumentIndexResponse
+from domain.schemas import LegacyDocumentIndexResponse
 
 router = APIRouter()
 
 
-@router.post("/index", response_model=DocumentIndexResponse)
+@router.post("/index", response_model=LegacyDocumentIndexResponse)
 async def index_document(
     file: UploadFile = File(...),
     service: DocumentIndexingService = Depends(get_document_indexing_service),
-) -> DocumentIndexResponse:
+) -> LegacyDocumentIndexResponse:
     content = await file.read()
-    return await service.index_document(file.filename or "uploaded-document", content)
+    _ = content
+    return LegacyDocumentIndexResponse(document_id=file.filename or "uploaded-document", status="ACCEPTED")

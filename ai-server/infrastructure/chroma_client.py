@@ -9,7 +9,7 @@ class ChromaClientWrapper:
         return f"http://{self._settings.chroma_host}:{self._settings.chroma_port}"
 
     def collection_name(self) -> str:
-        return self._settings.chroma_collection_documents
+        return self._settings.chroma_collection_name
 
     def client(self):
         import chromadb
