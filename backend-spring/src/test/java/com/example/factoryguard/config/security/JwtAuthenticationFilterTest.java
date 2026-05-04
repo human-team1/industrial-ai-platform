@@ -1,0 +1,86 @@
+package com.example.factoryguard.config.security;
+
+import com.example.factoryguard.domain.user.model.UserRole;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockFilterChain;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.util.stream.Collectors;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class JwtAuthenticationFilterTest {
+
+    private JwtAuthenticationFilter filter;
+    private JwtTokenProvider jwtTokenProvider;
+
+    @BeforeEach
+    void setUp() {
+        JwtProperties properties = new JwtProperties();
+        properties.setSecret("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        properties.setExpireMinutes(30);
+        properties.setRefreshExpireDays(7);
+        jwtTokenProvider = new JwtTokenProvider(properties);
+        filter = new JwtAuthenticationFilter(jwtTokenProvider);
+    }
+
+    @AfterEach
+    void clearContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    @DisplayName("No.4 일반 사용자 토큰 - GrantedAuthority가 ROLE_COMPANY_WORKER이며 SITE_ADMIN 권한 없음")
+    void workerTokenHasNoSiteAdminAuthority() throws Exception {
+        String workerToken = jwtTokenProvider.generateAccessToken(1L, UserRole.ROLE_COMPANY_WORKER, 10L, "sess-w");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer " + workerToken);
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(auth).isNotNull();
+        var authorityNames = auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toSet());
+        assertThat(authorityNames).containsExactly("ROLE_COMPANY_WORKER");
+        assertThat(authorityNames).doesNotContain("ROLE_SITE_ADMIN");
+    }
+
+    @Test
+    @DisplayName("No.4-2 SITE_ADMIN 토큰 - SITE_ADMIN 권한 부여, 일반 권한과 분리")
+    void siteAdminTokenHasSiteAdminAuthority() throws Exception {
+        String adminToken = jwtTokenProvider.generateAccessToken(2L, UserRole.ROLE_SITE_ADMIN, 10L, "sess-a");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer " + adminToken);
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(auth).isNotNull();
+        var authorityNames = auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toSet());
+        assertThat(authorityNames).containsExactly("ROLE_SITE_ADMIN");
+        assertThat(authorityNames).doesNotContain("ROLE_COMPANY_WORKER");
+    }
+
+    @Test
+    @DisplayName("No.4-3 토큰 없음 - SecurityContext 비어 있음")
+    void noTokenLeavesContextEmpty() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+}
