@@ -1,3 +1,5 @@
+import os
+
 from functools import lru_cache
 
 from application.anomaly_service import AnomalyService
@@ -16,7 +18,8 @@ from infrastructure.quality_evaluator import QualityEvaluator
 from infrastructure.redis_status import RedisStatusStore
 from infrastructure.vision_config_loader import VisionConfigLoader
 from infrastructure.vision_model_loader import VisionModelLoader
-
+from application.memory_bank_service import MemoryBankService
+from config.settings import Settings
 
 @lru_cache
 def get_chroma_client() -> ChromaClientWrapper:
@@ -25,8 +28,8 @@ def get_chroma_client() -> ChromaClientWrapper:
 
 @lru_cache
 def get_minio_storage() -> MinioStorage:
-    return MinioStorage(get_settings())
-
+    settings = Settings()
+    return MinioStorage(settings)
 
 @lru_cache
 def get_redis_status_store() -> RedisStatusStore:
@@ -48,6 +51,9 @@ def get_document_indexing_service() -> DocumentIndexingService:
 def get_rag_service() -> RagService:
     return RagService(get_chroma_client())
 
+def get_memory_bank_service() -> MemoryBankService:
+    storage = get_minio_storage()
+    return MemoryBankService(storage)
 
 @lru_cache
 def get_vision_config_loader() -> VisionConfigLoader:

@@ -3,7 +3,7 @@ from config.settings import Settings
 from urllib.parse import urlparse
 
 from application.exceptions import AppException
-
+from pathlib import Path
 
 class MinioStorage:
     def __init__(self, settings: Settings) -> None:
@@ -54,7 +54,34 @@ class MinioStorage:
         )
 
     def _normalize_endpoint(self, endpoint: str) -> str:
-        parsed = urlparse(endpoint)
-        if parsed.scheme:
+        endpoint = endpoint.strip()
+
+        if endpoint.startswith("http://") or endpoint.startswith("https://"):
+            parsed = urlparse(endpoint)
             return parsed.netloc
+
         return endpoint
+       
+
+    def download_file(self, bucket_name: str, object_name: str, local_path: str) -> str:
+        content = self.download_object(bucket_name, object_name)
+        Path(local_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(local_path).write_bytes(content)
+        return local_path
+
+
+    def upload_file(
+        self,
+        bucket_name: str,
+        object_name: str,
+        local_path: str,
+        content_type: str = "application/octet-stream",
+    ) -> str:
+        content = Path(local_path).read_bytes()
+        self.put_object(
+            bucket_name=bucket_name,
+            object_name=object_name,
+            content=content,
+            content_type=content_type,
+        )
+        return object_name

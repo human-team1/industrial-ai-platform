@@ -1,8 +1,15 @@
+import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+<<<<<<< HEAD
+from typing import Literal
+=======
 
+INPUT_SIZE_PATTERN = re.compile(r"^\d+(x\d+)?$")
+
+>>>>>>> 466d72f1078d66333c2f647399668c33240aad01
 
 class ApiSuccessResponse(BaseModel):
     success: bool = True
@@ -74,6 +81,18 @@ class VisionModelRequest(BaseModel):
             raise ValueError("file key must not be blank")
         return value.strip()
 
+    @field_validator("inputSize")
+    @classmethod
+    def validate_input_size(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if normalized == "":
+            return None
+        if not INPUT_SIZE_PATTERN.match(normalized):
+            raise ValueError("inputSize must be 'W' or 'WxH' format (e.g. '224' or '224x224')")
+        return normalized
+
 
 class InferImageRequest(BaseModel):
     inspectionId: int
@@ -111,7 +130,10 @@ class InferImageResponseData(BaseModel):
     modelVersionId: int
     score: float | None = None
     confidence: float
-    decisionCode: str
+    # Deprecated: Spring DecisionCalculator is the source of truth.
+    # FastAPI returns its internal hint here for diagnostics/back-compat only;
+    # Spring ignores this field when computing the final decisionCode.
+    decisionCode: str | None = None
     quality: QualityResponse
     artifacts: list[ArtifactResponse] = Field(default_factory=list)
     regions: list[Any] = Field(default_factory=list)
@@ -122,3 +144,40 @@ class InferImageApiResponse(ApiSuccessResponse):
     model_config = ConfigDict(protected_namespaces=())
 
     data: InferImageResponseData
+
+class MemoryBankRequest(BaseModel):
+    modelCategory: Literal["OBJECT", "TEXTURE"]
+    modelProfile: Literal["SPEED", "PERFORMANCE"]
+    normalImageFileKeys: list[str] = Field(..., min_length=100)
+    configFileKey: str
+    ckptFileKey: str
+    outputPrefix: str
+
+    @field_validator("normalImageFileKeys")
+    @classmethod
+    def validate_normal_image_file_keys(cls, value: list[str]) -> list[str]:
+        cleaned = [v.strip() for v in value if v and v.strip()]
+
+        if len(cleaned) < 100:
+            raise ValueError("normalImageFileKeys must contain at least 100 images")
+
+        return cleaned
+
+    @field_validator("ckptFileKey", "configFileKey", "outputPrefix")
+    @classmethod
+    def validate_required_key(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("ckptFileKey, configFileKey, outputPrefix must not be blank")
+        return value.strip()
+
+
+class MemoryBankResponseData(BaseModel):
+    memoryBankFileKey: str
+    normalImageCount: int
+    modelCategory: str
+    modelProfile: str
+    createdAt: datetime
+
+
+class MemoryBankApiResponse(ApiSuccessResponse):
+    data: MemoryBankResponseData

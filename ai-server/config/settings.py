@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     minio_endpoint: str = "http://localhost:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "change_me_minio_password"
+
+    minio_bucket: str = "industrial-ai"  # 추가
+
     minio_bucket_documents: str = "documents"
     minio_bucket_inspection_artifacts: str = "inspection-artifacts"
     minio_bucket_reports: str = "reports"
