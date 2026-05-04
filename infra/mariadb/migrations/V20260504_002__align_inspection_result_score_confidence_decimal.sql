@@ -1,0 +1,3 @@
+ALTER TABLE inspection_result
+  MODIFY COLUMN score DECIMAL(8,4) NULL,
+  MODIFY COLUMN confidence DECIMAL(6,4) NULL;
