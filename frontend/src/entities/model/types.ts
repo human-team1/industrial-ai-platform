@@ -105,6 +105,33 @@ export type UploadModelVersionForm = {
   labelsFile: File | null
 }
 
+export type GenerateModelVersionsForm = {
+  normalImages: File[]
+  modelCategory: ModelCategory
+  organizationId: string
+  targetId?: string
+  deploymentScope: DeploymentScope
+  thresholdDefault?: string
+  reason?: string
+}
+
+export type CreatedModelVersion = {
+  modelProfile: ModelProfile
+  modelVersionId: number
+  versionName: string
+  deployStatus: string
+  isActive: boolean
+  memoryBankFileId: number
+  deploymentId: number
+}
+
+export type GenerateModelVersionsResponse = {
+  modelId: number
+  modelCategory: ModelCategory
+  normalImageCount: number
+  createdVersions: CreatedModelVersion[]
+}
+
 export type DeployModelVersionRequest = {
   organizationId: number
   targetId?: number | null

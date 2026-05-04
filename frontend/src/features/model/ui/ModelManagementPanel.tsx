@@ -1,42 +1,20 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type {
+  CreatedModelVersion,
   DeploymentScope,
+  GenerateModelVersionsForm,
   Model,
   ModelCategory,
   ModelDeployment,
-  ModelDeployStatus,
-  ModelProfile,
-  UploadModelVersionForm,
 } from '../../../entities/model'
 import { useModelManagement } from '../model/useModelManagement'
 
-const EMPTY_VERSION_FORM: UploadModelVersionForm = {
-  versionName: '',
-  modelCategory: 'OBJECT',
-  modelProfile: 'PERFORMANCE',
-  framework: '',
-  inputSize: '',
-  thresholdDefault: '',
-  accuracy: '',
-  precisionScore: '',
-  recallScore: '',
-  f1Score: '',
-  aurocScore: '',
-  ckptFile: null,
-  configFile: null,
-  memoryBankFile: null,
-  labelsFile: null,
-}
-
 const CATEGORY_OPTIONS: { value: ModelCategory; label: string }[] = [
-  { value: 'OBJECT', label: 'OBJECT' },
-  { value: 'TEXTURE', label: 'TEXTURE' },
+  { value: 'OBJECT', label: 'Object' },
+  { value: 'TEXTURE', label: 'Texture' },
 ]
 
-const PROFILE_OPTIONS: { value: ModelProfile; label: string }[] = [
-  { value: 'SPEED', label: 'SPEED' },
-  { value: 'PERFORMANCE', label: 'PERFORMANCE' },
-]
+const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 export function ModelManagementPanel() {
   const {
@@ -53,10 +31,7 @@ export function ModelManagementPanel() {
     busy,
     reloadAll,
     submitCreateModel,
-    submitUploadVersion,
-    submitActivateVersion,
-    submitDeprecateVersion,
-    submitDeployVersion,
+    submitGenerateFromNormalImages,
     submitDeactivateDeployment,
     submitRollbackDeployment,
   } = useModelManagement()
@@ -64,23 +39,20 @@ export function ModelManagementPanel() {
   const [modelName, setModelName] = useState('')
   const [modelType, setModelType] = useState('PATCHCORE')
   const [description, setDescription] = useState('')
-  const [versionForm, setVersionForm] = useState<UploadModelVersionForm>(EMPTY_VERSION_FORM)
+  const [modelCategory, setModelCategory] = useState<ModelCategory>('TEXTURE')
+  const [normalImages, setNormalImages] = useState<File[]>([])
   const [organizationId, setOrganizationId] = useState('')
   const [targetId, setTargetId] = useState('')
-  const [deploymentScope, setDeploymentScope] = useState<DeploymentScope>('ORGANIZATION')
-  const [deployVersionId, setDeployVersionId] = useState('')
-  const [deployReason, setDeployReason] = useState('')
-  const [rollbackToId, setRollbackToId] = useState<Record<number, string>>({})
+  const [deploymentScope, setDeploymentScope] = useState<DeploymentScope>('TARGET')
+  const [thresholdDefault, setThresholdDefault] = useState('')
+  const [reason, setReason] = useState('')
+  const [createdVersions, setCreatedVersions] = useState<CreatedModelVersion[]>([])
   const [fileInputKey, setFileInputKey] = useState(0)
+  const [rollbackToId, setRollbackToId] = useState<Record<number, string>>({})
 
   const selectedModel = useMemo(
     () => models.find((model) => model.modelId === selectedModelId) ?? null,
     [models, selectedModelId],
-  )
-
-  const deployableVersions = useMemo(
-    () => versions.filter((version) => version.isActive === true && version.deployStatus !== 'DEPRECATED'),
-    [versions],
   )
 
   const filteredDeployments = useMemo(
@@ -88,89 +60,64 @@ export function ModelManagementPanel() {
     [deployments, selectedModel],
   )
 
-  const activeDeployments = useMemo(
-    () => filteredDeployments.filter((deployment) => deployment.isActive === true),
-    [filteredDeployments],
-  )
-
-  const canDeploy =
-    !!selectedModel &&
-    deployableVersions.length > 0 &&
-    !!deployVersionId &&
-    !!organizationId.trim() &&
-    (deploymentScope === 'ORGANIZATION' || !!targetId.trim()) &&
-    !busy.deploy
-
   async function handleCreateModel() {
     if (!modelName.trim() || !modelType.trim()) {
       window.alert('모델명과 모델 타입은 필수입니다.')
       return
     }
-
     await submitCreateModel({
       modelName: modelName.trim(),
       modelType: modelType.trim(),
       description: description.trim(),
     })
-
     setModelName('')
     setDescription('')
   }
 
-  async function handleUploadVersion() {
+  async function handleGenerate() {
     if (!selectedModel) {
       window.alert('모델을 먼저 선택하세요.')
       return
     }
-    if (!versionForm.versionName.trim()) {
-      window.alert('버전명은 필수입니다.')
+    if (normalImages.length === 0) {
+      window.alert('정상 이미지셋을 1개 이상 업로드하세요.')
       return
     }
-    if (!versionForm.ckptFile) {
-      window.alert('모델 가중치 파일을 선택하세요.')
+    const invalidFile = normalImages.find((file) => !IMAGE_MIME_TYPES.has(file.type))
+    if (invalidFile) {
+      window.alert('jpg, jpeg, png, webp 이미지만 업로드할 수 있습니다.')
       return
     }
-    if (!versionForm.configFile) {
-      window.alert('모델 설정 파일을 선택하세요.')
+    if (!organizationId.trim()) {
+      window.alert('조직 ID는 필수입니다.')
       return
     }
-    if (!versionForm.memoryBankFile) {
-      window.alert('메모리뱅크 파일을 선택하세요.')
+    if (deploymentScope === 'TARGET' && !targetId.trim()) {
+      window.alert('검사대상 배포에는 targetId가 필요합니다.')
       return
     }
-    if (versionForm.thresholdDefault) {
-      const threshold = Number(versionForm.thresholdDefault)
+    if (thresholdDefault.trim()) {
+      const threshold = Number(thresholdDefault)
       if (Number.isNaN(threshold) || threshold < 0 || threshold > 1) {
         window.alert('기본 임계값은 0~1 범위로 입력하세요.')
         return
       }
     }
 
-    await submitUploadVersion(versionForm)
-    setVersionForm(EMPTY_VERSION_FORM)
-    setFileInputKey((prev) => prev + 1)
-  }
-
-  async function handleDeploy() {
-    if (!deployVersionId || !organizationId.trim()) {
-      window.alert('배포 버전과 조직 ID는 필수입니다.')
-      return
-    }
-    if (deploymentScope === 'TARGET' && !targetId.trim()) {
-      window.alert('검사대상 단위 배포에는 검사대상 ID가 필요합니다.')
-      return
-    }
-
-    await submitDeployVersion(Number(deployVersionId), {
-      organizationId: Number(organizationId),
-      targetId: deploymentScope === 'TARGET' ? Number(targetId) : null,
+    const payload: GenerateModelVersionsForm = {
+      normalImages,
+      modelCategory,
+      organizationId: organizationId.trim(),
+      targetId: deploymentScope === 'TARGET' ? targetId.trim() : undefined,
       deploymentScope,
-      reason: deployReason.trim(),
-    })
-
-    setDeployReason('')
-    if (deploymentScope === 'ORGANIZATION') {
-      setTargetId('')
+      thresholdDefault: thresholdDefault.trim(),
+      reason: reason.trim(),
+    }
+    const result = await submitGenerateFromNormalImages(payload)
+    if (result) {
+      setCreatedVersions(result.createdVersions)
+      setNormalImages([])
+      setFileInputKey((current) => current + 1)
     }
   }
 
@@ -186,9 +133,9 @@ export function ModelManagementPanel() {
     <section className="space-y-5 rounded border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">모델 관리</h2>
+          <h2 className="text-xl font-bold text-slate-900">모델 운영 관리</h2>
           <p className="mt-1 text-sm text-slate-500">
-            운영자가 모델을 등록하고, 버전을 업로드한 뒤 활성화하고 조직 또는 검사대상에 순서대로 배포합니다.
+            운영자는 정상 이미지셋과 모델 유형만 선택합니다. ckpt, config, backbone, layer 설정은 Spring 고정 프로필을 사용합니다.
           </p>
         </div>
         <button
@@ -205,20 +152,16 @@ export function ModelManagementPanel() {
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       <section className="grid gap-3 rounded border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
-        <SummaryItem label="선택된 모델" value={selectedModel?.modelName ?? '미선택'} />
-        <SummaryItem label="선택된 모델 ID" value={selectedModel ? String(selectedModel.modelId) : '-'} />
-        <SummaryItem label="배포 가능 버전 / 활성 배포" value={`${deployableVersions.length} / ${activeDeployments.length}`} />
+        <SummaryItem label="선택 모델" value={selectedModel?.modelName ?? '미선택'} />
+        <SummaryItem label="모델 ID" value={selectedModel ? String(selectedModel.modelId) : '-'} />
+        <SummaryItem label="배포 수" value={`${filteredDeployments.filter((deployment) => deployment.isActive).length} active`} />
       </section>
 
-      <StepSection
-        step="1"
-        title="모델 등록"
-        description="모델의 기본 정보를 먼저 등록합니다. 실제 파일은 다음 단계의 모델 버전 업로드에서 등록합니다."
-      >
+      <StepSection step="1" title="모델 등록" description="정상 이미지셋을 연결할 기본 모델을 등록합니다.">
         <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1.3fr_auto] lg:items-end">
           <Input label="모델명" value={modelName} onChange={setModelName} placeholder="PatchCore Texture Detector" />
           <Input label="모델 타입" value={modelType} onChange={setModelType} placeholder="PATCHCORE" />
-          <TextArea label="설명" value={description} onChange={setDescription} placeholder="운영 메모를 입력합니다." rows={2} />
+          <TextArea label="설명" value={description} onChange={setDescription} placeholder="운영 메모" rows={2} />
           <button
             type="button"
             disabled={busy.create}
@@ -230,405 +173,162 @@ export function ModelManagementPanel() {
         </div>
       </StepSection>
 
-      <StepSection step="2" title="모델 선택" description="버전을 업로드하거나 배포할 모델을 선택합니다.">
+      <StepSection step="2" title="모델 선택" description="정상 이미지셋 기반 버전을 생성할 모델을 선택합니다.">
         {loading ? (
           <Empty text="모델 목록을 불러오는 중입니다." />
         ) : models.length === 0 ? (
           <Empty text="등록된 모델이 없습니다. 먼저 모델을 등록하세요." />
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
-            {models.map((model) => {
-              const active = model.modelId === selectedModelId
-              return (
-                <button
-                  key={model.modelId}
-                  type="button"
-                  onClick={() => setSelectedModelId(model.modelId)}
-                  className={`rounded border p-4 text-left transition ${
-                    active
-                      ? 'border-[#109498] bg-[#109498]/5 ring-1 ring-[#109498]/20'
-                      : 'border-slate-200 bg-slate-50 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-900">{model.modelName}</p>
-                      <p className="mt-1 text-xs font-medium text-slate-500">{model.modelType}</p>
-                    </div>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        active ? 'bg-[#109498] text-white' : 'bg-white text-slate-500'
-                      }`}
-                    >
-                      {active ? '선택됨' : `모델 ID ${model.modelId}`}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm text-slate-600">{model.description || '설명이 없습니다.'}</p>
-                </button>
-              )
-            })}
+            {models.map((model) => (
+              <button
+                key={model.modelId}
+                type="button"
+                onClick={() => setSelectedModelId(model.modelId)}
+                className={`rounded border p-4 text-left transition ${
+                  model.modelId === selectedModelId
+                    ? 'border-[#109498] bg-[#109498]/5 ring-1 ring-[#109498]/20'
+                    : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                <p className="font-semibold text-slate-900">{model.modelName}</p>
+                <p className="mt-1 text-xs font-medium text-slate-500">{model.modelType}</p>
+                <p className="mt-3 text-sm text-slate-600">{model.description || '설명이 없습니다.'}</p>
+              </button>
+            ))}
           </div>
         )}
       </StepSection>
 
       <StepSection
         step="3"
-        title="모델 버전 업로드"
-        description="이미 생성된 model.ckpt, config.json, memory bank 파일을 선택한 모델의 새 버전으로 등록합니다."
+        title="정상 이미지셋 기반 모델 생성"
+        description="modelProfile은 기본 전송하지 않습니다. Spring이 SPEED와 PERFORMANCE 버전을 함께 생성하고 배포합니다."
         disabled={!selectedModel}
       >
-        <SelectedModelNotice model={selectedModel} emptyText="모델을 먼저 선택하세요." />
-        {!selectedModel ? (
-          <Empty text="모델을 먼저 선택하면 버전 업로드와 배포를 진행할 수 있습니다." />
-        ) : (
-          <div className="grid gap-3">
-            <p className="rounded border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
-              모델 가중치 파일, 설정 파일, 메모리뱅크 파일을 함께 등록합니다.
+        <SelectedModelNotice model={selectedModel} />
+        <div className="grid gap-3">
+          <p className="rounded border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
+            정상 이미지셋을 업로드하세요. 최소 개수 기준은 운영 설정을 따릅니다.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Select label="모델 유형" value={modelCategory} onChange={(value) => setModelCategory(value as ModelCategory)} options={CATEGORY_OPTIONS} />
+            <Select
+              label="배포 범위"
+              value={deploymentScope}
+              onChange={handleScopeChange}
+              options={[
+                { value: 'ORGANIZATION', label: '조직 전체' },
+                { value: 'TARGET', label: '검사대상' },
+              ]}
+            />
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input label="조직 ID" value={organizationId} onChange={setOrganizationId} placeholder="1001" />
+            {deploymentScope === 'TARGET' ? (
+              <Input label="검사대상 ID" value={targetId} onChange={setTargetId} placeholder="10" />
+            ) : (
+              <Input label="검사대상 ID" value="" onChange={() => undefined} placeholder="조직 전체 배포에서는 사용하지 않습니다." disabled />
+            )}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input label="기본 임계값 선택" value={thresholdDefault} onChange={setThresholdDefault} placeholder="0.7500" />
+            <FileInput
+              key={fileInputKey}
+              label="정상 이미지셋"
+              multiple
+              accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+              onChange={setNormalImages}
+            />
+          </div>
+          <TextArea label="생성 및 배포 사유" value={reason} onChange={setReason} placeholder="정상 이미지셋 기준 모델 생성" rows={3} />
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={!selectedModel || busy.generate}
+              onClick={() => void handleGenerate()}
+              className="h-10 rounded bg-[#109498] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {busy.generate ? '생성 중...' : '모델 생성 및 배포'}
+            </button>
+          </div>
+        </div>
+
+        {createdVersions.length > 0 ? (
+          <div className="mt-4 rounded border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-sm font-semibold text-emerald-800">정상 이미지셋 기반 모델 생성이 완료되었습니다.</p>
+            <p className="mt-1 text-sm text-emerald-700">
+              속도형 모델은 실시간 검사에 사용됩니다. 성능형 모델은 업로드 검사와 재검토 큐에 사용됩니다.
             </p>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Input
-                label="버전명"
-                value={versionForm.versionName}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, versionName: value }))}
-                placeholder="v1.0.0-texture-performance"
-              />
-              <Input
-                label="프레임워크"
-                value={versionForm.framework ?? ''}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, framework: value }))}
-                placeholder="PyTorch"
-              />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Select
-                label="카테고리"
-                value={versionForm.modelCategory}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, modelCategory: value as ModelCategory }))}
-                options={CATEGORY_OPTIONS}
-              />
-              <Select
-                label="프로필"
-                value={versionForm.modelProfile}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, modelProfile: value as ModelProfile }))}
-                options={PROFILE_OPTIONS}
-              />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Input
-                label="입력 크기"
-                value={versionForm.inputSize ?? ''}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, inputSize: value }))}
-                placeholder="256x256"
-              />
-              <Input
-                label="기본 임계값"
-                value={versionForm.thresholdDefault ?? ''}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, thresholdDefault: value }))}
-                placeholder="0.65"
-              />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <Input
-                label="정확도"
-                value={versionForm.accuracy ?? ''}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, accuracy: value }))}
-                placeholder="0.98"
-              />
-              <Input
-                label="정밀도"
-                value={versionForm.precisionScore ?? ''}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, precisionScore: value }))}
-                placeholder="0.97"
-              />
-              <Input
-                label="재현율"
-                value={versionForm.recallScore ?? ''}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, recallScore: value }))}
-                placeholder="0.96"
-              />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Input
-                label="F1 점수"
-                value={versionForm.f1Score ?? ''}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, f1Score: value }))}
-                placeholder="0.96"
-              />
-              <Input
-                label="AUROC"
-                value={versionForm.aurocScore ?? ''}
-                onChange={(value) => setVersionForm((prev) => ({ ...prev, aurocScore: value }))}
-                placeholder="0.99"
-              />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <FileInput
-                key={`ckpt-${fileInputKey}`}
-                label="모델 가중치 파일 *"
-                onChange={(file) => setVersionForm((prev) => ({ ...prev, ckptFile: file }))}
-              />
-              <FileInput
-                key={`config-${fileInputKey}`}
-                label="모델 설정 파일 *"
-                onChange={(file) => setVersionForm((prev) => ({ ...prev, configFile: file }))}
-              />
-              <FileInput
-                key={`memory-${fileInputKey}`}
-                label="메모리뱅크 파일 *"
-                description="PatchCore 추론에 사용하는 정상 feature memory bank 파일입니다. (.pt, .pth, .npy, .npz 등)"
-                onChange={(file) => setVersionForm((prev) => ({ ...prev, memoryBankFile: file }))}
-              />
-              <FileInput
-                key={`labels-${fileInputKey}`}
-                label="라벨 파일(선택)"
-                onChange={(file) => setVersionForm((prev) => ({ ...prev, labelsFile: file }))}
-              />
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                disabled={busy.upload}
-                onClick={() => void handleUploadVersion()}
-                className="h-10 rounded bg-[#109498] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                {busy.upload ? '업로드 중...' : '버전 업로드'}
-              </button>
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              {createdVersions.map((version) => (
+                <div key={version.modelVersionId} className="rounded border border-emerald-200 bg-white p-3 text-sm">
+                  <p className="font-semibold text-slate-900">{profileLabel(version.modelProfile)} 모델</p>
+                  <p className="mt-1 text-slate-600">versionId: {version.modelVersionId}</p>
+                  <p className="text-slate-600">deploymentId: {version.deploymentId}</p>
+                  <p className="text-slate-600">status: {version.deployStatus}</p>
+                </div>
+              ))}
             </div>
           </div>
-        )}
+        ) : null}
       </StepSection>
 
-      <StepSection
-        step="4"
-        title="버전 활성화"
-        description="업로드된 버전을 검증 완료 상태로 전환합니다. CKPT, CONFIG, MEMORY_BANK가 모두 등록된 버전만 활성화할 수 있습니다."
-        disabled={!selectedModel}
-      >
-        <SelectedModelNotice model={selectedModel} emptyText="모델을 먼저 선택하세요." />
+      <StepSection step="4" title="생성된 모델 버전" description="고정 프로필 설정으로 생성된 모델 버전을 확인합니다." disabled={!selectedModel}>
         {!selectedModel ? (
-          <Empty text="모델을 먼저 선택하면 버전 업로드와 배포를 진행할 수 있습니다." />
+          <Empty text="모델을 먼저 선택하세요." />
         ) : versionsLoading ? (
           <Empty text="버전 목록을 불러오는 중입니다." />
         ) : versions.length === 0 ? (
-          <Empty text="등록된 모델 버전이 없습니다. 먼저 버전을 업로드하세요." />
+          <Empty text="등록된 모델 버전이 없습니다." />
         ) : (
           <div className="space-y-3">
-            {versions.map((version) => {
-              const deployStatus = version.deployStatus ?? 'REGISTERED'
-              const canActivate =
-                deployStatus !== 'DEPRECATED' &&
-                version.isActive !== true &&
-                deployStatus !== 'VALIDATED' &&
-                deployStatus !== 'DEPLOYED'
-              const canDeprecate = deployStatus !== 'DEPRECATED'
-
-              return (
-                <article key={version.modelVersionId} className="rounded border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="text-base font-semibold text-slate-900">{version.versionName}</h4>
-                        <StatusBadge tone={deployStatusTone(deployStatus)}>{deployStatusLabel(deployStatus)}</StatusBadge>
-                        <StatusBadge tone={version.isActive ? 'success' : 'muted'}>
-                          {version.isActive ? 'ACTIVE' : 'INACTIVE'}
-                        </StatusBadge>
-                      </div>
-                      <dl className="grid gap-2 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
-                        <InfoRow label="카테고리" value={String(version.modelCategory)} />
-                        <InfoRow label="프로필" value={String(version.modelProfile)} />
-                        <InfoRow label="프레임워크" value={version.framework || '-'} />
-                        <InfoRow label="입력 크기" value={version.inputSize || '-'} />
-                        <InfoRow label="기본 임계값" value={version.thresholdDefault != null ? String(version.thresholdDefault) : '-'} />
-                        <InfoRow label="생성일" value={formatDateTime(version.createdAt)} />
-                      </dl>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={!canActivate || busy.actionId === `activate-${version.modelVersionId}`}
-                        onClick={() => void submitActivateVersion(version.modelVersionId, '관리자 활성화')}
-                        className="h-10 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                      >
-                        활성화
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!canDeprecate || busy.actionId === `deprecate-${version.modelVersionId}`}
-                        onClick={() => void submitDeprecateVersion(version.modelVersionId, '관리자 사용 중단')}
-                        className="h-10 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                      >
-                        사용 중단
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              )
-            })}
+            {versions.map((version) => (
+              <article key={version.modelVersionId} className="rounded border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-base font-semibold text-slate-900">{version.versionName}</h4>
+                  <StatusBadge tone={version.deployStatus === 'DEPLOYED' ? 'success' : 'muted'}>{version.deployStatus ?? '-'}</StatusBadge>
+                  <StatusBadge tone={version.isActive ? 'success' : 'muted'}>{version.isActive ? 'ACTIVE' : 'INACTIVE'}</StatusBadge>
+                </div>
+                <dl className="mt-3 grid gap-2 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
+                  <InfoRow label="유형" value={String(version.modelCategory)} />
+                  <InfoRow label="프로필" value={`${String(version.modelProfile)} (${profileLabel(String(version.modelProfile))})`} />
+                  <InfoRow label="프레임워크" value={version.framework || '-'} />
+                  <InfoRow label="입력 크기" value={version.inputSize || '-'} />
+                </dl>
+              </article>
+            ))}
           </div>
         )}
       </StepSection>
 
-      <StepSection
-        step="5"
-        title="모델 배포"
-        description="활성화된 모델 버전을 조직 전체 또는 특정 검사대상에 적용합니다."
-        disabled={!selectedModel}
-      >
-        <SelectedModelNotice
-          model={selectedModel}
-          emptyText="모델을 먼저 선택하세요."
-          extraText={selectedModel ? `배포 가능 버전 수: ${deployableVersions.length}` : undefined}
-        />
-
+      <StepSection step="5" title="배포 이력" description="활성 배포와 이전 배포를 확인하고 필요 시 비활성화 또는 롤백합니다." disabled={!selectedModel}>
         {!selectedModel ? (
-          <Empty text="모델을 먼저 선택하면 버전 업로드와 배포를 진행할 수 있습니다." />
-        ) : (
-          <div className="grid gap-3">
-            <p className="rounded border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-500">
-              조직/검사대상 선택 UI는 추후 드롭다운으로 교체 예정입니다. 현재는 ID를 직접 입력합니다.
-            </p>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Select
-                label="배포 버전"
-                value={deployVersionId}
-                onChange={setDeployVersionId}
-                options={deployableVersions.map((version) => ({
-                  value: String(version.modelVersionId),
-                  label: `${version.versionName} / ${version.modelCategory} / ${version.modelProfile} / ${version.deployStatus ?? '-'}`,
-                }))}
-                placeholder={deployableVersions.length === 0 ? '배포 가능한 버전이 없습니다.' : '배포할 버전을 선택하세요.'}
-                disabled={deployableVersions.length === 0}
-              />
-              <Select
-                label="배포 범위"
-                value={deploymentScope}
-                onChange={handleScopeChange}
-                options={[
-                  { value: 'ORGANIZATION', label: '조직 전체' },
-                  { value: 'TARGET', label: '검사대상 단위' },
-                ]}
-              />
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Input label="조직 ID" value={organizationId} onChange={setOrganizationId} placeholder="1001" />
-              {deploymentScope === 'TARGET' ? (
-                <Input label="검사대상 ID" value={targetId} onChange={setTargetId} placeholder="95001" />
-              ) : (
-                <Input label="검사대상 ID" value="" onChange={() => undefined} placeholder="조직 전체 배포에서는 사용하지 않습니다." disabled />
-              )}
-            </div>
-
-            <TextArea label="배포 사유" value={deployReason} onChange={setDeployReason} placeholder="배포 사유를 입력합니다." rows={3} />
-
-            {deployableVersions.length === 0 ? (
-              <Empty text="배포 가능한 버전이 없습니다. 버전을 업로드한 뒤 활성화하세요." />
-            ) : null}
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                disabled={!canDeploy}
-                onClick={() => void handleDeploy()}
-                className="h-10 rounded bg-[#109498] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                {busy.deploy ? '배포 중...' : '버전 배포'}
-              </button>
-            </div>
-          </div>
-        )}
-      </StepSection>
-
-      <StepSection
-        step="6"
-        title="배포 이력"
-        description="조직 또는 검사대상에 적용된 모델 배포 상태를 확인하고 비활성화하거나 롤백합니다."
-        disabled={!selectedModel}
-      >
-        {!selectedModel ? (
-          <Empty text="모델을 먼저 선택하면 버전 업로드와 배포를 진행할 수 있습니다." />
+          <Empty text="모델을 먼저 선택하세요." />
         ) : deploymentsLoading ? (
           <Empty text="배포 이력을 불러오는 중입니다." />
         ) : filteredDeployments.length === 0 ? (
-          <Empty text="배포 이력이 없습니다. 활성화된 버전을 먼저 배포하세요." />
+          <Empty text="배포 이력이 없습니다." />
         ) : (
           <div className="space-y-3">
-            {filteredDeployments.map((deployment) => {
-              const isActive = deployment.isActive === true
-              return (
-                <article
-                  key={deployment.deploymentId}
-                  className={`rounded border p-4 ${isActive ? 'border-[#109498] bg-[#109498]/5' : 'border-slate-200 bg-slate-50'}`}
-                >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="text-base font-semibold text-slate-900">
-                          {deployment.modelName || '-'} / {deployment.versionName || '-'}
-                        </h4>
-                        <StatusBadge tone={deploymentStatusTone(deployment)}>{deployment.deployStatus ?? '-'}</StatusBadge>
-                        <StatusBadge tone={isActive ? 'success' : 'muted'}>{isActive ? 'ACTIVE' : 'INACTIVE'}</StatusBadge>
-                      </div>
-                      <dl className="grid gap-2 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
-                        <InfoRow label="배포 범위" value={deployment.deploymentScope === 'TARGET' ? '검사대상 단위' : '조직 전체'} />
-                        <InfoRow label="조직 ID" value={String(deployment.organizationId)} />
-                        <InfoRow label="검사대상 ID" value={deployment.targetId != null ? String(deployment.targetId) : '-'} />
-                        <InfoRow label="배포 시각" value={formatDateTime(deployment.deployedAt)} />
-                        <InfoRow label="배포자" value={deployment.deployedBy != null ? String(deployment.deployedBy) : '-'} />
-                        <InfoRow label="현재 deploymentId" value={String(deployment.deploymentId)} />
-                        <InfoRow label="롤백 원본" value={deployment.rollbackFromDeploymentId != null ? String(deployment.rollbackFromDeploymentId) : '-'} />
-                        <InfoRow label="사유" value={deployment.reason || '-'} />
-                      </dl>
-                    </div>
-
-                    <div className="grid gap-2 lg:min-w-[240px]">
-                      <Input
-                        label="롤백 대상 배포 ID"
-                        value={rollbackToId[deployment.deploymentId] ?? ''}
-                        onChange={(value) => setRollbackToId((prev) => ({ ...prev, [deployment.deploymentId]: value }))}
-                        placeholder="이전 deploymentId 입력"
-                        disabled={!isActive}
-                      />
-                      <p className="text-xs text-slate-500">같은 조직/검사대상/범위의 이전 배포 ID만 입력할 수 있습니다.</p>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          disabled={!isActive || busy.actionId === `deployment-off-${deployment.deploymentId}`}
-                          onClick={() => void submitDeactivateDeployment(deployment.deploymentId, '운영 비활성화')}
-                          className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                        >
-                          비활성화
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!isActive || busy.actionId === `rollback-${deployment.deploymentId}`}
-                          onClick={() => {
-                            const target = Number(rollbackToId[deployment.deploymentId] ?? '')
-                            if (!target) {
-                              window.alert('롤백 대상 배포 ID를 입력하세요.')
-                              return
-                            }
-                            void submitRollbackDeployment(deployment.deploymentId, target, '운영 롤백')
-                          }}
-                          className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-                        >
-                          롤백
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              )
-            })}
+            {filteredDeployments.map((deployment) => (
+              <DeploymentCard
+                key={deployment.deploymentId}
+                deployment={deployment}
+                rollbackToId={rollbackToId[deployment.deploymentId] ?? ''}
+                onRollbackToIdChange={(value) => setRollbackToId((prev) => ({ ...prev, [deployment.deploymentId]: value }))}
+                actionId={busy.actionId}
+                onDeactivate={() => void submitDeactivateDeployment(deployment.deploymentId, '운영 비활성화')}
+                onRollback={() => {
+                  const target = Number(rollbackToId[deployment.deploymentId] ?? '')
+                  if (!target) {
+                    window.alert('롤백 대상 배포 ID를 입력하세요.')
+                    return
+                  }
+                  void submitRollbackDeployment(deployment.deploymentId, target, '운영 롤백')
+                }}
+              />
+            ))}
           </div>
         )}
       </StepSection>
@@ -667,6 +367,66 @@ function StepSection({
   )
 }
 
+function DeploymentCard({
+  deployment,
+  rollbackToId,
+  onRollbackToIdChange,
+  actionId,
+  onDeactivate,
+  onRollback,
+}: {
+  deployment: ModelDeployment
+  rollbackToId: string
+  onRollbackToIdChange: (value: string) => void
+  actionId?: string | null
+  onDeactivate: () => void
+  onRollback: () => void
+}) {
+  const isActive = deployment.isActive === true
+  return (
+    <article className={`rounded border p-4 ${isActive ? 'border-[#109498] bg-[#109498]/5' : 'border-slate-200 bg-slate-50'}`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-base font-semibold text-slate-900">
+              {deployment.modelName || '-'} / {deployment.versionName || '-'}
+            </h4>
+            <StatusBadge tone={isActive ? 'success' : 'muted'}>{isActive ? 'ACTIVE' : 'INACTIVE'}</StatusBadge>
+            <StatusBadge tone={deployment.deployStatus === 'DEPLOYED' ? 'success' : 'muted'}>{deployment.deployStatus ?? '-'}</StatusBadge>
+          </div>
+          <dl className="grid gap-2 text-sm text-slate-600 md:grid-cols-2 xl:grid-cols-4">
+            <InfoRow label="범위" value={deployment.deploymentScope === 'TARGET' ? '검사대상' : '조직 전체'} />
+            <InfoRow label="조직 ID" value={String(deployment.organizationId)} />
+            <InfoRow label="검사대상 ID" value={deployment.targetId != null ? String(deployment.targetId) : '-'} />
+            <InfoRow label="deploymentId" value={String(deployment.deploymentId)} />
+          </dl>
+        </div>
+        <div className="grid gap-2 lg:min-w-[240px]">
+          <Input label="롤백 대상 배포 ID" value={rollbackToId} onChange={onRollbackToIdChange} placeholder="이전 deploymentId" disabled={!isActive} />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={!isActive || actionId === `deployment-off-${deployment.deploymentId}`}
+              onClick={onDeactivate}
+              className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              비활성화
+            </button>
+            <button
+              type="button"
+              disabled={!isActive || actionId === `rollback-${deployment.deploymentId}`}
+              onClick={onRollback}
+              className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              롤백
+            </button>
+          </div>
+        </div>
+      </div>
+    </article>
+  )
+}
+
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded border border-slate-200 bg-white p-3">
@@ -676,22 +436,11 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
   )
 }
 
-function SelectedModelNotice({
-  model,
-  emptyText,
-  extraText,
-}: {
-  model: Model | null
-  emptyText: string
-  extraText?: string
-}) {
+function SelectedModelNotice({ model }: { model: Model | null }) {
   return (
     <div className="mb-4 rounded border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-      <p>
-        선택된 모델: <span className="font-semibold text-slate-900">{model?.modelName ?? emptyText}</span>
-      </p>
-      {model ? <p className="mt-1 text-xs text-slate-500">모델 ID {model.modelId} / 타입 {model.modelType}</p> : null}
-      {extraText ? <p className="mt-1 text-xs text-slate-500">{extraText}</p> : null}
+      선택 모델: <span className="font-semibold text-slate-900">{model?.modelName ?? '모델을 먼저 선택하세요.'}</span>
+      {model ? <span className="ml-2 text-xs text-slate-500">ID {model.modelId} / {model.modelType}</span> : null}
     </div>
   )
 }
@@ -708,16 +457,8 @@ function Empty({ text }: { text: string }) {
   return <p className="rounded border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">{text}</p>
 }
 
-function StatusBadge({ tone, children }: { tone: 'success' | 'warning' | 'danger' | 'muted'; children: ReactNode }) {
-  const toneClass =
-    tone === 'success'
-      ? 'bg-emerald-100 text-emerald-700'
-      : tone === 'warning'
-        ? 'bg-amber-100 text-amber-700'
-        : tone === 'danger'
-          ? 'bg-rose-100 text-rose-700'
-          : 'bg-slate-100 text-slate-700'
-
+function StatusBadge({ tone, children }: { tone: 'success' | 'muted'; children: ReactNode }) {
+  const toneClass = tone === 'success' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
   return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${toneClass}`}>{children}</span>
 }
 
@@ -789,26 +530,16 @@ function Select({
   value,
   onChange,
   options,
-  placeholder,
-  disabled,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   options: { value: string; label: string }[]
-  placeholder?: string
-  disabled?: boolean
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
       {label}
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-        className="h-10 rounded border border-slate-200 bg-white px-3 text-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-      >
-        {placeholder ? <option value="">{placeholder}</option> : null}
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="h-10 rounded border border-slate-200 bg-white px-3 text-sm">
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -821,65 +552,31 @@ function Select({
 
 function FileInput({
   label,
-  description,
+  multiple,
+  accept,
   onChange,
 }: {
   label: string
-  description?: string
-  onChange: (file: File | null) => void
+  multiple?: boolean
+  accept?: string
+  onChange: (files: File[]) => void
 }) {
   return (
     <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
       {label}
       <input
         type="file"
-        onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+        multiple={multiple}
+        accept={accept}
+        onChange={(event) => onChange(Array.from(event.target.files ?? []))}
         className="rounded border border-slate-200 bg-white px-3 py-2 text-sm"
       />
-      {description ? <span className="text-xs font-normal text-slate-500">{description}</span> : null}
     </label>
   )
 }
 
-function deployStatusLabel(status: string) {
-  switch (status) {
-    case 'REGISTERED':
-      return '등록됨'
-    case 'VALIDATED':
-      return '검증 완료'
-    case 'DEPLOYED':
-      return '배포됨'
-    case 'DEPRECATED':
-      return '사용 중단'
-    default:
-      return status
-  }
-}
-
-function deployStatusTone(status: string): 'success' | 'warning' | 'danger' | 'muted' {
-  switch (status as ModelDeployStatus) {
-    case 'VALIDATED':
-    case 'DEPLOYED':
-      return 'success'
-    case 'REGISTERED':
-      return 'warning'
-    case 'DEPRECATED':
-      return 'danger'
-    default:
-      return 'muted'
-  }
-}
-
-function deploymentStatusTone(deployment: ModelDeployment): 'success' | 'warning' | 'danger' | 'muted' {
-  if (deployment.isActive) return 'success'
-  if (deployment.deployStatus === 'ROLLED_BACK') return 'warning'
-  if (deployment.deployStatus === 'DEACTIVATED') return 'muted'
-  return 'muted'
-}
-
-function formatDateTime(value?: string | null) {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('ko-KR')
+function profileLabel(profile: string) {
+  if (profile === 'SPEED') return '속도형'
+  if (profile === 'PERFORMANCE') return '성능형'
+  return profile
 }

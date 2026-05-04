@@ -2,6 +2,8 @@ import { apiClient, normalizeApiError } from '../../../shared/api/client'
 import type {
   CreateModelRequest,
   DeployModelVersionRequest,
+  GenerateModelVersionsForm,
+  GenerateModelVersionsResponse,
   Model,
   ModelArtifact,
   ModelDeployment,
@@ -72,6 +74,29 @@ export async function uploadModelVersion(modelId: number, form: UploadModelVersi
     if (form.memoryBankFile) formData.append('memoryBankFile', form.memoryBankFile)
     if (form.labelsFile) formData.append('labelsFile', form.labelsFile)
     const response = await apiClient.post<ApiResponse<ModelVersionDetail>>(`/models/${modelId}/versions`, formData)
+    return response.data.data
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
+export async function generateModelVersionsFromNormalImages(
+  modelId: number,
+  form: GenerateModelVersionsForm,
+): Promise<GenerateModelVersionsResponse> {
+  try {
+    const formData = new FormData()
+    form.normalImages.forEach((file) => formData.append('normalImages', file))
+    formData.append('modelCategory', form.modelCategory)
+    formData.append('organizationId', form.organizationId)
+    formData.append('deploymentScope', form.deploymentScope)
+    if (form.deploymentScope === 'TARGET' && form.targetId) formData.append('targetId', form.targetId)
+    if (form.thresholdDefault) formData.append('thresholdDefault', form.thresholdDefault)
+    if (form.reason) formData.append('reason', form.reason)
+    const response = await apiClient.post<ApiResponse<GenerateModelVersionsResponse>>(
+      `/models/${modelId}/versions/from-normal-images`,
+      formData,
+    )
     return response.data.data
   } catch (error) {
     throw normalizeApiError(error)
