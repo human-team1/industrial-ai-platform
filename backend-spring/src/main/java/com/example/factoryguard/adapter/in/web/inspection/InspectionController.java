@@ -8,6 +8,8 @@ import com.example.factoryguard.adapter.in.web.inspection.dto.UploadInspectionRe
 import com.example.factoryguard.adapter.in.web.inspection.mapper.InspectionWebMapper;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
+import com.example.factoryguard.common.exception.BusinessException;
+import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.application.port.in.inspection.GetInspectionEventsUseCase;
 import com.example.factoryguard.application.port.in.inspection.GetInspectionStatusUseCase;
 import com.example.factoryguard.application.port.in.inspection.GetInspectionsUseCase;
@@ -30,6 +32,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -58,6 +61,10 @@ public class InspectionController {
             @RequestPart(value = "inputMode", required = false) String inputMode,
             @RequestPart(value = "sourceType", required = false) String sourceType,
             @RequestPart(value = "roiMode", required = false) String roiMode,
+            @RequestPart(value = "roiX", required = false) String roiX,
+            @RequestPart(value = "roiY", required = false) String roiY,
+            @RequestPart(value = "roiWidth", required = false) String roiWidth,
+            @RequestPart(value = "roiHeight", required = false) String roiHeight,
             @RequestPart(value = "qualityGateEnabled", required = false) String qualityGateEnabled,
             @RequestPart(value = "idempotencyKey", required = false) String idempotencyKeyPart,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKeyHeader) {
@@ -71,6 +78,10 @@ public class InspectionController {
                 inputMode,
                 sourceType,
                 roiMode,
+                parseOptionalDecimal(roiX, "roiX"),
+                parseOptionalDecimal(roiY, "roiY"),
+                parseOptionalDecimal(roiWidth, "roiWidth"),
+                parseOptionalDecimal(roiHeight, "roiHeight"),
                 parseOptionalBoolean(qualityGateEnabled),
                 file,
                 resolveIdempotencyKey(idempotencyKeyPart, idempotencyKeyHeader)
@@ -129,6 +140,18 @@ public class InspectionController {
 
     private Boolean parseOptionalBoolean(String value) {
         return value == null || value.isBlank() ? null : Boolean.parseBoolean(value);
+    }
+
+    private BigDecimal parseOptionalDecimal(String value, String field) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.trim());
+        } catch (NumberFormatException ex) {
+            throw new BusinessException(ErrorCode.INVALID_ROI_RANGE,
+                    field + " 값을 숫자로 해석할 수 없습니다: " + value);
+        }
     }
 
     private String resolveIdempotencyKey(String partValue, String headerValue) {

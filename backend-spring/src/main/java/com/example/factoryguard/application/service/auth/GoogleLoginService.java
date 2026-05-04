@@ -9,6 +9,8 @@ import com.example.factoryguard.application.port.in.operation.RecordOperationLog
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.auth.VerifyGoogleTokenPort;
 import com.example.factoryguard.application.port.out.user.FindUserByGoogleSubPort;
+import com.example.factoryguard.common.exception.BusinessException;
+import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.config.security.JwtProperties;
 import com.example.factoryguard.config.security.JwtTokenProvider;
 import com.example.factoryguard.domain.user.model.User;
@@ -104,7 +106,18 @@ public class GoogleLoginService implements GoogleLoginUseCase {
             }
             case PENDING -> GoogleLoginResult.ofPending(user.getEmail(), user.getName());
             case REJECTED -> GoogleLoginResult.ofRejected(user.getEmail(), user.getName());
-            default -> GoogleLoginResult.ofPending(user.getEmail(), user.getName());
+            case INACTIVE -> {
+                recordOperationLogUseCase.recordOperationLog(RecordOperationLogCommand.builder()
+                        .eventType("LOGIN_FAILED")
+                        .eventStatus("FAILED")
+                        .logLevel("WARN")
+                        .sourceComponent("SPRING_API")
+                        .actorUserId(user.getUserId())
+                        .detailMessage("비활성화된 계정의 로그인 시도")
+                        .relatedPath("/api/v1/auth/google-login")
+                        .build());
+                throw new BusinessException(ErrorCode.ACCOUNT_INACTIVE);
+            }
         };
     }
 }

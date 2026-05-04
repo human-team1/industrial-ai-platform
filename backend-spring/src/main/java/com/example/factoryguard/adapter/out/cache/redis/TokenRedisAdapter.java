@@ -5,7 +5,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -70,5 +74,35 @@ public class TokenRedisAdapter implements TokenStorePort {
         if (currentSessionId.isPresent() && currentSessionId.get().equals(sessionId)) {
             redisCacheAdapter.expire(redisKeyFactory.currentSessionKey(userId), ttl);
         }
+    }
+
+    @Override
+    public List<String> findAllSessionIdsByUserId(Long userId) {
+        Set<String> keys = redisCacheAdapter.scanKeys(redisKeyFactory.sessionScanPattern(userId));
+        String prefix = "session:" + userId + ":";
+        List<String> sessionIds = new ArrayList<>(keys.size());
+        for (String key : keys) {
+            if (key.startsWith(prefix)) {
+                String sessionId = key.substring(prefix.length());
+                if (!sessionId.isBlank()) {
+                    sessionIds.add(sessionId);
+                }
+            }
+        }
+        return sessionIds;
+    }
+
+    @Override
+    public void deleteAllRefreshTokensByUserId(Long userId) {
+        Set<String> keys = redisCacheAdapter.scanKeys(redisKeyFactory.refreshTokenScanPattern(userId));
+        redisCacheAdapter.deleteAll(keys);
+    }
+
+    @Override
+    public void deleteAllSessionsByUserId(Long userId) {
+        Set<String> sessionKeys = redisCacheAdapter.scanKeys(redisKeyFactory.sessionScanPattern(userId));
+        Set<String> toDelete = new LinkedHashSet<>(sessionKeys);
+        toDelete.add(redisKeyFactory.currentSessionKey(userId));
+        redisCacheAdapter.deleteAll(toDelete);
     }
 }

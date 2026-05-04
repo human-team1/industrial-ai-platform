@@ -66,12 +66,19 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
     private final RecordOperationLogUseCase recordOperationLogUseCase;
     private final InspectionIdempotencyCachePort inspectionIdempotencyCachePort;
     private final SessionValidationService sessionValidationService;
+    private final RoiInputValidator roiInputValidator;
 
     @Override
     public SubmitInspectionResult execute(SubmitInspectionCommand command) {
         sessionValidationService.validate(command.getUserId(), command.getSessionId());
         User user = validateUserStatus(command.getUserId());
         fileValidator.validate(command.getFile());
+
+        RoiInputValidator.Result roi = roiInputValidator.validate(
+                command.getRoiMode(),
+                command.getRoiX(), command.getRoiY(),
+                command.getRoiWidth(), command.getRoiHeight()
+        );
 
         ResolvedThreshold resolved = resolveInspectionThresholdService.resolve(
                 command.getUserId(), command.getThresholdId());
@@ -132,6 +139,14 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                             .sourceName(file.getOriginalFilename())
                             .mimeType(file.getContentType())
                             .frameCount(isBrowserCamera(sourceType) ? 1 : null)
+                            .roiMode(roi.getRoiMode())
+                            .roiCoordinateType(roi.getRoiMode() == com.example.factoryguard.domain.inspection.vo.RoiMode.FIXED
+                                    ? "NORMALIZED" : null)
+                            .roiX(roi.getRoiX())
+                            .roiY(roi.getRoiY())
+                            .roiWidth(roi.getRoiWidth())
+                            .roiHeight(roi.getRoiHeight())
+                            .qualityGateEnabled(command.getQualityGateEnabled())
                             .build(),
                     file.getOriginalFilename()
             );

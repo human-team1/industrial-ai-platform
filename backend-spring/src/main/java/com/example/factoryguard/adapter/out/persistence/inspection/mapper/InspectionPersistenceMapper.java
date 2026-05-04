@@ -109,6 +109,13 @@ public class InspectionPersistenceMapper {
                 .mimeType(input.getMimeType())
                 .durationSec(input.getDurationSec())
                 .frameCount(input.getFrameCount())
+                .roiMode(input.getRoiMode())
+                .roiCoordinateType(input.getRoiCoordinateType())
+                .roiX(input.getRoiX())
+                .roiY(input.getRoiY())
+                .roiWidth(input.getRoiWidth())
+                .roiHeight(input.getRoiHeight())
+                .qualityGateEnabled(input.getQualityGateEnabled())
                 .build();
     }
 
@@ -124,6 +131,13 @@ public class InspectionPersistenceMapper {
                 .mimeType(e.getMimeType())
                 .durationSec(e.getDurationSec())
                 .frameCount(e.getFrameCount())
+                .roiMode(e.getRoiMode())
+                .roiCoordinateType(e.getRoiCoordinateType())
+                .roiX(e.getRoiX())
+                .roiY(e.getRoiY())
+                .roiWidth(e.getRoiWidth())
+                .roiHeight(e.getRoiHeight())
+                .qualityGateEnabled(e.getQualityGateEnabled())
                 .createdAt(e.getCreatedAt())
                 .build();
     }

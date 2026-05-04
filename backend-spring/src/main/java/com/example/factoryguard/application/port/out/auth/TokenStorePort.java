@@ -1,6 +1,7 @@
 package com.example.factoryguard.application.port.out.auth;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 public interface TokenStorePort {
@@ -22,4 +23,10 @@ public interface TokenStorePort {
     boolean hasSessionId(Long userId, String sessionId);
 
     void refreshSessionId(Long userId, String sessionId, Duration ttl);
+
+    List<String> findAllSessionIdsByUserId(Long userId);
+
+    void deleteAllRefreshTokensByUserId(Long userId);
+
+    void deleteAllSessionsByUserId(Long userId);
 }
