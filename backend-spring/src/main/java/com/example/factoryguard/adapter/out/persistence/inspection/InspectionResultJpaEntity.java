@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import javax.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -31,10 +32,10 @@ public class InspectionResultJpaEntity {
     private Long inspectionId;
 
     @Column(name = "score", precision = 6, scale = 4)
-    private Double score;
+    private BigDecimal score;
 
     @Column(name = "confidence", precision = 6, scale = 4)
-    private Double confidence;
+    private BigDecimal confidence;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "decision_code", length = 20)
@@ -67,7 +68,7 @@ public class InspectionResultJpaEntity {
     private LocalDateTime createdAt;
 
     @Builder
-    public InspectionResultJpaEntity(Long inspectionId, Double score, Double confidence,
+    public InspectionResultJpaEntity(Long inspectionId, BigDecimal score, BigDecimal confidence,
                                      DecisionCode decisionCode, DecisionCode finalDecisionCode,
                                      String resultStatus, String thresholdSource,
                                      Long thresholdId, Integer thresholdVersion,

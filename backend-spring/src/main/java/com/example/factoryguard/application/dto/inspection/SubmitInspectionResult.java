@@ -61,8 +61,8 @@ public class SubmitInspectionResult {
             Long resultId,
             DecisionCode decisionCode,
             String resultStatus,
-            Double score,
-            Double confidence,
+            java.math.BigDecimal score,
+            java.math.BigDecimal confidence,
             boolean reviewQueued
     ) {}
 }
