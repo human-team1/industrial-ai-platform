@@ -20,9 +20,6 @@ export function UploadInspectionPage() {
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Upload Inspection</p>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">이미지 업로드</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          현재 MVP에서는 이미지 파일만 업로드할 수 있습니다. 업로드한 이미지 1장을 기준으로 검사 요청을 생성하고 결과 화면에서 이력을 확인할 수 있습니다.
-        </p>
         <p className="mt-3 text-sm font-medium text-slate-700">{inspection.statusMessage}</p>
         {settingMessage ? (
           <p className="mt-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">

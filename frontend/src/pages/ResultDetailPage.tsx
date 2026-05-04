@@ -7,11 +7,16 @@ import {
   DescriptionCard,
   DetectionInfoCard,
   EventLogCard,
+  ModelInfoCard,
   OriginalImageCard,
   ProbabilityDecisionCard,
   RelatedResultsCard,
   VisualizationCard,
-} from '../features/result/ui'
+  type EventLogItem,
+  type RelatedResult,
+  type ResultChecklistItem,
+  type ResultDescriptionView,
+} from '../widgets/result-detail'
 import { BarChartCard } from '../shared/ui/chart/BarChartCard'
 
 export function ResultDetailPage() {
@@ -23,6 +28,13 @@ export function ResultDetailPage() {
     () => data?.images.find((image) => image.imageRole === 'ORIGINAL') ?? data?.images[0],
     [data],
   )
+
+  // 후속 PR에서 inspection events / explanation API 연동 시 교체.
+  // 현재는 ResultDetail 응답에 해당 필드가 없으므로 빈 fallback으로만 처리.
+  const eventLogs: EventLogItem[] = []
+  const checklist: ResultChecklistItem[] = []
+  const relatedResults: RelatedResult[] = []
+  const description: ResultDescriptionView | null = null
 
   if (loading) {
     return (
@@ -72,7 +84,7 @@ export function ResultDetailPage() {
         <div className="space-y-5">
           <OriginalImageCard images={data.images} />
           <VisualizationCard artifacts={data.artifacts} regions={regions} />
-          <EventLogCard eventLogs={data.eventLogs} />
+          <EventLogCard events={eventLogs} />
         </div>
 
         <div className="space-y-5">
@@ -82,44 +94,16 @@ export function ResultDetailPage() {
             result={data.result}
             originalImage={originalImage}
           />
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-base font-semibold text-slate-950">사용 모델</h2>
-            {data.model ? (
-              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs font-semibold uppercase text-slate-500">모델명</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{data.model.modelName ?? '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold uppercase text-slate-500">버전명</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{data.model.versionName ?? '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold uppercase text-slate-500">카테고리</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{data.model.modelCategory ?? '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold uppercase text-slate-500">프로필</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{data.model.modelProfile ?? '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold uppercase text-slate-500">modelVersionId</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{data.result.modelVersionId ?? '-'}</dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="text-sm text-slate-500">모델 정보 없음</p>
-            )}
-          </section>
+          <ModelInfoCard model={data.model ?? null} result={data.result} />
           <ProbabilityDecisionCard result={data.result} />
           <BarChartCard
             viewModel={toRegionScoreChart(data)}
             empty={{ reason: 'NO_DATA', message: '표시할 region score가 없습니다.' }}
           />
-          <DescriptionCard description={data.description} />
-          <ChecklistCard checklist={data.checklist} />
+          <DescriptionCard description={description} />
+          <ChecklistCard checklist={checklist} />
           <RelatedResultsCard
-            relatedResults={data.relatedResults}
+            relatedResults={relatedResults}
             onDetail={(nextResultId) => navigate(`/results/${nextResultId}`)}
           />
         </div>

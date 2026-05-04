@@ -1,5 +1,5 @@
 import { apiClient, normalizeApiError } from '../../../shared/api/client'
-import type { ResultDetail, ResultListQuery, ResultPageResponse } from '../types'
+import type { ResultDetail, ResultListQuery, ResultPageResponse } from './types'
 
 type ApiResponse<T> = {
   success: boolean

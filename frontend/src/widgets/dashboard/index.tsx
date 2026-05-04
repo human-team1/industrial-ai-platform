@@ -18,7 +18,7 @@ type Props = {
 
 export function DashboardOverviewView({ data }: Props) {
   return (
-    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_213px]">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,4fr)_minmax(0,1fr)]">
       <div className="space-y-5">
         <KpiGrid data={data} />
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 [&>section]:h-[300px] [&>section]:overflow-hidden">
