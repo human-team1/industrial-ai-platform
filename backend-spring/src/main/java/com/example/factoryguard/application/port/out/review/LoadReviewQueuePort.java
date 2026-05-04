@@ -10,6 +10,8 @@ public interface LoadReviewQueuePort {
 
     Optional<ReviewQueue> findByResultId(Long resultId);
 
+    Optional<ReviewQueue> findById(Long reviewQueueId);
+
     List<ReviewQueue> findAllByStatus(ReviewQueueStatus queueStatus);
 }
 

@@ -20,6 +20,8 @@ import com.example.factoryguard.application.port.out.operation.SaveAsyncJobPort;
 import com.example.factoryguard.application.port.out.result.SaveResultArtifactPort;
 import com.example.factoryguard.application.port.out.result.SaveResultImagePort;
 import com.example.factoryguard.application.port.out.review.SaveReviewQueuePort;
+import com.example.factoryguard.application.service.model.ActiveModelDeploymentResolver;
+import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.config.inspection.AiJobWorkerProperties;
 import com.example.factoryguard.config.web.RequestIdFilter;
@@ -31,8 +33,8 @@ import com.example.factoryguard.domain.inspection.model.InspectionInput;
 import com.example.factoryguard.domain.inspection.model.InspectionResult;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import com.example.factoryguard.domain.inspection.model.RunStatus;
-import com.example.factoryguard.domain.model.vo.DeploymentScope;
 import com.example.factoryguard.domain.model.vo.ModelArtifactType;
+import com.example.factoryguard.domain.model.vo.ModelUsagePurpose;
 import com.example.factoryguard.domain.operation.model.AsyncJob;
 import com.example.factoryguard.domain.operation.vo.AsyncJobStatus;
 import com.example.factoryguard.domain.operation.vo.AsyncJobType;
@@ -77,6 +79,7 @@ public class AiInferenceJobWorker {
     private final LoadInspectionInputPort loadInspectionInputPort;
     private final LoadFilePort loadFilePort;
     private final ModelManagementPort modelManagementPort;
+    private final ActiveModelDeploymentResolver activeModelDeploymentResolver;
     private final CallAiInspectionPort callAiInspectionPort;
     private final SaveInspectionResultPort saveInspectionResultPort;
     private final SaveResultArtifactPort saveResultArtifactPort;
@@ -158,6 +161,8 @@ public class AiInferenceJobWorker {
         } catch (AiServerException exception) {
             String errorCode = exception.getStatus() == 429 ? "INFERENCE_QUEUE_FULL" : ErrorCode.AI_SERVER_ERROR.name();
             markJobFailed(job, run, errorCode, safeMessage(exception));
+        } catch (BusinessException exception) {
+            markJobFailed(job, run, exception.getErrorCode().name(), safeMessage(exception));
         } catch (IllegalStateException exception) {
             String errorCode = "INPUT_FILE_NOT_FOUND".equals(exception.getMessage())
                     ? "INPUT_FILE_NOT_FOUND"
@@ -180,16 +185,11 @@ public class AiInferenceJobWorker {
         StoredFile originalFile = loadFilePort.findById(input.getFileId())
                 .orElseThrow(() -> new IllegalStateException("INPUT_FILE_NOT_FOUND"));
 
-        var deployment = modelManagementPort.findActiveDeployments(run.getOrganizationId(), run.getTargetId(), DeploymentScope.TARGET)
-                .stream()
-                .findFirst()
-                .or(() -> modelManagementPort.findActiveDeployments(run.getOrganizationId(), null, DeploymentScope.ORGANIZATION)
-                        .stream()
-                        .findFirst())
-                .orElseThrow(() -> new IllegalStateException("active model deployment not found"));
-
-        var version = modelManagementPort.findModelVersionById(deployment.getModelVersionId())
-                .orElseThrow(() -> new IllegalStateException("model version not found"));
+        ModelUsagePurpose purpose = run.getRunType() == com.example.factoryguard.domain.inspection.model.RunType.REALTIME
+                ? ModelUsagePurpose.REALTIME_INSPECTION
+                : ModelUsagePurpose.UPLOAD_INSPECTION;
+        var resolvedDeployment = activeModelDeploymentResolver.resolve(run.getOrganizationId(), run.getTargetId(), purpose);
+        var version = resolvedDeployment.getVersion();
 
         Map<ModelArtifactType, StoredFile> artifactFiles = loadArtifactFiles(version.getModelVersionId());
         StoredFile ckpt = requiredArtifact(artifactFiles, ModelArtifactType.CKPT);
