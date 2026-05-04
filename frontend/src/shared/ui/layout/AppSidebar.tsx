@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useMatch } from 'react-router-dom'
 import { useAuth } from '../../../features/auth/model'
 import type { AuthRole } from '../../../features/auth/types'
 
@@ -152,6 +152,7 @@ export function AppSidebar({
   const visibleNavItems = navItems.filter(
     (item) => !item.roles || (user && item.roles.includes(user.role)),
   )
+  const documentEditMatch = useMatch('/documents/:documentId/edit')
 
   if (isCollapsed) {
     return (
@@ -185,14 +186,17 @@ export function AppSidebar({
               {item.to ? (
                 <NavLink
                   to={item.to}
-                  end={item.to === '/inspections'}
-                  className={({ isActive }) =>
-                    `flex w-full items-center gap-3 px-5 py-[13px] text-left text-[13px] transition-colors ${
-                      isActive
+                  end={item.to === '/inspections' || item.to === '/documents'}
+                  className={({ isActive }) => {
+                    const forceActive =
+                      item.to === '/documents/new' && Boolean(documentEditMatch)
+                    const active = isActive || forceActive
+                    return `flex w-full items-center gap-3 px-5 py-[13px] text-left text-[13px] transition-colors ${
+                      active
                         ? 'bg-blue-50 text-blue-700'
                         : 'text-[#d8dbe2] hover:bg-white/5'
                     }`
-                  }
+                  }}
                 >
                   <span className="text-current">{item.icon}</span>
                   {item.label}
