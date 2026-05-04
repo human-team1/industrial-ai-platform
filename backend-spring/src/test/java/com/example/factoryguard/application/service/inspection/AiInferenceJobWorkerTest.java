@@ -19,6 +19,7 @@ import com.example.factoryguard.application.port.out.operation.ClaimAsyncJobPort
 import com.example.factoryguard.application.port.out.operation.SaveAsyncJobPort;
 import com.example.factoryguard.application.port.out.result.SaveResultArtifactPort;
 import com.example.factoryguard.application.port.out.result.SaveResultImagePort;
+import com.example.factoryguard.application.port.out.notification.SaveNotificationPort;
 import com.example.factoryguard.application.port.out.review.SaveReviewQueuePort;
 import com.example.factoryguard.config.inspection.AiJobWorkerProperties;
 import com.example.factoryguard.domain.file.model.StoredFile;
@@ -29,6 +30,9 @@ import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import com.example.factoryguard.domain.inspection.model.RunStatus;
 import com.example.factoryguard.domain.inspection.model.RunType;
 import com.example.factoryguard.domain.inspection.vo.RoiMode;
+import com.example.factoryguard.domain.notification.model.Notification;
+import com.example.factoryguard.domain.notification.vo.NotificationSeverity;
+import com.example.factoryguard.domain.notification.vo.NotificationType;
 import com.example.factoryguard.domain.model.vo.DeploymentScope;
 import com.example.factoryguard.domain.model.vo.ModelArtifactType;
 import com.example.factoryguard.domain.model.vo.ModelCategory;
@@ -75,6 +79,7 @@ class AiInferenceJobWorkerTest {
     @Mock SaveResultArtifactPort saveResultArtifactPort;
     @Mock SaveResultImagePort saveResultImagePort;
     @Mock SaveReviewQueuePort saveReviewQueuePort;
+    @Mock SaveNotificationPort saveNotificationPort;
     @Mock PersistUploadedFilePort persistUploadedFilePort;
     @Mock InspectionEventLogger inspectionEventLogger;
     @Mock RecordOperationLogUseCase recordOperationLogUseCase;
@@ -96,6 +101,7 @@ class AiInferenceJobWorkerTest {
                 loadInspectionInputPort, loadFilePort, modelManagementPort,
                 callAiInspectionPort, saveInspectionResultPort,
                 saveResultArtifactPort, saveResultImagePort, saveReviewQueuePort,
+                saveNotificationPort,
                 persistUploadedFilePort, inspectionEventLogger, recordOperationLogUseCase,
                 minioProperties, resolveInspectionThresholdService, evaluator
         );
@@ -185,6 +191,63 @@ class AiInferenceJobWorkerTest {
         ArgumentCaptor<ReviewQueue> captor = ArgumentCaptor.forClass(ReviewQueue.class);
         verify(saveReviewQueuePort).save(captor.capture());
         assertThat(captor.getValue().getQueuedReason()).isEqualTo(ReviewQueuedReason.QUALITY_FAILED);
+    }
+
+    @Test
+    @DisplayName("No.37 NORMAL - SaveNotificationPort 미호출 (이상/재검사 외에는 알림 미생성)")
+    void normalDoesNotCreateNotification() throws TimeoutException {
+        when(callAiInspectionPort.call(any())).thenReturn(aiResult(0.30, 0.90, "PASSED"));
+
+        worker.poll();
+
+        verify(saveNotificationPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("No.37 DEFECT - DEFECT_DETECTED + CRITICAL 알림 1건 생성 (dedupKey=inspection-result:{id})")
+    void defectCreatesCriticalNotification() throws TimeoutException {
+        when(callAiInspectionPort.call(any())).thenReturn(aiResult(0.95, 0.90, "PASSED"));
+
+        worker.poll();
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(saveNotificationPort).save(captor.capture());
+        Notification saved = captor.getValue();
+        assertThat(saved.getUserId()).isEqualTo(7L);
+        assertThat(saved.getNotificationType()).isEqualTo(NotificationType.DEFECT_DETECTED);
+        assertThat(saved.getSeverity()).isEqualTo(NotificationSeverity.CRITICAL);
+        assertThat(saved.getRelatedType()).isEqualTo("INSPECTION_RESULT");
+        assertThat(saved.getRelatedId()).isEqualTo(3001L);
+        assertThat(saved.getDedupKey()).isEqualTo("inspection-result:3001");
+        assertThat(saved.getIsRead()).isFalse();
+    }
+
+    @Test
+    @DisplayName("No.37 RECHECK - REINSPECTION_REQUIRED + WARNING 알림 1건 생성")
+    void recheckCreatesWarningNotification() throws TimeoutException {
+        when(callAiInspectionPort.call(any())).thenReturn(aiResult(0.30, 0.30, "PASSED"));
+
+        worker.poll();
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(saveNotificationPort).save(captor.capture());
+        Notification saved = captor.getValue();
+        assertThat(saved.getNotificationType()).isEqualTo(NotificationType.REINSPECTION_REQUIRED);
+        assertThat(saved.getSeverity()).isEqualTo(NotificationSeverity.WARNING);
+        assertThat(saved.getDedupKey()).isEqualTo("inspection-result:3001");
+    }
+
+    @Test
+    @DisplayName("No.37 RECHECK + QUALITY_FAILED - 알림은 RECHECK 기준 1건만 생성")
+    void qualityFailedAlsoCreatesRecheckNotification() throws TimeoutException {
+        when(callAiInspectionPort.call(any())).thenReturn(aiResult(0.95, 0.90, "FAILED"));
+
+        worker.poll();
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(saveNotificationPort).save(captor.capture());
+        assertThat(captor.getValue().getNotificationType()).isEqualTo(NotificationType.REINSPECTION_REQUIRED);
+        assertThat(captor.getValue().getSeverity()).isEqualTo(NotificationSeverity.WARNING);
     }
 
     @Test

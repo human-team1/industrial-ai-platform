@@ -16,6 +16,7 @@ import com.example.factoryguard.application.port.out.inspection.LoadInspectionRu
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionResultPort;
 import com.example.factoryguard.application.port.out.inspection.SaveInspectionRunPort;
 import com.example.factoryguard.application.port.out.model.ModelManagementPort;
+import com.example.factoryguard.application.port.out.notification.SaveNotificationPort;
 import com.example.factoryguard.application.port.out.operation.ClaimAsyncJobPort;
 import com.example.factoryguard.application.port.out.operation.SaveAsyncJobPort;
 import com.example.factoryguard.application.port.out.result.SaveResultArtifactPort;
@@ -35,6 +36,9 @@ import com.example.factoryguard.domain.inspection.model.RunStatus;
 import com.example.factoryguard.domain.inspection.vo.RoiMode;
 import com.example.factoryguard.domain.model.vo.DeploymentScope;
 import com.example.factoryguard.domain.model.vo.ModelArtifactType;
+import com.example.factoryguard.domain.notification.model.Notification;
+import com.example.factoryguard.domain.notification.vo.NotificationSeverity;
+import com.example.factoryguard.domain.notification.vo.NotificationType;
 import com.example.factoryguard.domain.operation.model.AsyncJob;
 import com.example.factoryguard.domain.operation.vo.AsyncJobStatus;
 import com.example.factoryguard.domain.operation.vo.AsyncJobType;
@@ -84,6 +88,7 @@ public class AiInferenceJobWorker {
     private final SaveResultArtifactPort saveResultArtifactPort;
     private final SaveResultImagePort saveResultImagePort;
     private final SaveReviewQueuePort saveReviewQueuePort;
+    private final SaveNotificationPort saveNotificationPort;
     private final PersistUploadedFilePort persistUploadedFilePort;
     private final InspectionEventLogger inspectionEventLogger;
     private final RecordOperationLogUseCase recordOperationLogUseCase;
@@ -246,6 +251,22 @@ public class AiInferenceJobWorker {
         return value == null ? null : value.doubleValue();
     }
 
+    private Notification buildInspectionNotification(InspectionRun run, Long resultId, DecisionCode decisionCode) {
+        boolean defect = decisionCode == DecisionCode.DEFECT;
+        return Notification.builder()
+                .userId(run.getUserId())
+                .notificationType(defect ? NotificationType.DEFECT_DETECTED : NotificationType.REINSPECTION_REQUIRED)
+                .severity(defect ? NotificationSeverity.CRITICAL : NotificationSeverity.WARNING)
+                .title(defect ? "이상이 감지되었습니다." : "재검사가 필요합니다.")
+                .message("inspectionId=" + run.getInspectionId() + ", resultId=" + resultId)
+                .relatedType("INSPECTION_RESULT")
+                .relatedId(resultId)
+                .targetUrl("/inspections/" + run.getInspectionId())
+                .dedupKey("inspection-result:" + resultId)
+                .isRead(false)
+                .build();
+    }
+
     private Map<ModelArtifactType, StoredFile> loadArtifactFiles(Long versionId) {
         Map<ModelArtifactType, StoredFile> files = new EnumMap<>(ModelArtifactType.class);
         modelManagementPort.findArtifactsByVersionId(versionId).forEach(artifact ->
@@ -289,6 +310,10 @@ public class AiInferenceJobWorker {
                     .queueStatus(ReviewQueueStatus.WAITING)
                     .queuedReason(queuedReason)
                     .build());
+        }
+
+        if (decisionCode == DecisionCode.DEFECT || decisionCode == DecisionCode.RECHECK) {
+            saveNotificationPort.save(buildInspectionNotification(run, saved.getResultId(), decisionCode));
         }
 
         saveInspectionRunPort.save(run.toBuilder()
