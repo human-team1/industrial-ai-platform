@@ -25,6 +25,14 @@ public class RedisKeyFactory {
         return "refresh:token:" + userId + ":" + sessionId;
     }
 
+    public String refreshTokenScanPattern(Long userId) {
+        return "refresh:token:" + userId + ":*";
+    }
+
+    public String sessionScanPattern(Long userId) {
+        return "session:" + userId + ":*";
+    }
+
     public String currentSessionKey(Long userId) {
         return "session:current:" + userId;
     }
