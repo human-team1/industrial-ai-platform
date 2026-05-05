@@ -13,6 +13,8 @@ import com.example.factoryguard.application.dto.chat.ListChatConversationsQuery;
 import com.example.factoryguard.application.dto.chat.RagAnswerRequest;
 import com.example.factoryguard.application.dto.chat.RagAnswerResponse;
 import com.example.factoryguard.application.dto.chat.RagAnswerSource;
+import com.example.factoryguard.application.dto.chat.RagResultContext;
+import com.example.factoryguard.application.dto.result.ResultDetailResponse;
 import com.example.factoryguard.application.port.in.chat.AskChatUseCase;
 import com.example.factoryguard.application.port.in.chat.CreateChatConversationUseCase;
 import com.example.factoryguard.application.port.in.chat.DeleteChatConversationUseCase;
@@ -28,6 +30,7 @@ import com.example.factoryguard.application.port.out.chat.RequestRagAnswerPort;
 import com.example.factoryguard.application.port.out.chat.SaveChatConversationPort;
 import com.example.factoryguard.application.port.out.chat.SaveChatMessagePort;
 import com.example.factoryguard.application.port.out.chat.SaveChatSourcePort;
+import com.example.factoryguard.application.port.out.result.ResultQueryPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.chat.model.ChatConversation;
@@ -62,6 +65,7 @@ public class ChatService implements AskChatUseCase, CreateChatConversationUseCas
     private final SaveChatSourcePort saveChatSourcePort;
     private final DeleteChatConversationPort deleteChatConversationPort;
     private final RequestRagAnswerPort requestRagAnswerPort;
+    private final ResultQueryPort resultQueryPort;
 
     @Override
     @Transactional
@@ -81,10 +85,12 @@ public class ChatService implements AskChatUseCase, CreateChatConversationUseCas
         RagAnswerResponse ragAnswer = requestRagAnswerPort.requestAnswer(RagAnswerRequest.builder()
                 .userId(command.getUserId())
                 .organizationId(command.getOrganizationId())
+                .conversationId(conversation.getConversationId())
                 .question(question)
                 .documentScope(command.getDocumentScope())
                 .documentIds(command.getDocumentIds())
                 .resultId(command.getResultId())
+                .resultContext(resolveResultContext(command))
                 .build());
 
         ChatAnswerStatus answerStatus = normalizeAnswerStatus(ragAnswer);
@@ -259,7 +265,31 @@ public class ChatService implements AskChatUseCase, CreateChatConversationUseCas
         return switch (answerStatus) {
             case ANSWERED, NO_RELEVANT_SOURCE -> ChatMessageStatus.SUCCESS;
             case LLM_FAILED, VECTOR_STORE_FAILED, DOCUMENT_SCOPE_FORBIDDEN, VALIDATION_FAILED -> ChatMessageStatus.FAILED;
+            case OUT_OF_SCOPE -> ChatMessageStatus.SUCCESS;
         };
+    }
+
+    private RagResultContext resolveResultContext(AskChatCommand command) {
+        if (command.getResultId() == null) {
+            return null;
+        }
+        Long resultOrganizationId = resultQueryPort.findOrganizationIdByResultId(command.getResultId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "검사 결과를 찾을 수 없습니다."));
+        if (!resultOrganizationId.equals(command.getOrganizationId())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "다른 회사의 검사 결과에는 접근할 수 없습니다.");
+        }
+        ResultDetailResponse detail = resultQueryPort.findDetail(command.getResultId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "검사 결과를 찾을 수 없습니다."));
+        return RagResultContext.builder()
+                .resultId(detail.getResultId())
+                .inspectionId(detail.getInspectionId())
+                .decisionCode(detail.getResult() == null ? null : detail.getResult().getFinalDecisionCode())
+                .score(detail.getResult() == null ? null : detail.getResult().getScore())
+                .confidence(detail.getResult() == null ? null : detail.getResult().getConfidence())
+                .equipmentName(detail.getTarget() == null ? null : detail.getTarget().getEquipmentName())
+                .targetId(detail.getTarget() == null ? null : detail.getTarget().getTargetId())
+                .anomalySummary(detail.getResult() == null ? null : detail.getResult().getFailureReason())
+                .build();
     }
 
     private String createTitle(String question) {

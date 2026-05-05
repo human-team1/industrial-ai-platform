@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends
 
 from application.rag_service import RagService
+from api.schemas import RagQueryRequest, RagQueryResponse, rag_result_to_response
 from container.dependencies import get_rag_service
-from domain.schemas import RagQueryRequest, RagQueryResponse
 
 router = APIRouter()
 
@@ -12,4 +12,4 @@ async def query_rag(
     request: RagQueryRequest,
     service: RagService = Depends(get_rag_service),
 ) -> RagQueryResponse:
-    return service.query(request)
+    return rag_result_to_response(service.query(request.to_command()))

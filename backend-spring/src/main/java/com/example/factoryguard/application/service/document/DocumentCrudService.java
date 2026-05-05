@@ -6,6 +6,10 @@ import com.example.factoryguard.application.dto.document.CreateDocumentVersionCo
 import com.example.factoryguard.application.dto.document.CreateDocumentWithFileCommand;
 import com.example.factoryguard.application.dto.document.DocumentCreateResult;
 import com.example.factoryguard.application.dto.document.DocumentDetailResult;
+import com.example.factoryguard.application.dto.document.DocumentDeindexRequest;
+import com.example.factoryguard.application.dto.document.DocumentIndexRequest;
+import com.example.factoryguard.application.dto.document.DocumentIndexResponse;
+import com.example.factoryguard.application.dto.document.DocumentIndexingTarget;
 import com.example.factoryguard.application.dto.document.DocumentListPageResult;
 import com.example.factoryguard.application.dto.document.DocumentSearchQuery;
 import com.example.factoryguard.application.dto.document.DocumentSummaryResult;
@@ -13,9 +17,12 @@ import com.example.factoryguard.application.dto.document.DocumentVersionDetailRe
 import com.example.factoryguard.application.dto.document.UpdateDocumentMetadataCommand;
 import com.example.factoryguard.application.port.in.document.DocumentCrudUseCase;
 import com.example.factoryguard.application.port.out.document.DocumentCrudPort;
+import com.example.factoryguard.application.port.out.document.DocumentIndexPersistencePort;
+import com.example.factoryguard.application.port.out.document.DocumentIndexingAiPort;
 import com.example.factoryguard.application.port.out.file.PersistUploadedFilePort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
+import com.example.factoryguard.config.client.AiServerProperties;
 import com.example.factoryguard.config.document.DocumentUploadProperties;
 import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.SecurityUtils;
@@ -23,8 +30,11 @@ import com.example.factoryguard.domain.document.vo.IndexingStatus;
 import com.example.factoryguard.domain.file.model.StoredFile;
 import com.example.factoryguard.domain.file.vo.StorageType;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -44,12 +54,18 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DocumentCrudService implements DocumentCrudUseCase {
 
+    private static final Logger log = LoggerFactory.getLogger(DocumentCrudService.class);
+
     private final DocumentCrudPort documentCrudPort;
+    private final DocumentIndexPersistencePort documentIndexPersistencePort;
+    private final DocumentIndexingAiPort documentIndexingAiPort;
     private final PersistUploadedFilePort persistUploadedFilePort;
     private final SecurityUtils securityUtils;
     private final MinioStorageAdapter minioStorageAdapter;
     private final MinioProperties minioProperties;
     private final DocumentUploadProperties documentUploadProperties;
+    private final AiServerProperties aiServerProperties;
+    private final TransactionOperations transactionOperations;
 
     @Override
     @Transactional(readOnly = true)
@@ -81,28 +97,39 @@ public class DocumentCrudService implements DocumentCrudUseCase {
     }
 
     @Override
-    @Transactional
     public DocumentCreateResult createDocument(CreateDocumentWithFileCommand command) {
+        requireCompanyAdminOrSiteAdmin();
         validateFile(command.getFile());
         List<String> normalizedTags = normalizeTags(command.getTags());
         StoredFile storedFile = uploadAndPersist(command.getFile(), command.getUserId());
-        DocumentCreateResult created = documentCrudPort.createDocument(
-                command.getOrganizationId(),
-                command.getUserId(),
-                command.getTitle(),
-                detectDocumentType(command.getFile().getOriginalFilename()),
-                command.getCategory(),
-                command.getEquipmentType(),
-                command.getDescription(),
-                normalizedTags,
-                storedFile.getFileId(),
-                String.valueOf(command.getUserId())
-        );
-        return DocumentCreateResult.builder()
+        DocumentCreateResult created = transactionOperations.execute(status -> documentCrudPort.createDocument(
+                    command.getOrganizationId(),
+                    command.getUserId(),
+                    command.getTitle(),
+                    detectDocumentType(command.getFile().getOriginalFilename()),
+                    command.getCategory(),
+                    command.getEquipmentType(),
+                    command.getDescription(),
+                    normalizedTags,
+                    storedFile.getFileId(),
+                    String.valueOf(command.getUserId())
+            ));
+        DocumentIndexingTarget target = DocumentIndexingTarget.builder()
                 .documentId(created.getDocumentId())
                 .documentVersionId(created.getDocumentVersionId())
-                .indexingStatus(IndexingStatus.PENDING)
+                .fileId(storedFile.getFileId())
+                .fileKey(storedFile.getObjectKey())
+                .fileName(storedFile.getFileName())
+                .mimeType(storedFile.getMimeType())
+                .checksum(storedFile.getChecksum())
+                .documentType(com.example.factoryguard.domain.document.vo.DocumentType.valueOf(detectDocumentType(command.getFile().getOriginalFilename())))
+                .organizationId(command.getOrganizationId())
+                .title(command.getTitle())
+                .category(command.getCategory())
+                .equipmentType(command.getEquipmentType())
+                .tags(normalizedTags)
                 .build();
+        return enqueueIndexing(created, target, null);
     }
 
     @Override
@@ -126,8 +153,8 @@ public class DocumentCrudService implements DocumentCrudUseCase {
     }
 
     @Override
-    @Transactional
     public DocumentCreateResult createVersion(CreateDocumentVersionCommand command) {
+        requireCompanyAdminOrSiteAdmin();
         validateFile(command.getFile());
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
         boolean isAdmin = isAdmin(principal);
@@ -135,32 +162,113 @@ public class DocumentCrudService implements DocumentCrudUseCase {
         validateOrganizationAccess(command.getDocumentId(), organizationId, isAdmin);
         StoredFile storedFile = uploadAndPersist(command.getFile(), command.getUserId());
         String fileHash = calculateSha256(command.getFile());
-        DocumentVersionDetailResult version = documentCrudPort.createVersion(
-                command.getDocumentId(),
-                organizationId,
-                isAdmin,
-                storedFile.getFileId(),
-                fileHash,
-                command.getChangeReason()
-        );
-        return DocumentCreateResult.builder()
+        DocumentVersionDetailResult version = transactionOperations.execute(status -> documentCrudPort.createVersion(
+                    command.getDocumentId(),
+                    organizationId,
+                    isAdmin,
+                    storedFile.getFileId(),
+                    fileHash,
+                    command.getChangeReason()
+            ));
+        DocumentCreateResult created = DocumentCreateResult.builder()
                 .documentId(command.getDocumentId())
                 .documentVersionId(version.getDocumentVersionId())
+                .indexJobId(version.getIndexJobId())
                 .indexingStatus(version.getIndexingStatus())
                 .build();
+        DocumentIndexingTarget target = documentIndexPersistencePort.findIndexingTarget(version.getDocumentVersionId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "문서 인덱싱 대상을 찾을 수 없습니다."));
+        return enqueueIndexing(created, target, null);
     }
 
     @Override
-    @Transactional
     public void softDelete(Long documentId) {
+        requireCompanyAdminOrSiteAdmin();
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
         boolean isAdmin = isAdmin(principal);
         Long organizationId = isAdmin ? null : securityUtils.requireOrganizationId();
         validateOrganizationAccess(documentId, organizationId, isAdmin);
-        boolean deleted = documentCrudPort.softDelete(documentId, organizationId, isAdmin);
+        DocumentIndexingTarget target = documentIndexPersistencePort.findLatestIndexingTargetByDocumentId(documentId)
+                .orElse(null);
+        boolean deleted = Boolean.TRUE.equals(transactionOperations.execute(status ->
+                documentCrudPort.softDelete(documentId, organizationId, isAdmin)));
         if (!deleted) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "문서를 찾을 수 없습니다.");
         }
+        if (target != null) {
+            try {
+                documentIndexingAiPort.deindex(
+                        target.getDocumentVersionId(),
+                        DocumentDeindexRequest.builder()
+                                .organizationId(target.getOrganizationId())
+                                .documentId(target.getDocumentId())
+                                .reason("DOCUMENT_DELETED")
+                                .build(),
+                        null
+                );
+            } catch (RuntimeException exception) {
+                transactionOperations.executeWithoutResult(status ->
+                        documentIndexPersistencePort.recordDeindexFailure(target.getDocumentVersionId(), exception.getMessage()));
+                log.warn("FastAPI deindex failed after document delete, documentId={}, documentVersionId={}, organizationId={}",
+                        target.getDocumentId(), target.getDocumentVersionId(), target.getOrganizationId());
+            }
+        }
+    }
+
+    private DocumentCreateResult enqueueIndexing(DocumentCreateResult created, DocumentIndexingTarget target, String requestId) {
+        try {
+            DocumentIndexResponse response = documentIndexingAiPort.enqueue(buildIndexRequest(created.getIndexJobId(), target), requestId);
+            transactionOperations.executeWithoutResult(status -> documentIndexPersistencePort.markEnqueued(
+                    created.getDocumentId(),
+                    created.getDocumentVersionId(),
+                    created.getIndexJobId(),
+                    response.getAiJobId()
+            ));
+            return DocumentCreateResult.builder()
+                    .documentId(created.getDocumentId())
+                    .documentVersionId(created.getDocumentVersionId())
+                    .indexJobId(created.getIndexJobId())
+                    .aiJobId(response.getAiJobId())
+                    .indexingStatus(IndexingStatus.PROCESSING)
+                    .build();
+        } catch (RuntimeException exception) {
+            transactionOperations.executeWithoutResult(status -> documentIndexPersistencePort.markFailed(
+                    created.getDocumentId(),
+                    created.getDocumentVersionId(),
+                    created.getIndexJobId(),
+                    exception.getMessage()
+            ));
+            log.warn("FastAPI document indexing enqueue failed, documentId={}, documentVersionId={}, organizationId={}",
+                    created.getDocumentId(), created.getDocumentVersionId(), target.getOrganizationId());
+            return DocumentCreateResult.builder()
+                    .documentId(created.getDocumentId())
+                    .documentVersionId(created.getDocumentVersionId())
+                    .indexJobId(created.getIndexJobId())
+                    .indexingStatus(IndexingStatus.FAILED)
+                    .build();
+        }
+    }
+
+    private DocumentIndexRequest buildIndexRequest(Long indexJobId, DocumentIndexingTarget target) {
+        return DocumentIndexRequest.builder()
+                .indexJobId(indexJobId)
+                .documentId(target.getDocumentId())
+                .documentVersionId(target.getDocumentVersionId())
+                .organizationId(target.getOrganizationId())
+                .fileId(target.getFileId())
+                .fileKey(target.getFileKey())
+                .fileName(target.getFileName())
+                .mimeType(target.getMimeType())
+                .checksum(target.getChecksum())
+                .title(target.getTitle())
+                .documentType(target.getDocumentType() == null ? null : target.getDocumentType().name())
+                .category(target.getCategory())
+                .equipmentType(target.getEquipmentType())
+                .tags(target.getTags())
+                .chunkSize(aiServerProperties.getDocumentIndex().getDefaultChunkSize())
+                .chunkOverlap(aiServerProperties.getDocumentIndex().getDefaultChunkOverlap())
+                .embeddingModel(aiServerProperties.getDocumentIndex().getDefaultEmbeddingModel())
+                .build();
     }
 
     private StoredFile uploadAndPersist(MultipartFile file, Long userId) {
@@ -331,6 +439,14 @@ public class DocumentCrudService implements DocumentCrudUseCase {
         }
         String normalized = principal.role().trim().toUpperCase(Locale.ROOT);
         return "ROLE_SITE_ADMIN".equals(normalized) || "ADMIN".equals(normalized);
+    }
+
+    private void requireCompanyAdminOrSiteAdmin() {
+        AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
+        String role = principal.role() == null ? "" : principal.role().trim().toUpperCase(Locale.ROOT);
+        if (!"ROLE_COMPANY_ADMIN".equals(role) && !"ROLE_SITE_ADMIN".equals(role) && !"ADMIN".equals(role)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "문서 업로드/수정/삭제는 회사 관리자 이상만 가능합니다.");
+        }
     }
 
     private void validateOrganizationAccess(Long documentId, Long organizationId, boolean isAdmin) {

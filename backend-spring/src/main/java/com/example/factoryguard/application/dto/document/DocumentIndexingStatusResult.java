@@ -10,7 +10,9 @@ import lombok.Getter;
 public class DocumentIndexingStatusResult {
 
     private final Long documentVersionId;
+    private final Long indexJobId;
     private final IndexingStatus indexingStatus;
+    private final Integer indexedChunkCount;
     private final DocumentIndexJobStatus jobStatus;
     private final String errorMessage;
 }

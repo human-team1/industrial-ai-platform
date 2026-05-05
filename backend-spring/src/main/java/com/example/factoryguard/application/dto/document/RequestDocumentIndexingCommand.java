@@ -9,4 +9,5 @@ public class RequestDocumentIndexingCommand {
 
     private final Long userId;
     private final Long documentVersionId;
+    private final String requestId;
 }

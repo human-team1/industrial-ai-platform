@@ -90,9 +90,72 @@ uvicorn main:app --host 0.0.0.0 --port 8001 --workers 1
 - `GET /ai/v1/health`
 - `POST /ai/v1/inference/anomaly`
 - `POST /ai/v1/documents/index`
+- `POST /ai/v1/internal/documents/index`
 - `POST /ai/v1/rag/query`
 
-## 검증
+## 내부 문서 인덱싱 API
+
+Spring Backend가 문서 업로드 후 호출하는 내부 API입니다. 인덱싱 옵션은 요청으로 받지 않고 `.env` 설정을 사용합니다.
+
+Request:
+
+```json
+{
+  "documentId": 101,
+  "documentVersionId": 1001,
+  "fileId": 501,
+  "fileKey": "documents/101/versions/1001/manual.pdf",
+  "documentType": "PDF"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "documentId": 101,
+    "documentVersionId": 1001,
+    "fileId": 501,
+    "fileKey": "documents/101/versions/1001/manual.pdf",
+    "indexingStatus": "COMPLETED",
+    "chunkCount": 42,
+    "vectorCount": 42,
+    "embeddingModel": "deterministic-hash-embedding",
+    "collectionName": "industrial_rag_chunks",
+    "indexedAt": "2026-05-04T16:20:00",
+    "chunks": [
+      {
+        "sequenceNo": 1,
+        "content": "청크 본문",
+        "pageNo": 1,
+        "section": "점검 절차",
+        "vectorRef": "docver-1001-chunk-1"
+      }
+    ]
+  },
+  "message": "문서 인덱싱이 완료되었습니다."
+}
+```
+
+추가 환경변수:
+
+- `CHROMA_COLLECTION_NAME=industrial_rag_chunks`
+- `RAG_CHUNK_SIZE=800`
+- `RAG_CHUNK_OVERLAP=100`
+- `RAG_EMBEDDING_MODEL_NAME=deterministic-hash-embedding`
+
+스모크 테스트:
+
+```powershell
+curl -X POST "http://localhost:8001/ai/v1/internal/documents/index" `
+  -H "Content-Type: application/json" `
+  -H "X-Request-Id: smoke-doc-index-001" `
+  -d '{ "documentId": 101, "documentVersionId": 1001, "fileId": 501, "fileKey": "documents/101/versions/1001/manual.pdf", "documentType": "PDF" }'
+```
+
+## 테스트
 
 ```powershell
 pytest

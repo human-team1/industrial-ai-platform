@@ -5,8 +5,6 @@ from io import BytesIO
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
-from PIL import Image
-
 from container.dependencies import get_vision_inference_service
 from domain.vision_models import InferenceOutput
 from infrastructure.image_preprocessor import VisionImagePreprocessor

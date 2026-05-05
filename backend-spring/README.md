@@ -80,6 +80,81 @@ Copy-Item .env.example .env
   - JPA Entity <-> Domain Model 변환 책임
 - Controller는 UseCase 호출 조립만 수행하고, 필드 단위 직접 매핑을 두지 않습니다.
 - Service는 Web DTO/JPA Entity에 직접 의존하지 않습니다.
+- 
+## 문서 업로드와 RAG 인덱싱
+
+`POST /api/v1/documents`는 문서 원본을 MinIO에 저장하고, `FILE`, `DOCUMENT`, `DOCUMENT_VERSION`, `DOCUMENT_INDEX_JOB` 메타를 MariaDB에 저장한 뒤 FastAPI 내부 API `POST /ai/v1/internal/documents/index`를 호출합니다. Spring 요청 DTO에는 청킹/임베딩/Chroma 옵션을 넣지 않습니다.
+
+Request:
+
+```text
+multipart/form-data
+file: File, required
+title: String, required
+documentType: PDF | DOCX | MD | TXT, required
+category: String, optional
+equipmentType: String, optional
+description: String, optional
+tags: comma-separated String, optional
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "documentId": 101,
+    "documentVersionId": 1001,
+    "fileId": 501,
+    "indexJobId": 9001,
+    "indexingStatus": "PROCESSING"
+  },
+  "message": "문서가 업로드되었고 인덱싱 작업이 시작되었습니다."
+}
+```
+
+재인덱싱:
+
+```text
+POST /api/v1/document-versions/{versionId}/index-jobs
+```
+
+스모크 테스트:
+
+```powershell
+curl -X POST "http://localhost:8080/api/v1/documents" `
+  -H "Authorization: Bearer ${ACCESS_TOKEN}" `
+  -H "X-Request-Id: smoke-doc-upload-001" `
+  -F "file=@sample.pdf" `
+  -F "title=FlexLink X65 유지보수 매뉴얼" `
+  -F "documentType=PDF" `
+  -F "category=MAINTENANCE" `
+  -F "equipmentType=CONVEYOR" `
+  -F "description=컨베이어 유지보수 문서"
+```
+
+DB 확인:
+
+```sql
+SELECT indexing_status, indexed_chunk_count, index_error_message, indexed_at
+FROM DOCUMENT_VERSION
+WHERE document_version_id = 1001;
+
+SELECT COUNT(*) FROM CHUNK WHERE document_version_id = 1001;
+SELECT COUNT(*)
+FROM VECTOR_INDEX vi
+JOIN CHUNK c ON c.chunk_id = vi.chunk_id
+WHERE c.document_version_id = 1001;
+```
+
+## 주요 엔드포인트
+
+- `GET /api/v1/health`
+- `GET /api/v1/inspections/status`
+- `POST /api/v1/documents`
+- `POST /api/v1/document-versions/{versionId}/index-jobs`
+- `GET /actuator/health`
 
 ## 현재 구현된 주요 엔드포인트
 

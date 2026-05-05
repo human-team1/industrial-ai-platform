@@ -194,6 +194,18 @@ SITE_ADMIN이 전체 사용자 소유 데이터에 접근해야 하는 경우 �
 
 ---
 
+### 12.1 Documents / RAG 확정 권한 보완
+
+| Method | Endpoint | Scope | SITE_ADMIN | COMPANY_ADMIN | COMPANY_WORKER | 상태 | 비고 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| GET | `/documents` | ORGANIZATION | 전체 조회 | 자기 회사 조회 | 자기 회사 조회 | 확정 | 일반 사용자는 자기 회사 문서 조회 가능 |
+| POST | `/documents` | ORGANIZATION | 가능 | 자기 회사 가능 | 불가 | 확정 | 문서 업로드는 COMPANY_ADMIN 이상 |
+| PATCH | `/documents/{documentId}` | ORGANIZATION | 가능 | 자기 회사 가능 | 불가 | 확정 | 문서 수정은 COMPANY_ADMIN 이상 |
+| DELETE | `/documents/{documentId}` | ORGANIZATION | 가능 | 자기 회사 가능 | 불가 | 확정 | Spring soft delete 후 FastAPI deindex 호출 |
+| GET | `/document-versions/{versionId}/index-jobs` | ORGANIZATION | 전체 조회 | 자기 회사 조회 | 자기 회사 조회 | 확정 | 인덱싱 상태 조회 |
+| POST | `/document-versions/{versionId}/index-jobs` | ORGANIZATION | 가능 | 자기 회사 가능 | 불가 | 확정 | 재인덱싱 요청은 COMPANY_ADMIN 이상 |
+| POST | `/chat-conversations/{conversationId}/messages` | OWNER/ORGANIZATION | 가능 | 가능 | 가능 | 확정 | RAG 검색은 자기 회사 collection 범위로 제한 |
+
 ## 13. Chatbot
 
 | Method | Endpoint | Scope | SITE_ADMIN | COMPANY_ADMIN | COMPANY_WORKER | 상태 | 비고 |

@@ -5,12 +5,16 @@ import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
 import com.example.factoryguard.application.dto.document.CreateDocumentVersionCommand;
 import com.example.factoryguard.application.dto.document.CreateDocumentWithFileCommand;
 import com.example.factoryguard.application.dto.document.DocumentCreateResult;
+import com.example.factoryguard.application.dto.document.DocumentIndexResponse;
 import com.example.factoryguard.application.dto.document.DocumentVersionDetailResult;
 import com.example.factoryguard.application.port.out.document.DocumentCrudPort;
+import com.example.factoryguard.application.port.out.document.DocumentIndexPersistencePort;
+import com.example.factoryguard.application.port.out.document.DocumentIndexingAiPort;
 import com.example.factoryguard.application.port.out.file.PersistUploadedFilePort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.config.document.DocumentUploadProperties;
+import com.example.factoryguard.config.client.AiServerProperties;
 import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.SecurityUtils;
 import com.example.factoryguard.domain.document.vo.IndexingStatus;
@@ -22,6 +26,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.util.List;
 import java.util.Optional;
@@ -41,25 +47,42 @@ import static org.mockito.Mockito.when;
 class DocumentCrudServiceTest {
 
     @Mock private DocumentCrudPort documentCrudPort;
+    @Mock private DocumentIndexPersistencePort documentIndexPersistencePort;
+    @Mock private DocumentIndexingAiPort documentIndexingAiPort;
     @Mock private PersistUploadedFilePort persistUploadedFilePort;
     @Mock private SecurityUtils securityUtils;
     @Mock private MinioStorageAdapter minioStorageAdapter;
     @Mock private MinioProperties minioProperties;
 
     private DocumentUploadProperties uploadProperties;
+    private AiServerProperties aiServerProperties;
+    private TransactionOperations transactionOperations;
     private DocumentCrudService service;
 
     @BeforeEach
     void setUp() {
         uploadProperties = new DocumentUploadProperties();
+        aiServerProperties = new AiServerProperties();
+        transactionOperations = new TransactionOperations() {
+            @Override
+            public <T> T execute(TransactionCallback<T> action) {
+                return action.doInTransaction(null);
+            }
+        };
         service = new DocumentCrudService(
                 documentCrudPort,
+                documentIndexPersistencePort,
+                documentIndexingAiPort,
                 persistUploadedFilePort,
                 securityUtils,
                 minioStorageAdapter,
                 minioProperties,
-                uploadProperties
+                uploadProperties,
+                aiServerProperties,
+                transactionOperations
         );
+        lenient().when(securityUtils.getCurrentPrincipal())
+                .thenReturn(new AuthenticatedPrincipal(1L, "ROLE_COMPANY_ADMIN", 100L, "sess"));
         lenient().when(minioProperties.getBucketDocuments()).thenReturn("documents");
         lenient().when(persistUploadedFilePort.save(any())).thenAnswer(invocation -> {
             StoredFile in = invocation.getArgument(0);
@@ -77,6 +100,14 @@ class DocumentCrudServiceTest {
                     .createdBy(in.getCreatedBy())
                     .build();
         });
+        lenient().when(documentIndexingAiPort.enqueue(any(), any())).thenReturn(indexEnqueued());
+    }
+
+    private DocumentIndexResponse indexEnqueued() {
+        DocumentIndexResponse response = new DocumentIndexResponse();
+        response.setAiJobId("doc-index-1");
+        response.setIndexingStatus("PROCESSING");
+        return response;
     }
 
     @Test
@@ -98,7 +129,7 @@ class DocumentCrudServiceTest {
         DocumentCreateResult result = service.createDocument(command);
 
         assertThat(result.getDocumentId()).isEqualTo(10L);
-        assertThat(result.getIndexingStatus()).isEqualTo(IndexingStatus.PENDING);
+        assertThat(result.getIndexingStatus()).isEqualTo(IndexingStatus.PROCESSING);
         verify(documentCrudPort).createDocument(eq(100L), eq(1L), eq("매뉴얼"),
                 eq("PDF"), any(), any(), any(), any(), eq(900L), eq("1"));
     }
@@ -165,7 +196,7 @@ class DocumentCrudServiceTest {
     void addsNewVersionToExistingDocument() {
         long documentId = 10L;
         long userId = 1L;
-        AuthenticatedPrincipal principal = new AuthenticatedPrincipal(userId, "ROLE_COMPANY_WORKER", 100L, "sess");
+        AuthenticatedPrincipal principal = new AuthenticatedPrincipal(userId, "ROLE_COMPANY_ADMIN", 100L, "sess");
         when(securityUtils.getCurrentPrincipal()).thenReturn(principal);
         when(securityUtils.requireOrganizationId()).thenReturn(100L);
         when(documentCrudPort.findDocumentOrganizationId(documentId)).thenReturn(Optional.of(100L));
@@ -176,7 +207,21 @@ class DocumentCrudServiceTest {
 
         when(documentCrudPort.createVersion(eq(documentId), eq(100L), anyBoolean(), anyLong(), anyString(), any()))
                 .thenReturn(DocumentVersionDetailResult.builder()
-                        .documentVersionId(22L).versionNo(2).indexingStatus(IndexingStatus.PENDING).build());
+                        .documentVersionId(22L).indexJobId(33L).versionNo(2).indexingStatus(IndexingStatus.PENDING).build());
+        when(documentIndexPersistencePort.findIndexingTarget(22L))
+                .thenReturn(Optional.of(com.example.factoryguard.application.dto.document.DocumentIndexingTarget.builder()
+                        .documentId(documentId)
+                        .documentVersionId(22L)
+                        .fileId(900L)
+                        .fileKey("documents/manual-v2.pdf")
+                        .fileName("manual-v2.pdf")
+                        .mimeType("application/pdf")
+                        .checksum("hash")
+                        .documentType(com.example.factoryguard.domain.document.vo.DocumentType.PDF)
+                        .organizationId(100L)
+                        .title("manual")
+                        .tags(List.of())
+                        .build()));
 
         DocumentCreateResult result = service.createVersion(CreateDocumentVersionCommand.builder()
                 .userId(userId).organizationId(100L).documentId(documentId).file(pdf)
