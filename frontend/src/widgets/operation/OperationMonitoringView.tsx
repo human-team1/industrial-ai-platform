@@ -2,7 +2,7 @@ import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import type { AsyncJob, OperationLog, PageResponse, SystemComponentStatus, SystemStatus } from '../../entities/operation/model/types'
 import type { OperationLogQuery } from '../../features/operation/api'
 import type { OperationMetricHistory } from '../../features/operation/model/useOperationMetricHistory'
-import { SOURCE_COMPONENT_OPTIONS, formatResponseTimeMs, formatUsagePercent, statusBadgeLabel } from '../../shared/lib/operationDisplay'
+import { SOURCE_COMPONENT_OPTIONS, SYSTEM_COMPONENT_TYPES, componentLabel, formatResponseTimeMs, formatUsagePercent, statusBadgeLabel } from '../../shared/lib/operationDisplay'
 import { formatDateTime } from '../../shared/lib/date'
 import { LineChartCard } from '../../shared/ui/chart/LineChartCard'
 import { StatusBadge } from '../../shared/ui/StatusBadge'
@@ -103,7 +103,16 @@ function SystemStatusCards({ state }: { state: ResourceState<SystemStatus> }) {
 }
 
 function ComponentGrid({ state }: { state: ResourceState<SystemComponentStatus[]> }) {
-  const components = state.data ?? []
+  const byType = new Map((state.data ?? []).map((item) => [item.componentType, item]))
+  const fallbackComponents: SystemComponentStatus[] = SYSTEM_COMPONENT_TYPES.map((componentType) => ({
+    componentStatusId: 0,
+    componentType,
+    componentName: componentLabel(componentType),
+    status: 'UNKNOWN',
+    message: '상태 정보 없음',
+    checkedAt: null,
+  }))
+  const components = fallbackComponents.map((fallback) => byType.get(fallback.componentType) ?? fallback)
   return (
     <section className="rounded border border-slate-200 bg-white p-5 shadow-sm">
       <WidgetHeader title="컴포넌트 상태" state={state} />
@@ -116,7 +125,7 @@ function ComponentGrid({ state }: { state: ResourceState<SystemComponentStatus[]
                 <div key={`${item.componentType}-${item.componentStatusId ?? item.checkedAt ?? 'latest'}`} className="rounded border border-slate-100 bg-slate-50 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold text-slate-900">{item.componentName}</p>
+                      <p className="font-semibold text-slate-900">{componentLabel(item.componentType, item.componentName)}</p>
                       <p className="mt-1 text-xs text-slate-500">{item.componentType}</p>
                     </div>
                     <StatusBadge value={item.status} />

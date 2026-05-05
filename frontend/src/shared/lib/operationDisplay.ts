@@ -50,14 +50,39 @@ export function policyCategoryLabel(category: string | null | undefined): string
   return map[category] ?? category
 }
 
+export const COMPONENT_LABELS: Record<string, string> = {
+  SPRING_API: 'Spring API',
+  AI_SERVER: 'AI Server',
+  MARIADB: 'MariaDB',
+  REDIS: 'Redis',
+  MINIO: 'MinIO',
+  CHROMA: 'ChromaDB',
+  STREAM_SERVER: 'Stream Server',
+  STORAGE: 'Storage',
+}
+
+export const SYSTEM_COMPONENT_TYPES = [
+  'SPRING_API',
+  'AI_SERVER',
+  'MARIADB',
+  'REDIS',
+  'MINIO',
+  'CHROMA',
+] as const
+
+export function componentLabel(type: string | null | undefined, fallback?: string | null): string {
+  if (!type) return fallback ?? '-'
+  return fallback || COMPONENT_LABELS[type] || type
+}
+
 export const SOURCE_COMPONENT_OPTIONS = [
   { value: '', label: '전체' },
   { value: 'SPRING_API', label: 'SPRING_API' },
   { value: 'AI_SERVER', label: 'AI_SERVER' },
   { value: 'MARIADB', label: 'MARIADB' },
   { value: 'REDIS', label: 'REDIS' },
-  { value: 'MINIO', label: 'MINIO' },
-  { value: 'CHROMA', label: 'CHROMA' },
+  { value: 'MINIO', label: 'MinIO' },
+  { value: 'CHROMA', label: 'ChromaDB' },
   { value: 'STREAM_SERVER', label: 'STREAM_SERVER' },
   { value: 'STORAGE', label: 'STORAGE' },
 ] as const

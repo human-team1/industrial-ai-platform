@@ -142,4 +142,13 @@ public class MinioStorageAdapter {
             return false;
         }
     }
+
+    public boolean canListBuckets() {
+        try {
+            minioClient.listBuckets();
+            return true;
+        } catch (Exception exception) {
+            return false;
+        }
+    }
 }

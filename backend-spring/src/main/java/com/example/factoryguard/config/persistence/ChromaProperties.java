@@ -8,6 +8,7 @@ public class ChromaProperties {
     private String host;
     private int port;
     private String collectionDocuments;
+    private int healthTimeoutMs = 3000;
 
     public String getHost() {
         return host;
@@ -31,5 +32,13 @@ public class ChromaProperties {
 
     public void setCollectionDocuments(String collectionDocuments) {
         this.collectionDocuments = collectionDocuments;
+    }
+
+    public int getHealthTimeoutMs() {
+        return healthTimeoutMs;
+    }
+
+    public void setHealthTimeoutMs(int healthTimeoutMs) {
+        this.healthTimeoutMs = healthTimeoutMs;
     }
 }

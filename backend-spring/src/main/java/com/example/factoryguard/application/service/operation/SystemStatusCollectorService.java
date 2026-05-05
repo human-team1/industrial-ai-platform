@@ -1,6 +1,8 @@
 package com.example.factoryguard.application.service.operation;
 
 import com.example.factoryguard.adapter.out.cache.redis.RedisCacheAdapter;
+import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
+import com.example.factoryguard.adapter.out.vector.chroma.ChromaHealthAdapter;
 import com.example.factoryguard.application.dto.operation.RecordOperationLogCommand;
 import com.example.factoryguard.application.dto.operation.SystemComponentStatusResult;
 import com.example.factoryguard.application.port.in.operation.RecordOperationLogUseCase;
@@ -41,6 +43,8 @@ public class SystemStatusCollectorService {
     private final RestTemplate restTemplate;
     private final AiServerProperties aiServerProperties;
     private final OperationMonitoringProperties properties;
+    private final MinioStorageAdapter minioStorageAdapter;
+    private final ChromaHealthAdapter chromaHealthAdapter;
 
     @Scheduled(fixedDelayString = "${app.operation.monitoring.collect-interval-ms:30000}")
     @Transactional
@@ -51,9 +55,9 @@ public class SystemStatusCollectorService {
         saveStatusHistory(null, checkMariaDb(), false);
         saveStatusHistory(null, checkRedis(), false);
         saveStatusHistory("ai", checkAiServer(), false);
+        saveStatusHistory(null, checkMinio(), false);
+        saveStatusHistory(null, checkChroma(), false);
         saveStatusHistory(null, collectStorageStatus(), false);
-        saveStatusHistory(null, unknown("MINIO", "MinIO", "별도 health client가 없어 UNKNOWN으로 표시합니다."), false);
-        saveStatusHistory(null, unknown("CHROMA", "ChromaDB", "별도 heartbeat 설정이 없어 UNKNOWN으로 표시합니다."), false);
         saveStatusHistory(null, unknown("STREAM_SERVER", "Stream Server", "실시간 스트림 서버가 아직 연결되지 않았습니다."), false);
     }
 
@@ -116,6 +120,28 @@ public class SystemStatusCollectorService {
             recordFailure("REDIS_HEALTH_CHECK_FAILED", "Redis 상태 확인 실패", null);
         }
         return simple("REDIS", "Redis", ok ? "NORMAL" : "ERROR", ok ? "PING 정상" : "PING 실패", elapsedMs(start), now);
+    }
+
+    private SystemComponentStatusResult checkMinio() {
+        long start = System.nanoTime();
+        LocalDateTime now = LocalDateTime.now();
+        boolean ok = minioStorageAdapter.canListBuckets();
+        if (!ok) {
+            recordFailure("MINIO_HEALTH_CHECK_FAILED", "MinIO 상태 확인 실패", null);
+        }
+        return simple("MINIO", "MinIO", ok ? "NORMAL" : "ERROR",
+                ok ? "MinIO 연결 정상" : "MinIO 연결 실패", elapsedMs(start), now);
+    }
+
+    private SystemComponentStatusResult checkChroma() {
+        long start = System.nanoTime();
+        LocalDateTime now = LocalDateTime.now();
+        boolean ok = chromaHealthAdapter.ping();
+        if (!ok) {
+            recordFailure("CHROMA_HEALTH_CHECK_FAILED", "ChromaDB 상태 확인 실패", null);
+        }
+        return simple("CHROMA", "ChromaDB", ok ? "NORMAL" : "ERROR",
+                ok ? "ChromaDB 연결 정상" : "ChromaDB 연결 실패", elapsedMs(start), now);
     }
 
     private SystemComponentStatusResult checkAiServer() {

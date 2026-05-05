@@ -90,6 +90,7 @@ app:
     host: ${CHROMA_HOST:localhost}
     port: ${CHROMA_PORT:8000}
     collection-documents: ${CHROMA_COLLECTION_DOCUMENTS:industrial_document_chunks}
+    health-timeout-ms: ${CHROMA_HEALTH_TIMEOUT_MS:3000}
   minio:
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
