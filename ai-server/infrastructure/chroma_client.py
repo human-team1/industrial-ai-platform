@@ -44,6 +44,9 @@ class ChromaClientWrapper:
     def collection_name(self) -> str:
         return self._settings.chroma_collection_name
 
+    def collection_name_for_organization(self, organization_id: int) -> str:
+        return f"documents_org_{organization_id}"
+
     def health_check(self) -> bool:
         try:
             self.client_instance.heartbeat()
@@ -75,8 +78,18 @@ class ChromaClientWrapper:
         request: DocumentIndexCommand,
         chunks: list[IndexedChunk],
         embeddings: list[list[float]],
+        collection_name: str | None = None,
     ) -> int:
-        collection = self.get_or_create_document_collection()
+        resolved_collection_name = collection_name
+        if resolved_collection_name is None:
+            resolved_collection_name = (
+                self.collection_name_for_organization(request.organization_id)
+                if request.organization_id is not None
+                else self._settings.chroma_collection_documents
+            )
+        collection = self.client_instance.get_or_create_collection(
+            name=resolved_collection_name
+        )
         existing_ids = [chunk.vector_ref for chunk in chunks]
         try:
             collection.delete(where={"documentVersionId": request.document_version_id})
@@ -90,18 +103,30 @@ class ChromaClientWrapper:
         metadatas = []
         for chunk in chunks:
             metadata = {
+                "organizationId": request.organization_id,
                 "documentId": request.document_id,
                 "documentVersionId": request.document_version_id,
                 "fileId": request.file_id,
                 "fileKey": request.file_key,
                 "documentType": str(request.document_type).upper(),
+                "documentTitle": request.document_title,
+                "category": request.category,
+                "equipmentType": request.equipment_type,
                 "sequenceNo": chunk.sequence_no,
+                "chunkId": chunk.vector_ref,
+                "document_status": self._settings.rag_default_document_status,
+                "organization_id": str(request.organization_id),
+                "document_id": str(request.document_id),
+                "document_version_id": str(request.document_version_id),
+                "title": request.document_title,
+                "document_type": str(request.document_type).upper(),
+                "equipment_type": request.equipment_type,
             }
             if chunk.page_no is not None:
                 metadata["pageNo"] = chunk.page_no
             if chunk.section:
                 metadata["section"] = chunk.section
-            metadatas.append(metadata)
+            metadatas.append({key: value for key, value in metadata.items() if value is not None})
 
         collection.add(
             ids=existing_ids,
@@ -110,6 +135,30 @@ class ChromaClientWrapper:
             metadatas=metadatas,
         )
         return len(chunks)
+
+    def delete_document_version(self, collection_name: str, document_version_id: int) -> int:
+        try:
+            collection = self.client_instance.get_collection(name=collection_name)
+        except Exception as exc:
+            if "connect" in str(exc).lower():
+                raise
+            return 0
+
+        ids: list[str] = []
+        try:
+            result = collection.get(where={"documentVersionId": document_version_id})
+            ids = [str(value) for value in result.get("ids", [])]
+        except Exception:
+            try:
+                result = collection.get(where={"document_version_id": str(document_version_id)})
+                ids = [str(value) for value in result.get("ids", [])]
+            except Exception:
+                ids = []
+
+        if not ids:
+            return 0
+        collection.delete(ids=ids)
+        return len(ids)
 
     def get_dev_artifacts_collection(self):
         return self.client_instance.get_collection(

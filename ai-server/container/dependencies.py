@@ -2,20 +2,29 @@ from functools import lru_cache
 
 from application.anomaly_service import AnomalyService
 from application.document_indexing_service import DocumentIndexingService
+from application.document_index_jobs import (
+    DeindexDocumentVersionUseCase,
+    EnqueueDocumentIndexJobUseCase,
+    GetDocumentIndexJobStatusUseCase,
+    ProcessDocumentIndexJobUseCase,
+)
 from application.rag_service import RagService
 from application.vision_inference_service import VisionInferenceService
 from config.settings import get_settings
 from infrastructure.chroma_client import ChromaClientWrapper
 from infrastructure.concurrency.inference_limiter import InferenceLimiter
 from infrastructure.document_parser import DocumentParser
+from infrastructure.document_job_store import RedisDocumentIndexJobStore
 from infrastructure.embedding_client import EmbeddingClient
 from infrastructure.fallback_inferencer import StatisticalFallbackInferencer
 from infrastructure.heatmap_generator import HeatmapGenerator
 from infrastructure.image_preprocessor import VisionImagePreprocessor
+from infrastructure.llm.ollama_llm_client import OllamaLLMClient
 from infrastructure.memory_bank_loader import MemoryBankLoader
 from infrastructure.minio_storage import MinioStorage
 from infrastructure.quality_evaluator import QualityEvaluator
 from infrastructure.redis_status import RedisStatusStore
+from infrastructure.retriever.chroma_retriever import ChromaRetriever
 from infrastructure.vision_config_loader import VisionConfigLoader
 from infrastructure.vision_model_loader import VisionModelLoader
 
@@ -35,6 +44,11 @@ def get_redis_status_store() -> RedisStatusStore:
     return RedisStatusStore(get_settings())
 
 
+@lru_cache
+def get_document_index_job_store() -> RedisDocumentIndexJobStore:
+    return RedisDocumentIndexJobStore(get_settings())
+
+
 def get_anomaly_service() -> AnomalyService:
     return AnomalyService(get_settings())
 
@@ -51,7 +65,53 @@ def get_document_indexing_service() -> DocumentIndexingService:
 
 
 def get_rag_service() -> RagService:
-    return RagService(get_chroma_client())
+    return RagService(
+        settings=get_settings(),
+        retriever=get_chroma_retriever(),
+        llm_client=get_ollama_llm_client(),
+    )
+
+
+def get_enqueue_document_index_job_usecase() -> EnqueueDocumentIndexJobUseCase:
+    store = get_document_index_job_store()
+    return EnqueueDocumentIndexJobUseCase(store, store)
+
+
+def get_document_index_job_status_usecase() -> GetDocumentIndexJobStatusUseCase:
+    return GetDocumentIndexJobStatusUseCase(get_document_index_job_store())
+
+
+def get_process_document_index_job_usecase() -> ProcessDocumentIndexJobUseCase:
+    return ProcessDocumentIndexJobUseCase(
+        get_document_indexing_service(),
+        get_document_index_job_store(),
+    )
+
+
+def get_deindex_document_version_usecase() -> DeindexDocumentVersionUseCase:
+    return DeindexDocumentVersionUseCase(get_chroma_client())
+
+
+@lru_cache
+def get_chroma_retriever() -> ChromaRetriever:
+    settings = get_settings()
+    return ChromaRetriever(
+        settings=settings,
+        chroma_client=get_chroma_client(),
+        embedding_client=EmbeddingClient(settings),
+    )
+
+
+@lru_cache
+def get_ollama_llm_client() -> OllamaLLMClient:
+    settings = get_settings()
+    return OllamaLLMClient(
+        base_url=settings.ollama_base_url,
+        model_name=settings.llm_model_name,
+        temperature=settings.llm_temperature,
+        max_tokens=settings.llm_max_tokens,
+        timeout_seconds=settings.llm_timeout_seconds,
+    )
 
 
 @lru_cache

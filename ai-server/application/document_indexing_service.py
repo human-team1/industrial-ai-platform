@@ -62,9 +62,14 @@ class DocumentIndexingService:
             raise AppException(500, "Document download failed", "문서 원본 다운로드에 실패했습니다.", "DOCUMENT-500") from exc
 
         sections = self._parser.parse(content, document_type)
-        chunks = self._chunk(sections, request.document_version_id)
+        chunks = self._chunk(sections, request.document_version_id, request.chunk_size, request.chunk_overlap)
         embeddings = self._embedding.embed_texts([chunk.content for chunk in chunks])
-        vector_count = self._vector_store.upsert_document_chunks(request, chunks, embeddings)
+        collection_name = (
+            self._vector_store.collection_name_for_organization(request.organization_id)
+            if request.organization_id is not None
+            else self._vector_store.collection_name()
+        )
+        vector_count = self._vector_store.upsert_document_chunks(request, chunks, embeddings, collection_name)
         self._status_store.set_status(str(request.document_version_id), "COMPLETED")
 
         logger.info(
@@ -84,7 +89,7 @@ class DocumentIndexingService:
             chunk_count=len(chunks),
             vector_count=vector_count,
             embedding_model=self._settings.rag_embedding_model_name,
-            collection_name=self._vector_store.collection_name(),
+            collection_name=collection_name,
             indexed_at=datetime.now(),
             chunks=chunks,
         )
@@ -97,9 +102,18 @@ class DocumentIndexingService:
         if request.document_type is None or request.document_type.upper() not in self.SUPPORTED_TYPES:
             raise AppException(422, "Unsupported document type", "지원하지 않는 documentType입니다.", "DOCUMENT-422")
 
-    def _chunk(self, sections: list[ParsedSection], document_version_id: int) -> list[IndexedChunk]:
-        chunk_size = self._settings.rag_chunk_size
-        overlap = min(self._settings.rag_chunk_overlap, max(chunk_size - 1, 0))
+    def _chunk(
+        self,
+        sections: list[ParsedSection],
+        document_version_id: int,
+        request_chunk_size: int | None = None,
+        request_chunk_overlap: int | None = None,
+    ) -> list[IndexedChunk]:
+        chunk_size = request_chunk_size or self._settings.rag_chunk_size
+        overlap = min(
+            request_chunk_overlap if request_chunk_overlap is not None else self._settings.rag_chunk_overlap,
+            max(chunk_size - 1, 0),
+        )
         chunks: list[IndexedChunk] = []
         sequence_no = 1
         for section in sections:

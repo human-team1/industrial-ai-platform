@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from domain.rag.models import AnswerType, QuestionMode, ResultContext, SafetyFlag
+from domain.rag.models import AnswerType, QuestionMode, SafetyFlag
 
 
 @dataclass(frozen=True, slots=True)
@@ -10,7 +10,7 @@ class RagQueryCommand:
     organization_id: int
     question: str
     result_id: str | None = None
-    result_context: ResultContext | None = None
+    result_context: dict[str, Any] | None = None
     top_k: int = 5
     prompt_version: str | None = None
     stream: bool = False

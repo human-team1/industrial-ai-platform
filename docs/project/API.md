@@ -611,6 +611,94 @@ MVP 프론트의 브라우저 카메라 검사는 `/inspections/upload`로 단�
 
 ---
 
+## 9.1 문서 인덱싱 상태와 권한
+
+문서 인덱싱 상태는 MariaDB에는 영문 enum으로 저장하고, 화면에서만 한글로 표시한다.
+
+| DB 값 | 화면 표시 |
+| --- | --- |
+| `PENDING` | 대기 |
+| `PROCESSING` | 처리중 |
+| `COMPLETED` | 반영완료 |
+| `FAILED` | 반영실패 |
+
+권한 기준은 다음과 같다.
+
+- 일반 사용자: 자기 회사 문서 조회, 챗봇/RAG 사용
+- `COMPANY_ADMIN` 이상: 자기 회사 문서 업로드, 수정, 삭제, 재인덱싱 요청
+- `SITE_ADMIN`: 전체 문서 운영 현황과 전체 인덱싱 상태 조회
+
+FastAPI는 내부 서버이므로 최종 인증/권한 검증은 Spring이 담당한다. FastAPI는 Spring에서 전달한 `organizationId`, `userId`, `resultContext`를 신뢰하되, `organizationId` 기반 Chroma collection scope는 반드시 지킨다.
+
+## 9.2 POST `/documents`
+
+Spring 외부 문서 업로드 API다.
+
+- 문서 원본을 MinIO에 저장한다.
+- `FILE`, `DOCUMENT`, `DOCUMENT_VERSION`, `DOCUMENT_INDEX_JOB` 메타데이터를 MariaDB에 저장한다.
+- 업로드 성공 후 즉시 응답한다.
+- 응답의 `indexingStatus`는 `PENDING` 또는 `PROCESSING`이다.
+- FastAPI 인덱싱은 비동기 job으로 처리된다.
+- 일반 작업자는 업로드할 수 없고 `COMPANY_ADMIN` 이상만 가능하다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "documentId": 1001,
+    "documentVersionId": 2001,
+    "indexJobId": 3001,
+    "indexingStatus": "PROCESSING"
+  },
+  "message": "문서가 업로드되었고 인덱싱이 요청되었습니다."
+}
+```
+
+## 9.3 POST `/document-versions/{versionId}/index-jobs`
+
+Spring 외부 재인덱싱 요청 API다.
+
+- `COMPANY_ADMIN` 이상만 호출 가능하다.
+- Spring이 `DOCUMENT_INDEX_JOB`을 생성한다.
+- Spring이 FastAPI 내부 인덱싱 API를 호출한다.
+- FastAPI는 Redis queue에 작업을 등록하고 `aiJobId`를 반환한다.
+- Spring은 `aiJobId`를 `DOCUMENT_INDEX_JOB`에 연결하거나 `error_message` 등에 추적 가능하게 저장한다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "indexJobId": 3002,
+    "documentVersionId": 2001,
+    "aiJobId": "doc-index-3002",
+    "indexingStatus": "PROCESSING"
+  },
+  "message": "문서 재인덱싱이 요청되었습니다."
+}
+```
+
+## 9.4 GET `/document-versions/{versionId}/index-jobs`
+
+Spring MariaDB의 `DOCUMENT_INDEX_JOB` 상태를 조회한다. 사용자는 자기 회사 문서 범위 내에서만 조회 가능하고, `COMPANY_ADMIN` 이상은 자기 회사 문서의 인덱싱 작업 상태를 조회할 수 있다. `SITE_ADMIN`은 전체 운영 상태를 조회할 수 있다.
+
+## 9.5 DELETE `/documents/{documentId}`
+
+Spring 외부 문서 삭제 API다.
+
+- Spring은 문서를 soft delete한다.
+- 최신 `DOCUMENT_VERSION`이 검색 대상에서 제외되어야 한다.
+- Spring은 FastAPI deindex API를 호출해 ChromaDB vector 삭제를 요청한다.
+- Chroma 삭제 실패 시 문서 삭제 자체는 성공 처리하되, deindex 실패 상태를 `DOCUMENT_INDEX_JOB` 또는 운영 로그에 남긴다.
+
+## 9.6 문서 수정 / 재인덱싱 / 삭제 정책
+
+- 문서 수정으로 새 파일이 올라오면 새 `DOCUMENT_VERSION`을 생성한다.
+- 같은 `documentVersionId` 재인덱싱 시 기존 Chroma vector는 삭제 후 다시 적재한다.
+- 문서 삭제 시 Spring은 soft delete하고 FastAPI deindex API를 호출한다.
+- MariaDB `CHUNK` / `VECTOR_INDEX`의 최종 삭제 또는 비활성화는 Spring이 담당한다.
+- MVP 지원 형식은 `PDF`, `TXT`, `MD`, `DOCX`이며 OCR은 제외한다.
+- 스캔 PDF처럼 텍스트 추출이 불가능한 문서는 인덱싱 실패로 처리한다.
+
 # 10. Chatbot
 
 | Method | Endpoint | 설명 | 권한 |
@@ -1377,6 +1465,209 @@ Spring 내부 연동용 API다. 외부 사용자에게 직접 노출하지 않�
 | POST | `/ai/v1/internal/vision/infer-video` | 영상 추론 | Spring |
 | POST | `/ai/v1/internal/vision/infer-frame` | 실시간 프레임 추론 | Spring |
 | POST | `/ai/v1/internal/models/memory-bank` | 정상 이미지 파일 키 목록과 고정 ckpt/config를 받아 memory_bank 생성 | Spring |
+
+---
+
+## 17.0 Documents / RAG Internal API
+
+Spring 내부 호출용 Documents / RAG API는 다음을 표준으로 한다.
+
+| Method | Endpoint | 설명 | 호출 주체 |
+| --- | --- | --- | --- |
+| POST | `/ai/v1/internal/documents/index` | 문서 인덱싱 비동기 job 등록 | Spring |
+| GET | `/ai/v1/internal/document-index-jobs/{aiJobId}` | 문서 인덱싱 job 상태 조회 | Spring |
+| DELETE | `/ai/v1/internal/document-versions/{documentVersionId}/index` | 문서 검색 인덱스 삭제 | Spring |
+| POST | `/ai/v1/internal/rag/query` | 조직 범위 문서 기반 RAG 질의 | Spring |
+
+### POST `/ai/v1/internal/documents/index`
+
+기존 path는 유지하되 의미는 “즉시 인덱싱 완료”가 아니라 “비동기 인덱싱 job 등록”이다.
+
+```json
+{
+  "indexJobId": 3001,
+  "documentId": 1001,
+  "documentVersionId": 2001,
+  "organizationId": 1001,
+  "file": {
+    "fileId": 501,
+    "fileKey": "documents/org-1001/doc-1001/v1/manual.pdf",
+    "fileName": "manual.pdf",
+    "mimeType": "application/pdf",
+    "checksum": "sha256:..."
+  },
+  "metadata": {
+    "title": "프레스 설비 점검 매뉴얼",
+    "documentType": "MANUAL",
+    "category": "MAINTENANCE",
+    "equipmentType": "PRESS",
+    "tags": ["프레스", "점검", "장애대응"]
+  },
+  "chunking": {
+    "chunkSize": 800,
+    "chunkOverlap": 120
+  },
+  "embedding": {
+    "embeddingModel": "default"
+  }
+}
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "aiJobId": "doc-index-3001",
+    "indexJobId": 3001,
+    "documentId": 1001,
+    "documentVersionId": 2001,
+    "organizationId": 1001,
+    "indexingStatus": "PROCESSING",
+    "collectionName": "documents_org_1001",
+    "queuedAt": "2026-05-05T10:00:00"
+  },
+  "message": "문서 인덱싱 작업이 등록되었습니다."
+}
+```
+
+| 조건 | 실패 처리 |
+| --- | --- |
+| `indexJobId` 누락 | 400 |
+| `documentId` 누락 | 400 |
+| `documentVersionId` 누락 | 400 |
+| `organizationId` 누락 | 400 |
+| `file.fileKey` 누락 | 400 |
+| 지원하지 않는 MIME | 422 |
+| `chunkSize <= 0` | 422 |
+| `chunkOverlap < 0` | 422 |
+| `chunkOverlap >= chunkSize` | 422 |
+| Redis queue 등록 실패 | 500 |
+
+### GET `/ai/v1/internal/document-index-jobs/{aiJobId}`
+
+Spring 내부 호출용 FastAPI 인덱싱 job 상태 조회 API다. MariaDB가 최종 source of truth이며, 이 응답은 Spring이 `DOCUMENT_INDEX_JOB`, `CHUNK`, `VECTOR_INDEX` 갱신에 참고한다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "aiJobId": "doc-index-3001",
+    "indexJobId": 3001,
+    "documentId": 1001,
+    "documentVersionId": 2001,
+    "organizationId": 1001,
+    "indexingStatus": "COMPLETED",
+    "collectionName": "documents_org_1001",
+    "indexedChunkCount": 12,
+    "chunks": [
+      {
+        "sequenceNo": 1,
+        "content": "점검 전 전원을 차단하고...",
+        "pageNo": 1,
+        "section": "안전 수칙",
+        "vectorRef": "document_version:2001:chunk:1"
+      }
+    ],
+    "errorMessage": null,
+    "startedAt": "2026-05-05T10:00:02",
+    "completedAt": "2026-05-05T10:00:20"
+  },
+  "message": "문서 인덱싱 작업 상태를 조회했습니다."
+}
+```
+
+실패 상태도 `success: true`로 조회되며 `indexingStatus = FAILED`, `errorMessage`에 실패 사유를 담는다.
+
+### DELETE `/ai/v1/internal/document-versions/{documentVersionId}/index`
+
+Spring 내부 호출용 deindex API다. `organizationId`로 `documents_org_{organizationId}` collection을 선택하고 `documentVersionId` 조건으로 vector를 삭제한다.
+
+```json
+{
+  "organizationId": 1001,
+  "documentId": 1001,
+  "reason": "문서 삭제로 인한 검색 인덱스 제거"
+}
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "documentId": 1001,
+    "documentVersionId": 2001,
+    "organizationId": 1001,
+    "collectionName": "documents_org_1001",
+    "deletedVectorCount": 12,
+    "deindexedAt": "2026-05-05T10:30:00"
+  },
+  "message": "문서 검색 인덱스가 삭제되었습니다."
+}
+```
+
+### POST `/ai/v1/internal/rag/query`
+
+Spring 내부 호출용 RAG 질의 API다. 기존 `/ai/v1/rag/query`는 legacy alias로 유지한다. FastAPI는 `organizationId` 기준 `documents_org_{organizationId}` collection만 검색한다.
+
+```json
+{
+  "question": "컨베이어 정렬이 틀어졌을 때 점검 순서는?",
+  "userId": 1,
+  "organizationId": 1001,
+  "conversationId": 7001,
+  "resultContext": {
+    "resultId": 3001,
+    "inspectionId": 2001,
+    "decisionCode": "RECHECK",
+    "score": 0.62,
+    "confidence": 0.71,
+    "equipmentName": "컨베이어 #1",
+    "targetId": 10,
+    "anomalySummary": "벨트 좌측 정렬 이상 의심"
+  },
+  "topK": 5
+}
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "answer": "먼저 컨베이어 가이드 위치와 체인 장력을 확인하세요...",
+    "answerStatus": "ANSWERED",
+    "questionMode": "RESULT_LINKED",
+    "sources": [
+      {
+        "documentId": 1001,
+        "documentVersionId": 2001,
+        "documentTitle": "컨베이어 점검 매뉴얼",
+        "chunkId": 301,
+        "pageNo": 3,
+        "section": "정렬 점검",
+        "score": 0.8721,
+        "sourceSnippet": "컨베이어 정렬 이상 시..."
+      }
+    ],
+    "llmModel": "ollama-default",
+    "createdAt": "2026-05-05T10:40:00"
+  },
+  "message": "문서 기반 답변이 생성되었습니다."
+}
+```
+
+`answerStatus` 값:
+
+| 값 | 의미 |
+| --- | --- |
+| `ANSWERED` | 정상 답변 생성 |
+| `NO_RELEVANT_SOURCE` | 관련 문서 없음 |
+| `OUT_OF_SCOPE` | 서비스 범위 밖 질문 |
+| `DOCUMENT_SCOPE_FORBIDDEN` | 조직 범위 밖 문서 접근 차단 |
+| `VECTOR_STORE_FAILED` | 벡터 검색 실패 |
+| `LLM_FAILED` | LLM 호출 실패 |
+| `VALIDATION_FAILED` | 요청 검증 실패 |
+
+검색 결과가 없으면 문서 기반 답변을 임의 생성하지 않고 `NO_RELEVANT_SOURCE`와 재질문 안내만 반환한다.
 
 ---
 
