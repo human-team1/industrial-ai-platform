@@ -280,6 +280,8 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | is_active | BOOLEAN | 활성 모델 버전 여부 |
 
 > PatchCore 계열 모델 버전은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 모두 존재해야 배포 가능 상태로 활성화할 수 있다.
+> `CKPT`와 `CONFIG`는 base profile별 고정 산출물을 참조할 수 있고, `MEMORY_BANK`는 고객사/검사대상 정상 이미지셋 기준으로 생성된 별도 산출물이다.
+> 같은 `CKPT`/`CONFIG`를 사용하더라도 `MEMORY_BANK`가 다르면 다른 `MODEL_VERSION`으로 관리한다.
 
 ---
 

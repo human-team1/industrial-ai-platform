@@ -88,6 +88,7 @@ export async function generateModelVersionsFromNormalImages(
     const formData = new FormData()
     form.normalImages.forEach((file) => formData.append('normalImages', file))
     formData.append('modelCategory', form.modelCategory)
+    if (form.modelProfile) formData.append('modelProfile', form.modelProfile)
     formData.append('organizationId', form.organizationId)
     formData.append('deploymentScope', form.deploymentScope)
     if (form.deploymentScope === 'TARGET' && form.targetId) formData.append('targetId', form.targetId)
@@ -96,6 +97,7 @@ export async function generateModelVersionsFromNormalImages(
     const response = await apiClient.post<ApiResponse<GenerateModelVersionsResponse>>(
       `/models/${modelId}/versions/from-normal-images`,
       formData,
+      { timeout: 300_000 },
     )
     return response.data.data
   } catch (error) {

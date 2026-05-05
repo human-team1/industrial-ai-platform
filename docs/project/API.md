@@ -774,6 +774,8 @@ Spring 외부 문서 삭제 API다.
 
 단, `ckpt/config`를 새로 학습하거나 생성하지는 않는다.
 `ckpt/config`는 4개 고정 모델 프로필에서 재사용하고, 업로드된 정상 이미지셋으로 `memory_bank`만 생성한다.
+DINOv2는 `PERFORMANCE` 프로필, WideResNet50은 `SPEED` 프로필로 고정한다.
+고객사/검사대상별로 달라지는 산출물은 `memory_bank`뿐이며, `ckpt/config`는 새로 생성하지 않는다.
 
 고정 모델 프로필은 아래 4가지를 사용한다.
 
@@ -1395,7 +1397,7 @@ reason=고객사 A 프레스 검사대상 정상 이미지셋 기준 memory bank
   "data": {
     "modelId": 1,
     "modelCategory": "TEXTURE",
-    "normalImageCount": 1,
+    "normalImageCount": 100,
     "createdVersions": [
       {
         "modelProfile": "SPEED",
@@ -1426,7 +1428,7 @@ reason=고객사 A 프레스 검사대상 정상 이미지셋 기준 memory bank
 | 조건 | 실패 처리 |
 | --- | --- |
 | `normalImages` 누락 | 400 |
-| 정상 이미지 파일 개수가 1개 미만 | 422 |
+| 정상 이미지 파일 개수가 100개 미만 | 422 |
 | 지원하지 않는 이미지 MIME | 422 |
 | 손상 이미지 포함 | 422 |
 | `modelCategory`가 허용값이 아님 | 422 |
@@ -1885,7 +1887,7 @@ FastAPI는 전달받은 정상 이미지 파일과 고정 모델 산출물을 �
   ],
   "configFileKey": "models/base/performance-texture/config.json",
   "ckptFileKey": "models/base/performance-texture/model.ckpt",
-  "outputPrefix": "models/generated/org-1001/target-10/performance-texture"
+  "outputPrefix": "models/generated/org-1001/target-10/performance-texture/job-abc"
 }
 ```
 
@@ -1895,8 +1897,8 @@ FastAPI는 전달받은 정상 이미지 파일과 고정 모델 산출물을 �
 {
   "success": true,
   "data": {
-    "memoryBankFileKey": "models/generated/org-1001/target-10/performance-texture/memory_bank.pt",
-    "normalImageCount": 1,
+    "memoryBankFileKey": "models/generated/org-1001/target-10/performance-texture/job-abc/memory_bank.pt",
+    "normalImageCount": 100,
     "modelCategory": "TEXTURE",
     "modelProfile": "PERFORMANCE",
     "createdAt": "2026-05-04T10:10:00"
