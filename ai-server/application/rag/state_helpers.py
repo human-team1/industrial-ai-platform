@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from typing import Any
-
-from config.settings import settings
 from domain.rag.source_chunk import SourceChunk
 from domain.rag.state import GraphState
 
@@ -17,12 +15,15 @@ def append_route(state: GraphState, node_name: str) -> list[str]:
     return [*state.route_path, node_name]
 
 
-def normalize_organization_id_for_retrieval(value: Any) -> str:
+def normalize_organization_id_for_retrieval(
+    value: Any,
+    default_organization_id: str,
+) -> str:
     if value is None:
-        return settings.rag_default_organization_id
+        return default_organization_id
 
     if str(value) == "1":
-        return settings.rag_default_organization_id
+        return default_organization_id
 
     return str(value)
 

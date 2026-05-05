@@ -6,6 +6,7 @@ from application.vision_inference_service import VisionInferenceService
 from config.settings import get_settings
 from infrastructure.chroma_client import ChromaClientWrapper
 from infrastructure.concurrency.inference_limiter import InferenceLimiter
+from infrastructure.embedding_client import EmbeddingClient
 from infrastructure.fallback_inferencer import StatisticalFallbackInferencer
 from infrastructure.heatmap_generator import HeatmapGenerator
 from infrastructure.image_preprocessor import VisionImagePreprocessor
@@ -40,6 +41,7 @@ def get_document_indexing_service() -> DocumentIndexingService:
     return DocumentIndexingService(
         get_settings(),
         get_chroma_client(),
+        EmbeddingClient(get_settings()),
         get_minio_storage(),
         get_redis_status_store(),
     )

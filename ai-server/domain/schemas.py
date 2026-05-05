@@ -63,13 +63,3 @@ class DocumentIndexResult(BaseModel):
     collection_name: str
     indexed_at: datetime
     chunks: list[IndexedChunk] = Field(default_factory=list)
-
-
-class RagQueryRequest(BaseModel):
-    question: str
-    top_k: int = Field(default=3, ge=1, le=10)
-
-
-class RagQueryResponse(BaseModel):
-    answer: str
-    sources: list[str] = Field(default_factory=list)
