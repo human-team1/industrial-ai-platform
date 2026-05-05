@@ -18,13 +18,3 @@ class AnomalyInferenceResponse(BaseModel):
 class DocumentIndexResponse(BaseModel):
     document_id: str
     status: str
-
-
-class RagQueryRequest(BaseModel):
-    question: str
-    top_k: int = Field(default=3, ge=1, le=10)
-
-
-class RagQueryResponse(BaseModel):
-    answer: str
-    sources: list[str] = Field(default_factory=list)

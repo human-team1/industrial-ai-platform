@@ -2,7 +2,6 @@ from functools import lru_cache
 
 from application.anomaly_service import AnomalyService
 from application.document_indexing_service import DocumentIndexingService
-from application.rag_service import RagService
 from application.vision_inference_service import VisionInferenceService
 from config.settings import get_settings
 from infrastructure.chroma_client import ChromaClientWrapper
@@ -43,10 +42,6 @@ def get_document_indexing_service() -> DocumentIndexingService:
         get_minio_storage(),
         get_redis_status_store(),
     )
-
-
-def get_rag_service() -> RagService:
-    return RagService(get_chroma_client())
 
 
 @lru_cache

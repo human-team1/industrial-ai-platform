@@ -47,8 +47,8 @@ class Settings(BaseSettings):
     # ==================================================
     # Retriever
     # ==================================================
-    retriever_type: str = "mock"
-    # retriever_type: str = "chroma"
+    # retriever_type: str = "mock"
+    retriever_type: str = "chroma"
     retrieval_config_id: str = "R3_HYBRID_TK10_S04"
     best_retrieval_config_path: str = (
         "./experiments/rag_langgraph_eval/config/best_retrieval_config.yaml"
