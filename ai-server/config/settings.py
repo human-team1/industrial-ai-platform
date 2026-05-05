@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     chroma_client_mode: str = "http"  # http | persistent
     chroma_host: str = "localhost"
     chroma_port: int = 8000
+    
+    # chroma_collection_documents: str = "industrial_document_chunks"
+    # chroma_collection_name: str = "industrial_rag_chunks"
 
     chroma_collection_documents: str = "industrial_rag_chunks_a_v1"
     chroma_dev_artifacts_collection: str = "industrial_rag_dev_artifacts_v1"
@@ -133,7 +136,21 @@ class Settings(BaseSettings):
 
     rag_source_fields: str = (
         "document_id,document_version_id,chunk_id,title,"
-        "section_title,page,content,score,rank,source_uri"
+        "section_title,page,content,score,rank,source_uri")
+    embedding_model_name: str = ""
+    rag_embedding_model_name: str = "deterministic-hash-embedding"
+    rag_chunk_size: int = 800
+    rag_chunk_overlap: int = 100
+    llm_model_name: str = ""
+    log_level: str = "INFO"
+    tz: str = "Asia/Seoul"
+    
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        protected_namespaces=("settings_",),
     )
 
     # ==================================================

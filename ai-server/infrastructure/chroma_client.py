@@ -33,6 +33,19 @@ class ChromaClientWrapper:
         return self._client.get_collection(
             name=self._settings.chroma_collection_documents
         )
+        
+    def collection_name(self) -> str:
+        return self._settings.chroma_collection_name
+
+    def client(self):
+        import chromadb
+        from chromadb.config import Settings as ChromaSettings
+
+        return chromadb.HttpClient(
+            host=self._settings.chroma_host,
+            port=self._settings.chroma_port,
+            settings=ChromaSettings(anonymized_telemetry=False),
+        )
 
     def get_or_create_document_collection(self):
         """

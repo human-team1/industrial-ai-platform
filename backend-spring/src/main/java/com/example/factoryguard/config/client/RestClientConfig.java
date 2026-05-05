@@ -32,6 +32,8 @@ public class RestClientConfig {
                 .setReadTimeout(Duration.ofSeconds(properties.getReadTimeoutSec()))
                 .additionalInterceptors(requestIdInterceptor)
                 .errorHandler(aiErrorHandler)
+                .setConnectTimeout(Duration.ofSeconds(5))
+                .setReadTimeout(Duration.ofSeconds(60))
                 .build();
     }
 }
