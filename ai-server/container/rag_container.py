@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from config.settings import Settings, get_settings
+from application.rag.prompt_builder import PromptBuilder
+from application.rag.source_verifier import SourceVerifier
 from infrastructure.chroma_client import ChromaClientWrapper
 from infrastructure.embedding_client import EmbeddingClient
 from infrastructure.llm.ollama_llm_client import OllamaLLMClient
@@ -54,3 +56,35 @@ def create_llm_client(settings: Settings | None = None) -> OllamaLLMClient:
 def create_langsmith_tracer(settings: Settings | None = None) -> LangSmithTracer:
     current = _resolve_settings(settings)
     return LangSmithTracer(current)
+
+
+def create_prompt_builder(
+    settings: Settings | None = None,
+    *,
+    prompt_version: str | None = None,
+) -> PromptBuilder:
+    current = _resolve_settings(settings)
+    return PromptBuilder(
+        prompt_dir=current.prompt_dir,
+        prompt_version=prompt_version or current.prompt_version,
+    )
+
+
+def create_source_verifier() -> SourceVerifier:
+    return SourceVerifier()
+
+
+def create_rag_graph():
+    from application.rag.graph_runner import build_rag_graph
+
+    return build_rag_graph()
+
+
+def create_rag_graph_runner(settings: Settings | None = None):
+    from application.rag.graph_runner import RagGraphRunner
+
+    current = _resolve_settings(settings)
+    return RagGraphRunner(
+        graph=create_rag_graph(),
+        tracer=create_langsmith_tracer(current),
+    )

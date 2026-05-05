@@ -2,125 +2,29 @@ from __future__ import annotations
 
 from typing import Any
 
+from application.rag import node_helpers
 from config.settings import settings
-from domain.rag.models import SafetyFlag, SourceChunk
-
 from domain.rag.models import AnswerType, QuestionMode, SafetyFlag
 from domain.rag.state import GraphState
-
-from config.settings import settings
 from application.rag.retriever_factory import create_retriever
-from infrastructure.result_context.mock_result_context_store import MockResultContextStore
-from application.rag.prompt_builder import PromptBuilder
-from infrastructure.llm.ollama_llm_client import OllamaLLMClient
-from application.rag.source_verifier import SourceVerifier
-
-PROMPT_INJECTION_KEYWORDS = [
-    "이전 지시 무시",
-    "시스템 프롬프트",
-    "system prompt",
-    "ignore previous",
-    "developer message",
-    "hidden instruction",
-]
-
-OUT_OF_SCOPE_KEYWORDS = [
-    "날씨",
-    "점심",
-    "주식",
-    "코인",
-    "연예",
-    "스포츠",
-    "여행",
-]
-
-RESULT_LINKED_KEYWORDS = [
-    "이 결과",
-    "검사 결과",
-    "재검사로 나온 이유",
-    "판정 이유",
-    "불량 판정",
-    "정상 판정",
-    "confidence",
-    "기록 초안",
-    "보고서 초안",
-    "좌측 상단",
-    "우측 상단",
-    "좌측 하단",
-    "우측 하단",
-]
-
-DOCUMENT_INTENT_KEYWORDS = [
-    "점검",
-    "조치",
-    "절차",
-    "순서",
-    "확인할 항목",
-    "확인 항목",
-    "먼저 확인",
-    "어떻게",
-    "재촬영",
-    "매뉴얼",
-    "기준서",
-    "체크리스트",
-    "출처",
-    "대응",
-]
-
-DOCUMENT_SEARCH_KEYWORDS = [
-    "문서",
-    "출처",
-    "매뉴얼",
-    "기준서",
-    "체크리스트",
-    "컨베이어",
-    "조명",
-    "촬영",
-    "재촬영",
-    "카메라",
-    "렌즈",
-    "표면 오염",
-    "오염",
-    "세척",
-    "정렬",
-    "장력",
-    "센서",
-    "가이드 레일",
-    "heatmap",
-    "anomaly map",
-]
-
+from container.rag_container import (
+    create_llm_client,
+    create_prompt_builder,
+    create_result_context_store,
+    create_source_verifier,
+)
 
 # dict 입력도 그래프에서 같은 상태 객체로 다루기 위한 변환 헬퍼.
-def _to_state(state: GraphState | dict[str, Any]) -> GraphState:
-    if isinstance(state, GraphState):
-        return state
-    return GraphState.model_validate(state)
-
-
 # 어떤 노드를 거쳤는지 route_path에 누적하기 위한 헬퍼.
-def _append_route(state: GraphState, node_name: str) -> list[str]:
-    return [*state.route_path, node_name]
-
-
 # 공백 차이를 줄여 질문 분류를 안정적으로 맞추기 위한 정규화.
-def _normalize_question(question: str) -> str:
-    return " ".join(question.strip().split())
-
-
 # 질문 안에 특정 의도 키워드가 있는지 확인한다.
-def _contains_any(text: str, keywords: list[str]) -> bool:
-    lowered = text.lower()
-    return any(keyword.lower() in lowered for keyword in keywords)
-
-
-# Step 5의 첫 관문: 질문 길이와 기본 입력 형식을 확인한다.
+# 질문 길이와 기본 입력 형식을 확인한다.
 def validate_input(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
-    route_path = _append_route(current, "validate_input")
+    current = node_helpers.to_state(state)
+    route_path = node_helpers.append_route(current, "validate_input")
 
     question = current.question or ""
-    normalized = _normalize_question(question)
+    normalized = node_helpers.normalize_question(question)
 
     if len(normalized) < 2:
         return {
@@ -154,13 +58,16 @@ def validate_input(state: GraphState | dict[str, Any]) -> dict[str, Any]:
 
 # 질문을 result/document/general/out_of_scope 중 하나로 분류한다.
 def classify_question_mode(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
-    route_path = _append_route(current, "classify_question_mode")
+    current = node_helpers.to_state(state)
+    route_path = node_helpers.append_route(current, "classify_question_mode")
 
     question = current.normalized_question or current.question
     safety_flags = list(current.safety_flags)
 
-    if _contains_any(question, PROMPT_INJECTION_KEYWORDS):
+    if node_helpers.contains_any(
+        question,
+        node_helpers.PROMPT_INJECTION_KEYWORDS,
+    ):
         if SafetyFlag.PROMPT_INJECTION not in safety_flags:
             safety_flags.append(SafetyFlag.PROMPT_INJECTION)
 
@@ -173,7 +80,10 @@ def classify_question_mode(state: GraphState | dict[str, Any]) -> dict[str, Any]
             "route_path": route_path,
         }
 
-    if _contains_any(question, OUT_OF_SCOPE_KEYWORDS):
+    if node_helpers.contains_any(
+        question,
+        node_helpers.OUT_OF_SCOPE_KEYWORDS,
+    ):
         return {
             "question_mode": QuestionMode.OUT_OF_SCOPE,
             "is_out_of_scope": True,
@@ -186,10 +96,19 @@ def classify_question_mode(state: GraphState | dict[str, Any]) -> dict[str, Any]
     # 예: "조명 조건 의심이면 어떻게 재촬영해야 해?" + result_id 있음
     # → result_context는 참고하되, 경로는 document_search
     has_document_intent = (
-        _contains_any(question, DOCUMENT_INTENT_KEYWORDS)
-        or _contains_any(question, DOCUMENT_SEARCH_KEYWORDS)
+        node_helpers.contains_any(
+            question,
+            node_helpers.DOCUMENT_INTENT_KEYWORDS,
+        )
+        or node_helpers.contains_any(
+            question,
+            node_helpers.DOCUMENT_SEARCH_KEYWORDS,
+        )
     )
-    has_result_intent = _contains_any(question, RESULT_LINKED_KEYWORDS)
+    has_result_intent = node_helpers.contains_any(
+        question,
+        node_helpers.RESULT_LINKED_KEYWORDS,
+    )
 
     # 1) "이 결과", "정상 판정", "좌측 상단"처럼 특정 검사 결과를 가리키는 표현은
     #    조치/세척 같은 단어가 있어도 result_linked를 우선한다.
@@ -233,15 +152,15 @@ def classify_question_mode(state: GraphState | dict[str, Any]) -> dict[str, Any]
 
 # 분기 직전까지의 route_path만 기록하는 얇은 중간 노드.
 def route_by_mode(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
     return {
-        "route_path": _append_route(current, "route_by_mode"),
+        "route_path": node_helpers.append_route(current, "route_by_mode"),
     }
 
 
 # 현재 state를 보고 다음 그래프 노드 이름을 결정한다.
 def select_route(state: GraphState | dict[str, Any]) -> str:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     if current.answer_type == AnswerType.VALIDATION_ERROR:
         return "finalize"
@@ -262,7 +181,7 @@ def select_route(state: GraphState | dict[str, Any]) -> str:
 
 # 결과 연계 질문인데 result_id가 없을 때 제한 응답을 만든다.
 def build_need_clarification_response(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     return {
         "answer": "검사 결과 설명을 위해 result_id가 필요합니다. 결과 상세 화면에서 다시 질문하거나 result_id를 함께 전달해주세요.",
@@ -270,55 +189,55 @@ def build_need_clarification_response(state: GraphState | dict[str, Any]) -> dic
         "need_clarification": True,
         "need_llm": False,
         "llm_called": False,
-        "route_path": _append_route(current, "build_need_clarification_response"),
+        "route_path": node_helpers.append_route(current, "build_need_clarification_response"),
     }
 
 
-# Step 5에서는 실제 result_context 대신 결과 연계 경로 placeholder만 반환한다.
+#  실제 result_context 대신 결과 연계 경로 placeholder만 반환한다.
 def build_result_linked_placeholder(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     return {
-        "answer": "Step 5 graph skeleton: 결과 연계 질문 경로로 라우팅되었습니다. Step 9에서 result_context를 주입하고, Step 10~11에서 실제 답변을 생성합니다.",
+        "answer": "graph skeleton: 결과 연계 질문 경로로 라우팅되었습니다. 후에 result_context를 주입하고, 실제 답변을 생성합니다.",
         "answer_type": AnswerType.RESULT_LINKED,
         "need_result_context": True,
         "need_retrieval": True,
         "need_llm": False,
         "llm_called": False,
-        "route_path": _append_route(current, "build_result_linked_placeholder"),
+        "route_path": node_helpers.append_route(current, "build_result_linked_placeholder"),
     }
 
 
-# Step 5에서는 실제 검색 대신 문서 검색 경로 placeholder만 반환한다.
+# 실제 검색 대신 문서 검색 경로 placeholder만 반환한다.
 def build_document_search_placeholder(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     return {
-        "answer": "Step 5 graph skeleton: 문서 검색 질문 경로로 라우팅되었습니다. Step 8에서 MockRetriever를 연결하고, Step 10~11에서 실제 답변을 생성합니다.",
+        "answer": "graph skeleton: 문서 검색 질문 경로로 라우팅되었습니다. MockRetriever를 연결하고, 실제 답변을 생성합니다.",
         "answer_type": AnswerType.DOCUMENT_SEARCH,
         "need_retrieval": True,
         "need_llm": False,
         "llm_called": False,
-        "route_path": _append_route(current, "build_document_search_placeholder"),
+        "route_path": node_helpers.append_route(current, "build_document_search_placeholder"),
     }
 
 
 # 서비스 범위 안의 일반 안내 질문에 대한 고정 응답이다.
 def build_general_response(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     return {
         "answer": "이 챗봇은 이상 탐지 결과 설명, 설비 점검 문서 검색, 대응 절차 안내를 지원합니다.",
         "answer_type": AnswerType.GENERAL,
         "need_llm": False,
         "llm_called": False,
-        "route_path": _append_route(current, "build_general_response"),
+        "route_path": node_helpers.append_route(current, "build_general_response"),
     }
 
 
 # 범위 밖 질문이나 차단 대상 질문에 대한 제한 응답이다.
 def build_out_of_scope_response(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     safety_flags = list(current.safety_flags)
 
@@ -338,12 +257,12 @@ def build_out_of_scope_response(state: GraphState | dict[str, Any]) -> dict[str,
         "is_out_of_scope": True,
         "need_llm": False,
         "llm_called": False,
-        "route_path": _append_route(current, "build_out_of_scope_response"),
+        "route_path": node_helpers.append_route(current, "build_out_of_scope_response"),
     }
     
 # retriever는 호출됐지만 관련 문서를 찾지 못했을 때의 제한 응답이다.
 def build_no_source_response(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     return {
         "answer": (
@@ -355,14 +274,14 @@ def build_no_source_response(state: GraphState | dict[str, Any]) -> dict[str, An
         "need_llm": False,
         "llm_called": False,
         "retriever_called": current.retriever_called,
-        "route_path": _append_route(current, "build_no_source_response"),
+        "route_path": node_helpers.append_route(current, "build_no_source_response"),
         "errors": [*current.errors, "no_retrieval_result"],
     }
 
 
 # retriever 실행 중 예외가 났을 때의 오류 응답이다.
 def build_retriever_error_response(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
     
     # 같은 retriever_error가 이미 기록된 경우 중복 추가를 막는다.
     errors = list(current.errors)
@@ -379,23 +298,23 @@ def build_retriever_error_response(state: GraphState | dict[str, Any]) -> dict[s
         "need_llm": False,
         "llm_called": False,
         "retriever_called": current.retriever_called,
-        "route_path": _append_route(current, "build_retriever_error_response"),
+        "route_path": node_helpers.append_route(current, "build_retriever_error_response"),
         "errors": errors,
     }    
     
 
-# Step 5 최종 노드: 경로 기록과 graph version만 정리한다.
+#  최종 노드: 경로 기록과 graph version만 정리한다.
 def finalize_response(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     return {
-        "route_path": _append_route(current, "finalize_response"),
+        "route_path": node_helpers.append_route(current, "finalize_response"),
         "graph_version": "graph_v0",
     }
 
 def load_result_context(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
-    route_path = _append_route(current, "load_result_context")
+    current = node_helpers.to_state(state)
+    route_path = node_helpers.append_route(current, "load_result_context")
 
     # result_id가 없는 document_search 질문은 result_context 없이 계속 진행한다.
     # result_id가 없는 질문은 result_context 없이 다음 단계로 계속 진행한다.
@@ -404,8 +323,8 @@ def load_result_context(state: GraphState | dict[str, Any]) -> dict[str, Any]:
             "route_path": route_path,
         }
 
-    # Step 9에서는 실제 DB 대신 mock store에서 result_id 기준 문맥을 조회한다.
-    store = MockResultContextStore(settings.result_context_sample_path)
+    # 실제 DB 대신 mock store에서 result_id 기준 문맥을 조회한다.
+    store = create_result_context_store()
     result_context = store.get_by_result_id(current.result_id)
 
     if result_context is None:
@@ -443,7 +362,7 @@ def load_result_context(state: GraphState | dict[str, Any]) -> dict[str, Any]:
 
 
 def select_result_context_route(state: GraphState | dict[str, Any]) -> str:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     # result_context 조회 실패 시에는 전용 응답 노드로, 아니면 retrieval 단계로 보낸다.
     if "result_context_not_found" in current.errors:
@@ -455,7 +374,7 @@ def select_result_context_route(state: GraphState | dict[str, Any]) -> str:
 def build_result_context_not_found_response(
     state: GraphState | dict[str, Any],
 ) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     return {
         "answer": (
@@ -466,110 +385,12 @@ def build_result_context_not_found_response(
         "need_clarification": True,
         "need_llm": False,
         "llm_called": False,
-        "route_path": _append_route(current, "build_result_context_not_found_response"),
+        "route_path": node_helpers.append_route(
+            current,
+            "build_result_context_not_found_response",
+        ),
     }
     
-
-def _normalize_organization_id_for_retrieval(value: Any) -> str:
-    """
-    B GraphState는 organization_id=1처럼 숫자를 쓸 수 있고,
-    A Chroma metadata는 org-001 문자열을 사용한다.
-    """
-    if value is None:
-        return settings.rag_default_organization_id
-
-    if str(value) == "1":
-        return settings.rag_default_organization_id
-
-    return str(value)
-
-
-def _source_to_source_chunk(source: Any) -> SourceChunk:
-    if isinstance(source, SourceChunk):
-        return source
-
-    if isinstance(source, dict):
-        return SourceChunk.model_validate(source)
-
-    if hasattr(source, "model_dump"):
-        return SourceChunk.model_validate(source.model_dump())
-
-    if hasattr(source, "dict"):
-        return SourceChunk.model_validate(source.dict())
-
-    raise TypeError(f"unsupported source type: {type(source)}")
-
-
-
-def _source_to_dict(source: Any) -> dict[str, Any]:
-    if isinstance(source, dict):
-        return source
-
-    if hasattr(source, "model_dump"):
-        return source.model_dump()
-
-    if hasattr(source, "dict"):
-        return source.dict()
-
-    raise TypeError(f"unsupported source type: {type(source)}")
-
-
-def _normalize_retrieval_sources(result: Any) -> list[SourceChunk]:
-    """
-    MockRetriever / ChromaRetriever 반환 형태 차이를 흡수한다.
-
-    허용:
-    - list[SourceChunk]
-    - list[dict]
-    - RetrievalResult(sources=[...])
-    - dict {"sources": [...]}
-    """
-    if isinstance(result, list):
-        return [_source_to_source_chunk(source) for source in result]
-
-    if hasattr(result, "sources"):
-        return [_source_to_source_chunk(source) for source in result.sources]
-
-    if isinstance(result, dict) and "sources" in result:
-        return [_source_to_source_chunk(source) for source in result["sources"]]
-
-    raise TypeError(f"unsupported retrieval result type: {type(result)}")
-
-
-
-def _get_context_value(result_context: Any | None, key: str) -> Any:
-    if result_context is None:
-        return None
-
-    if isinstance(result_context, dict):
-        value = result_context.get(key)
-    else:
-        value = getattr(result_context, key, None)
-
-    if hasattr(value, "value"):
-        return value.value
-
-    return value
-
-
-def _compact_unique_text(parts: list[Any]) -> str:
-    seen: set[str] = set()
-    values: list[str] = []
-
-    for part in parts:
-        if part is None:
-            continue
-
-        text = str(part).strip()
-        if not text or text == "None":
-            continue
-
-        if text not in seen:
-            seen.add(text)
-            values.append(text)
-
-    return " ".join(values)
-
 
 def build_retrieval_query(state: GraphState | dict[str, Any]) -> dict[str, Any]:
     """
@@ -578,8 +399,8 @@ def build_retrieval_query(state: GraphState | dict[str, Any]) -> dict[str, Any]:
     - result_context가 없으면 사용자 질문 그대로 사용
     - result_context가 있으면 설비/품목/판정/이상유형/위치 정보를 섞어 검색 품질을 보강
     """
-    current = _to_state(state)
-    route_path = _append_route(current, "build_retrieval_query")
+    current = node_helpers.to_state(state)
+    route_path = node_helpers.append_route(current, "build_retrieval_query")
 
     question = current.normalized_question or current.question
 
@@ -589,11 +410,20 @@ def build_retrieval_query(state: GraphState | dict[str, Any]) -> dict[str, Any]:
             "route_path": route_path,
         }
 
-    decision = _get_context_value(current.result_context, "decision")
-    equipment_name = _get_context_value(current.result_context, "equipment_name")
-    category = _get_context_value(current.result_context, "category")
-    anomaly_type = _get_context_value(current.result_context, "anomaly_type")
-    heatmap_location = _get_context_value(current.result_context, "heatmap_location")
+    decision = node_helpers.get_context_value(current.result_context, "decision")
+    equipment_name = node_helpers.get_context_value(
+        current.result_context,
+        "equipment_name",
+    )
+    category = node_helpers.get_context_value(current.result_context, "category")
+    anomaly_type = node_helpers.get_context_value(
+        current.result_context,
+        "anomaly_type",
+    )
+    heatmap_location = node_helpers.get_context_value(
+        current.result_context,
+        "heatmap_location",
+    )
 
     extra_terms: list[str] = [
         "점검",
@@ -643,7 +473,7 @@ def build_retrieval_query(state: GraphState | dict[str, Any]) -> dict[str, Any]:
             ]
         )
 
-    retrieval_query = _compact_unique_text(
+    retrieval_query = node_helpers.compact_unique_text(
         [
             question,
             equipment_name,
@@ -661,8 +491,8 @@ def build_retrieval_query(state: GraphState | dict[str, Any]) -> dict[str, Any]:
     }
 
 def retrieve_documents(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
-    route_path = _append_route(current, "retrieve_documents")
+    current = node_helpers.to_state(state)
+    route_path = node_helpers.append_route(current, "retrieve_documents")
 
     query = (
         current.retrieval_query
@@ -671,7 +501,7 @@ def retrieve_documents(state: GraphState | dict[str, Any]) -> dict[str, Any]:
     )
 
     filters = {
-        "organization_id": _normalize_organization_id_for_retrieval(
+        "organization_id": node_helpers.normalize_organization_id_for_retrieval(
             current.organization_id
         ),
         "document_status": settings.rag_default_document_status,
@@ -687,7 +517,7 @@ def retrieve_documents(state: GraphState | dict[str, Any]) -> dict[str, Any]:
             filters=filters,
         )
 
-        sources = _normalize_retrieval_sources(raw_result)
+        sources = node_helpers.normalize_retrieval_sources(raw_result)
 
         return {
             "sources": sources,
@@ -720,8 +550,8 @@ def retrieve_documents(state: GraphState | dict[str, Any]) -> dict[str, Any]:
         
 # retrieval 이후 결과 유무와 오류 여부만 먼저 판단하는 Guard 노드다.
 def check_retrieval_result(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
-    route_path = _append_route(current, "check_retrieval_result")
+    current = node_helpers.to_state(state)
+    route_path = node_helpers.append_route(current, "check_retrieval_result")
 
     # retriever 내부 오류가 기록돼 있으면 retriever_error 응답 경로로 넘긴다.
     if "retriever_error" in current.errors:
@@ -747,16 +577,15 @@ def check_retrieval_result(state: GraphState | dict[str, Any]) -> dict[str, Any]
     
     
 def build_answer_prompt(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
-    route_path = _append_route(current, "build_answer_prompt")
+    current = node_helpers.to_state(state)
+    route_path = node_helpers.append_route(current, "build_answer_prompt")
 
-    # Step 10에서는 retrieval / result_context가 준비된 state를
+    # retrieval / result_context가 준비된 state를
     # LLM 호출 직전의 prompt 상태로 정리한다.
     question = current.normalized_question or current.question
 
-    builder = PromptBuilder(
-        prompt_dir=settings.prompt_dir,
-        prompt_version=current.prompt_version or settings.prompt_version,
+    builder = create_prompt_builder(
+        prompt_version=current.prompt_version or settings.prompt_version
     )
 
     prompt, prompt_inputs = builder.build(
@@ -785,23 +614,23 @@ def build_answer_prompt(state: GraphState | dict[str, Any]) -> dict[str, Any]:
 
 
 def build_prompt_ready_response(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     # 아직 LLM은 호출하지 않고, prompt 생성 완료 상태만 확인한다.
     return {
         "answer": (
-            "Step 10 prompt_builder: 프롬프트 생성이 완료되었습니다. "
-            "Step 11에서 LLM client를 연결해 실제 답변을 생성합니다."
+            "prompt_builder: 프롬프트 생성이 완료되었습니다. "
+            "LLM client를 연결해 실제 답변을 생성합니다."
         ),
         "need_llm": True,
         "llm_called": False,
-        "route_path": _append_route(current, "build_prompt_ready_response"),
+        "route_path": node_helpers.append_route(current, "build_prompt_ready_response"),
     }
 
 
 # retrieval Guard 결과에 따라 다음 응답 노드로 분기한다.
 def select_retrieval_guard_route(state: GraphState | dict[str, Any]) -> str:
-    current = _to_state(state)
+    current = node_helpers.to_state(state)
 
     # retrieval 이후에는 오류/빈 결과를 먼저 처리하고, 정상 케이스만 placeholder로 넘긴다.
     if current.answer_type == AnswerType.RETRIEVER_ERROR:
@@ -821,8 +650,8 @@ def select_retrieval_guard_route(state: GraphState | dict[str, Any]) -> str:
 
 
 def generate_llm_answer(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = _to_state(state)
-    route_path = _append_route(current, "generate_llm_answer")
+    current = node_helpers.to_state(state)
+    route_path = node_helpers.append_route(current, "generate_llm_answer")
 
     if not current.prompt:
         errors = list(current.errors)
@@ -855,13 +684,7 @@ def generate_llm_answer(state: GraphState | dict[str, Any]) -> dict[str, Any]:
             "route_path": route_path,
         }
 
-    client = OllamaLLMClient(
-        base_url=settings.ollama_base_url,
-        model_name=settings.llm_model_name,
-        temperature=settings.llm_temperature,
-        max_tokens=settings.llm_max_tokens,
-        timeout_seconds=settings.llm_timeout_seconds,
-    )
+    client = create_llm_client()
 
     try:
         result = client.generate(prompt=current.prompt)
@@ -910,8 +733,8 @@ def verify_answer(state: GraphState | dict[str, Any]) -> dict[str, Any]:
     - sources 없음으로 LLM 차단하는 역할은 여기서 하지 않는다.
     - 검색 실패는 check_retrieval_result에서 처리한다.
     """
-    current = _to_state(state)
-    route_path = _append_route(current, "verify_answer")
+    current = node_helpers.to_state(state)
+    route_path = node_helpers.append_route(current, "verify_answer")
 
     # LLM 자체가 실패한 경우에는 citation 검증을 의미 있게 수행하지 않는다.
     if "llm_error" in current.errors:
@@ -921,7 +744,7 @@ def verify_answer(state: GraphState | dict[str, Any]) -> dict[str, Any]:
             "route_path": route_path,
         }
 
-    verifier = SourceVerifier()
+    verifier = create_source_verifier()
     result = verifier.verify(
         answer=current.answer,
         sources=current.sources,

@@ -27,12 +27,12 @@ from application.rag.nodes import (
     verify_answer,
 )
 
-from config.settings import settings
+from container.rag_container import create_langsmith_tracer
+from domain.rag.ports import TracePort
 from domain.rag.state import GraphState
-from infrastructure.tracing.langsmith_tracer import LangSmithTracer
 
 
-# Step 5 graph skeleton의 노드 연결 순서와 분기 구조를 조립한다.
+# graph skeleton의 노드 연결 순서와 분기 구조를 조립한다.
 def build_rag_graph():
     graph = StateGraph(GraphState)
 
@@ -68,8 +68,8 @@ def build_rag_graph():
         "route_by_mode",
         select_route,
         {
-            # Step 8부터 result/document 경로는 placeholder 직행 대신 retrieval 노드를 먼저 탄다.
-            # Step 9부터 result/document 경로는 retrieval 전에 result_context 로딩을 먼저 시도한다.
+            # result/document 경로는 placeholder 직행 대신 retrieval 노드를 먼저 탄다.
+            # result/document 경로는 retrieval 전에 result_context 로딩을 먼저 시도한다.
             "result_linked": "load_result_context",
             "document_search": "load_result_context",
             "general": "build_general_response",
@@ -112,7 +112,7 @@ def build_rag_graph():
     graph.add_edge("build_no_source_response", "finalize_response")
     graph.add_edge("build_retriever_error_response", "finalize_response")
     graph.add_edge("build_result_context_not_found_response", "finalize_response")
-    # Step 10은 prompt 생성까지만 확인하고 실제 답변 생성은 Step 11에서 이어간다.
+    # prompt 생성까지만 확인하고 실제 답변 생성은 Step 11에서 이어간다.
     graph.add_edge("build_answer_prompt", "generate_llm_answer")
     graph.add_edge("generate_llm_answer", "verify_answer")
     graph.add_edge("verify_answer", "finalize_response")    
@@ -122,10 +122,15 @@ def build_rag_graph():
 
 
 class RagGraphRunner:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        graph: Any | None = None,
+        tracer: TracePort | None = None,
+    ) -> None:
         # 그래프와 LangSmith tracer를 한 번만 준비해서 재사용한다.
-        self.graph = build_rag_graph()
-        self.tracer = LangSmithTracer(settings)
+        self.graph = graph or build_rag_graph()
+        self.tracer = tracer or create_langsmith_tracer()
         self.tracer.configure_environment()
 
     async def arun(

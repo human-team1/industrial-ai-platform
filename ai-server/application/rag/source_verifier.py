@@ -60,6 +60,15 @@ class SourceVerifier:
         "필요",
     }
 
+    SOURCE_METADATA_KEYS = (
+        ("document_id", ("document_id", "doc_id")),
+        ("document_version_id", ("document_version_id",)),
+        ("chunk_id", ("chunk_id",)),
+        ("title", ("title",)),
+        ("section_title_or_page", ("section_title", "section", "page")),
+        ("score", ("score",)),
+    )
+
     def verify(
         self,
         *,
@@ -75,18 +84,7 @@ class SourceVerifier:
         has_sources = len(source_list) > 0
 
         if not has_sources:
-            warnings.append("no_sources_for_verification")
-            return SourceVerificationResult(
-                citation_ok=False,
-                has_sources=False,
-                has_citation_section=False,
-                has_source_reference=False,
-                metadata_ok=False,
-                grounded_ok=False,
-                low_score_detected=False,
-                warnings=warnings,
-                safety_flags=[SafetyFlag.NO_SOURCES],
-            )
+            return self._build_no_sources_result(warnings)
 
         has_citation_section = self._has_citation_section(answer_text)
         if not has_citation_section:
@@ -173,30 +171,7 @@ class SourceVerifier:
         metadata_ok = True
 
         for index, source in enumerate(sources[:3], start=1):
-            missing_fields: list[str] = []
-
-            document_id = self._get(source, "document_id") or self._get(source, "doc_id")
-            document_version_id = self._get(source, "document_version_id")
-            chunk_id = self._get(source, "chunk_id")
-            title = self._get(source, "title")
-            section_title = self._get(source, "section_title") or self._get(
-                source, "section"
-            )
-            page = self._get(source, "page")
-            score = self._get(source, "score")
-
-            if not document_id:
-                missing_fields.append("document_id")
-            if not document_version_id:
-                missing_fields.append("document_version_id")
-            if not chunk_id:
-                missing_fields.append("chunk_id")
-            if not title:
-                missing_fields.append("title")
-            if section_title is None and page is None:
-                missing_fields.append("section_title_or_page")
-            if score is None:
-                missing_fields.append("score")
+            missing_fields = self._collect_missing_metadata_fields(source)
 
             if missing_fields:
                 metadata_ok = False
@@ -219,9 +194,8 @@ class SourceVerifier:
             if score is None:
                 continue
 
-            try:
-                score_value = float(score)
-            except (TypeError, ValueError):
+            score_value = self._parse_score(score)
+            if score_value is None:
                 warnings.append(f"source_{index}_score_invalid:{score}")
                 low_score_detected = True
                 continue
@@ -246,16 +220,8 @@ class SourceVerifier:
 
         answer_body = self._strip_citation_section(answer)
         answer_tokens = self._tokenize(answer_body)
-        
-        source_text_parts: list[str] = []
-        for source in sources[:3]:
-            source_text_parts.extend(
-                [
-                    str(self._get(source, "title") or ""),
-                    str(self._get(source, "section_title") or self._get(source, "section") or ""),
-                    str(self._get(source, "content") or ""),
-                ]
-            )
+
+        source_text_parts = self._collect_grounding_texts(sources[:3])
 
         source_tokens = self._tokenize(" ".join(source_text_parts))
 
@@ -276,6 +242,56 @@ class SourceVerifier:
         }
         return tokens
 
+    def _build_no_sources_result(
+        self,
+        warnings: list[str],
+    ) -> SourceVerificationResult:
+        warnings.append("no_sources_for_verification")
+        return SourceVerificationResult(
+            citation_ok=False,
+            has_sources=False,
+            has_citation_section=False,
+            has_source_reference=False,
+            metadata_ok=False,
+            grounded_ok=False,
+            low_score_detected=False,
+            warnings=warnings,
+            safety_flags=[SafetyFlag.NO_SOURCES],
+        )
+
+    def _collect_missing_metadata_fields(self, source: Any) -> list[str]:
+        missing_fields: list[str] = []
+
+        for label, candidates in self.SOURCE_METADATA_KEYS:
+            if not self._has_any_value(source, *candidates):
+                missing_fields.append(label)
+
+        return missing_fields
+
+    def _collect_grounding_texts(self, sources: list[Any]) -> list[str]:
+        source_text_parts: list[str] = []
+
+        for source in sources:
+            source_text_parts.extend(
+                [
+                    str(self._get(source, "title") or ""),
+                    str(
+                        self._get(source, "section_title")
+                        or self._get(source, "section")
+                        or ""
+                    ),
+                    str(self._get(source, "content") or ""),
+                ]
+            )
+
+        return source_text_parts
+
+    def _parse_score(self, score: Any) -> float | None:
+        try:
+            return float(score)
+        except (TypeError, ValueError):
+            return None
+
     def _get(self, source: Any, key: str) -> Any:
         if isinstance(source, dict):
             return source.get(key)
@@ -291,6 +307,12 @@ class SourceVerifier:
             return source.dict().get(key)
 
         return None
+
+    def _has_any_value(self, source: Any, *keys: str) -> bool:
+        for key in keys:
+            if self._get(source, key) is not None:
+                return True
+        return False
 
     def _unique_flags(self, flags: list[SafetyFlag]) -> list[SafetyFlag]:
         result: list[SafetyFlag] = []
