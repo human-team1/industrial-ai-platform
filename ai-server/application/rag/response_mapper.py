@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from domain.rag.response_schema import RagQueryResponse, RagSourceResponse
+from domain.rag.query_models import RagQueryResult, RagSourceResult
 from domain.rag.state import GraphState
 
 
-def build_rag_query_response(state: GraphState) -> RagQueryResponse:
+def build_rag_query_response(state: GraphState) -> RagQueryResult:
     """
     GraphState를 API 응답용 data payload로 변환한다.
     """
 
-    return RagQueryResponse(
+    return RagQueryResult(
         answer=state.answer or "",
         answer_type=state.answer_type,
         question_mode=state.question_mode,
@@ -36,10 +36,10 @@ def build_rag_query_response(state: GraphState) -> RagQueryResponse:
     )
 
 
-def to_source_response(source: Any) -> RagSourceResponse:
+def to_source_response(source: Any) -> RagSourceResult:
     data = _to_dict(source)
 
-    return RagSourceResponse(
+    return RagSourceResult(
         document_id=str(data.get("document_id") or data.get("doc_id")),
         document_version_id=data.get("document_version_id"),
         chunk_id=str(data.get("chunk_id")),

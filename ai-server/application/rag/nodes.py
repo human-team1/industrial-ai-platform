@@ -542,7 +542,7 @@ def retrieve_documents(
             "route_path": route_path,
         }
 
-    except Exception as exc:
+    except Exception:
         errors = list(current.errors)
         if "retriever_error" not in errors:
             errors.append("retriever_error")

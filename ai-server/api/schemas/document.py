@@ -1,26 +1,15 @@
+from dataclasses import asdict
 from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from domain.document_models import DocumentIndexCommand, DocumentIndexResult
+
 
 def to_camel(value: str) -> str:
     parts = value.split("_")
     return parts[0] + "".join(part.capitalize() for part in parts[1:])
-
-
-class AnomalyInferenceRequest(BaseModel):
-    equipment_id: str = Field(..., examples=["press-01"])
-    sensor_values: dict[str, float] = Field(default_factory=dict)
-
-
-class AnomalyInferenceResponse(BaseModel):
-    model_config = ConfigDict(protected_namespaces=())
-
-    equipment_id: str
-    is_anomaly: bool
-    score: float
-    model_name: str
 
 
 class LegacyDocumentIndexResponse(BaseModel):
@@ -38,8 +27,18 @@ class DocumentIndexRequest(BaseModel):
     document_type: Optional[str] = None
     organization_id: Optional[int] = None
 
+    def to_command(self) -> DocumentIndexCommand:
+        return DocumentIndexCommand(
+            document_id=self.document_id,
+            document_version_id=self.document_version_id,
+            file_id=self.file_id,
+            file_key=self.file_key,
+            document_type=self.document_type,
+            organization_id=self.organization_id,
+        )
 
-class IndexedChunk(BaseModel):
+
+class IndexedChunkResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     sequence_no: int
@@ -49,7 +48,7 @@ class IndexedChunk(BaseModel):
     vector_ref: str
 
 
-class DocumentIndexResult(BaseModel):
+class DocumentIndexResultResponse(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     document_id: int
@@ -62,4 +61,8 @@ class DocumentIndexResult(BaseModel):
     embedding_model: str
     collection_name: str
     indexed_at: datetime
-    chunks: list[IndexedChunk] = Field(default_factory=list)
+    chunks: list[IndexedChunkResponse] = Field(default_factory=list)
+
+
+def document_index_result_to_response(result: DocumentIndexResult) -> DocumentIndexResultResponse:
+    return DocumentIndexResultResponse(**asdict(result))

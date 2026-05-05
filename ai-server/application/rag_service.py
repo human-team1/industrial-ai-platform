@@ -1,17 +1,18 @@
-from domain.schemas import RagQueryRequest, RagQueryResponse
-from infrastructure.chroma_client import ChromaClientWrapper
+from domain.rag.ports import RagCollectionPort
+from domain.rag.query_models import RagQueryCommand, RagQueryResult
 
 
 class RagService:
-    def __init__(self, chroma_client: ChromaClientWrapper) -> None:
-        self._chroma_client = chroma_client
+    def __init__(self, rag_collection: RagCollectionPort) -> None:
+        self._rag_collection = rag_collection
 
-    def query(self, request: RagQueryRequest) -> RagQueryResponse:
-        self._chroma_client.collection_name()
-        return RagQueryResponse(
+    def query(self, request: RagQueryCommand) -> RagQueryResult:
+        self._rag_collection.collection_name()
+        return RagQueryResult(
             answer=(
                 "RAG pipeline skeleton is ready. Add an embedding model and LLM "
                 "provider after model selection."
             ),
+            answer_type="general",
             sources=[],
         )

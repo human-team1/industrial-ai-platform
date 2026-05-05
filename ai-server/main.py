@@ -25,14 +25,8 @@ async def attach_request_id(request: Request, call_next):
 
 @app.exception_handler(RequestValidationError)
 async def handle_validation_exception(request: Request, exc: RequestValidationError) -> JSONResponse:
-    # 내부 추론 API(/ai/v1/internal/vision/infer-image 등) 기준 정책:
-    #   - JSON 본체 자체가 깨진 경우(json_invalid)만 400으로 분리
-    #   - 그 외 필수 필드 누락(missing) 및 형식 위반은 422 (RFC 9457 / Unprocessable Entity) 로 통일
-    # 외부 공개 API에서 흔히 쓰는 "필수 파라미터 자체 누락 = 400" 정책과는 분리되어 있음.
     errors = exc.errors()
-    status_code = 422
-    if any(error.get("type") == "json_invalid" for error in errors):
-        status_code = 400
+    status_code = 400 if any(error.get("type") == "json_invalid" for error in errors) else 422
     return JSONResponse(
         status_code=status_code,
         content={
@@ -57,7 +51,6 @@ async def handle_validation_exception(request: Request, exc: RequestValidationEr
 
 @app.exception_handler(AppException)
 async def handle_app_exception(request: Request, exc: AppException) -> JSONResponse:
-    request_id = request.headers.get("X-Request-Id")
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -67,26 +60,7 @@ async def handle_app_exception(request: Request, exc: AppException) -> JSONRespo
             "detail": exc.detail,
             "instance": str(request.url.path),
             "errorCode": exc.code,
-            "requestId": request_id,
-        },
-    )
-
-
-@app.exception_handler(RequestValidationError)
-async def handle_validation_exception(request: Request, exc: RequestValidationError) -> JSONResponse:
-    has_missing = any(error.get("type") == "missing" for error in exc.errors())
-    status_code = 400 if has_missing else 422
-    title = "Bad Request" if has_missing else "Unprocessable Content"
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "type": "about:blank",
-            "title": title,
-            "status": status_code,
-            "detail": "요청 본문을 확인할 수 없습니다." if has_missing else "요청 값 검증에 실패했습니다.",
-            "instance": str(request.url.path),
-            "errorCode": "COMMON-400" if has_missing else "COMMON-422",
-            "requestId": request.headers.get("X-Request-Id"),
+            "requestId": getattr(request.state, "request_id", None),
         },
     )
 
@@ -102,6 +76,6 @@ async def handle_unexpected_exception(request: Request, exc: Exception) -> JSONR
             "detail": "Unexpected server error",
             "instance": str(request.url.path),
             "errorCode": "COMMON-500",
-            "requestId": request.headers.get("X-Request-Id"),
+            "requestId": getattr(request.state, "request_id", None),
         },
     )

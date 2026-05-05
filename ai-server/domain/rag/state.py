@@ -9,8 +9,8 @@ from domain.rag.models import (
     QuestionMode,
     ResultContext,
     SafetyFlag,
-    SourceChunk,
 )
+from domain.rag.source_chunk import SourceChunk
 
 
 # LangGraph 노드 사이에서 공유되는 상태.

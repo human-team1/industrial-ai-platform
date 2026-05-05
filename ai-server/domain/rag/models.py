@@ -3,12 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, ConfigDict, AliasChoices
-from domain.rag.source_chunk import SourceChunk, SourceChunkResponse
-from domain.rag.retrieval_result import RetrievalQuery, RetrievalResult
-from domain.rag.retrieval_config import RetrievalConfig
-
-
+from pydantic import BaseModel, ConfigDict, Field
 
 class QuestionMode(str, Enum):
     # 그래프에서 사용하는 질문 라우팅 유형.
@@ -60,7 +55,7 @@ class ResultContext(BaseModel):
     결과 상세 화면 또는 result_id 기반 질문에서 주입되는 검사 결과 문맥.
     Step 9 전까지는 mock JSON에서 로드한다.
     """
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", protected_namespaces=())
 
     result_id: str | None = None
     inspection_id: str | None = None
@@ -86,7 +81,7 @@ class ResultContext(BaseModel):
 
 
 class LLMGenerateResult(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", protected_namespaces=())
 
     # LLM 어댑터가 반환하는 최종 결과.
     answer: str

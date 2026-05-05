@@ -31,6 +31,9 @@ class MinioStorage:
         except Exception:
             return False
 
+    def health_check(self) -> bool:
+        return self.is_document_bucket_accessible()
+
     def download_object(self, bucket_name: str, object_name: str) -> bytes:
         try:
             response = self.client().get_object(bucket_name, object_name)

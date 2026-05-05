@@ -58,3 +58,7 @@ class TracePort(Protocol):
         extra_tags: list[str] | None = None,
     ) -> dict[str, Any]:
         ...
+
+
+class RagCollectionPort(Protocol):
+    def collection_name(self) -> str: ...

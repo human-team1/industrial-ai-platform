@@ -4,17 +4,14 @@ from datetime import datetime
 from pathlib import Path
 from shutil import disk_usage
 
-from fastapi import APIRouter, Request
-from fastapi import Depends
+from fastapi import APIRouter, Depends, Request
 
 from container.dependencies import (
     get_chroma_client,
     get_minio_storage,
     get_redis_status_store,
 )
-from infrastructure.chroma_client import ChromaClientWrapper
-from infrastructure.minio_storage import MinioStorage
-from infrastructure.redis_status import RedisStatusStore
+from domain.health_ports import InfraHealthPort
 
 router = APIRouter()
 
@@ -26,13 +23,13 @@ async def health() -> dict[str, str]:
 
 @router.get("/health/infra")
 async def infra_health(
-    chroma_client: ChromaClientWrapper = Depends(get_chroma_client),
-    minio_storage: MinioStorage = Depends(get_minio_storage),
-    redis_status_store: RedisStatusStore = Depends(get_redis_status_store),
+    chroma_client: InfraHealthPort = Depends(get_chroma_client),
+    minio_storage: InfraHealthPort = Depends(get_minio_storage),
+    redis_status_store: InfraHealthPort = Depends(get_redis_status_store),
 ) -> dict[str, str]:
     return {
-        "redis": "UP" if redis_status_store.ping() else "DOWN",
-        "minio": "UP" if minio_storage.is_document_bucket_accessible() else "DOWN",
+        "redis": "UP" if redis_status_store.health_check() else "DOWN",
+        "minio": "UP" if minio_storage.health_check() else "DOWN",
         "chromadb": "UP" if chroma_client.health_check() else "DOWN",
     }
 
