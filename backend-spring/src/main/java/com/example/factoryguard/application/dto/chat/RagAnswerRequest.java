@@ -11,8 +11,11 @@ public class RagAnswerRequest {
 
     private final Long userId;
     private final Long organizationId;
+    private final Long conversationId;
     private final String question;
     private final DocumentScope documentScope;
     private final List<Long> documentIds;
     private final Long resultId;
+    private final RagResultContext resultContext;
+    private final Integer topK;
 }

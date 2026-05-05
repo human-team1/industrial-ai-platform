@@ -12,6 +12,7 @@ import com.example.factoryguard.application.port.out.chat.RequestRagAnswerPort;
 import com.example.factoryguard.application.port.out.chat.SaveChatConversationPort;
 import com.example.factoryguard.application.port.out.chat.SaveChatMessagePort;
 import com.example.factoryguard.application.port.out.chat.SaveChatSourcePort;
+import com.example.factoryguard.application.port.out.result.ResultQueryPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.chat.model.ChatConversation;
@@ -48,6 +49,7 @@ class ChatServiceTest {
     @Mock private SaveChatSourcePort saveChatSourcePort;
     @Mock private DeleteChatConversationPort deleteChatConversationPort;
     @Mock private RequestRagAnswerPort requestRagAnswerPort;
+    @Mock private ResultQueryPort resultQueryPort;
 
     @InjectMocks
     private ChatService chatService;

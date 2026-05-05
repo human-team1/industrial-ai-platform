@@ -27,6 +27,9 @@ class RedisStatusStore:
         except Exception:
             return False
 
+    def health_check(self) -> bool:
+        return self.ping()
+
     def client(self):
         import redis
 

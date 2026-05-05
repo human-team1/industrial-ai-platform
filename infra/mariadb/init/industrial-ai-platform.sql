@@ -389,6 +389,7 @@
   CREATE TABLE document_index_job (
     job_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     document_version_id BIGINT NOT NULL,
+    ai_job_id VARCHAR(100),
     job_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     error_message TEXT,
     started_at TIMESTAMP NULL,

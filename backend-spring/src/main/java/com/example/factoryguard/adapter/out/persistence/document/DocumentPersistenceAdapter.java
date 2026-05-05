@@ -299,10 +299,11 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
         Long documentVersionId = ((Number) entityManager.createNativeQuery("SELECT LAST_INSERT_ID()").getSingleResult()).longValue();
 
         replaceDocumentTags(documentId, tags);
-        createIndexJob(documentVersionId, IndexingStatus.PENDING.name(), null);
+        Long indexJobId = createIndexJob(documentVersionId, IndexingStatus.PENDING.name(), null);
         return DocumentCreateResult.builder()
                 .documentId(documentId)
                 .documentVersionId(documentVersionId)
+                .indexJobId(indexJobId)
                 .indexingStatus(IndexingStatus.PENDING)
                 .build();
     }
@@ -378,7 +379,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
                 .setParameter("updatedAt", Timestamp.valueOf(now))
                 .setParameter("documentId", documentId)
                 .executeUpdate();
-        createIndexJob(versionId, IndexingStatus.PENDING.name(), null);
+        Long indexJobId = createIndexJob(versionId, IndexingStatus.PENDING.name(), null);
 
         Object[] row = (Object[]) entityManager.createNativeQuery("""
                 SELECT dv.document_version_id, dv.version_no, dv.file_id, f.file_name, f.file_size, f.file_ext,
@@ -392,6 +393,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
                 .getSingleResult();
         return DocumentVersionDetailResult.builder()
                 .documentVersionId(toLong(row[0]))
+                .indexJobId(indexJobId)
                 .versionNo(toInteger(row[1]))
                 .fileId(toLong(row[2]))
                 .fileName(toString(row[3]))
@@ -428,7 +430,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
         return updated > 0;
     }
 
-    private void createIndexJob(Long documentVersionId, String status, String errorMessage) {
+    private Long createIndexJob(Long documentVersionId, String status, String errorMessage) {
         entityManager.createNativeQuery("""
                 INSERT INTO document_index_job (
                     document_version_id, job_status, error_message, started_at, completed_at
@@ -440,6 +442,7 @@ public class DocumentPersistenceAdapter implements DocumentCrudPort {
                 .setParameter("jobStatus", status)
                 .setParameter("errorMessage", errorMessage)
                 .executeUpdate();
+        return ((Number) entityManager.createNativeQuery("SELECT LAST_INSERT_ID()").getSingleResult()).longValue();
     }
 
     private void replaceDocumentTags(Long documentId, List<String> tags) {

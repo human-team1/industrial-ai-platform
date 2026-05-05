@@ -123,7 +123,7 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | DOCUMENT | document_id (PK), organization_id (FK), owner_user_id (FK), title, document_type, category, equipment_type, description, current_status, created_at, updated_at, deleted_at | 문서 기본 정보 |
 | DOCUMENT_TAG | document_tag_id (PK), document_id (FK), tag_name, created_at | 문서 태그 |
 | DOCUMENT_VERSION | document_version_id (PK), document_id (FK), version_no, file_id (FK), file_hash, indexing_status, indexed_chunk_count, index_error_message, indexed_at, created_at | 문서 버전 |
-| DOCUMENT_INDEX_JOB | job_id (PK), document_version_id (FK), job_status, error_message, started_at, completed_at | 인덱싱 작업 |
+| DOCUMENT_INDEX_JOB | job_id (PK), document_version_id (FK), ai_job_id, job_status, error_message, started_at, completed_at | 인덱싱 작업 |
 | CHUNK | chunk_id (PK), document_version_id (FK), sequence_no, content, created_at | 문서 청크 |
 | VECTOR_INDEX | vector_id (PK), chunk_id (FK), embedding_model, vector_ref, created_at | 벡터 인덱스 |
 
