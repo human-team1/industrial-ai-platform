@@ -38,34 +38,35 @@ public class RequestDocumentIndexingService implements RequestDocumentIndexingUs
         try {
             DocumentIndexResponse indexResponse = callDocumentIndexingPort.index(
                     DocumentIndexRequest.builder()
+                            .indexJobId(jobId)
                             .documentId(target.getDocumentId())
                             .documentVersionId(target.getDocumentVersionId())
                             .fileId(target.getFileId())
                             .fileKey(target.getFileKey())
+                            .fileName(target.getFileName())
+                            .mimeType(target.getMimeType())
+                            .checksum(target.getChecksum())
                             .documentType(target.getDocumentType().name())
                             .organizationId(target.getOrganizationId())
+                            .title(target.getTitle())
+                            .category(target.getCategory())
+                            .equipmentType(target.getEquipmentType())
+                            .tags(target.getTags())
                             .build(),
                     command.getRequestId()
             );
-            int chunkCount = indexResponse.getChunkCount() == null ? 0 : indexResponse.getChunkCount();
-            documentIndexPersistencePort.replaceChunksAndVectors(
-                    target.getDocumentVersionId(),
-                    indexResponse.getEmbeddingModel(),
-                    indexResponse.getChunks()
-            );
-            documentIndexPersistencePort.markCompleted(
+            documentIndexPersistencePort.markEnqueued(
                     target.getDocumentId(),
                     target.getDocumentVersionId(),
                     jobId,
-                    chunkCount,
-                    indexResponse.getIndexedAt() == null ? LocalDateTime.now() : indexResponse.getIndexedAt()
+                    indexResponse.getAiJobId()
             );
             return DocumentIndexingStatusResult.builder()
                     .documentVersionId(target.getDocumentVersionId())
                     .indexJobId(jobId)
-                    .indexingStatus(IndexingStatus.COMPLETED)
-                    .indexedChunkCount(chunkCount)
-                    .jobStatus(DocumentIndexJobStatus.COMPLETED)
+                    .indexingStatus(IndexingStatus.PROCESSING)
+                    .indexedChunkCount(0)
+                    .jobStatus(DocumentIndexJobStatus.PROCESSING)
                     .build();
         } catch (BusinessException exception) {
             documentIndexPersistencePort.markFailed(

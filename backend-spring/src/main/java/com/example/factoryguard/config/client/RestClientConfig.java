@@ -28,12 +28,22 @@ public class RestClientConfig {
                                      RequestIdPropagationInterceptor requestIdInterceptor,
                                      AiResponseErrorHandler aiErrorHandler) {
         return builder
-                .setConnectTimeout(Duration.ofSeconds(properties.getConnectTimeoutSec()))
-                .setReadTimeout(Duration.ofSeconds(properties.getReadTimeoutSec()))
+                .setConnectTimeout(Duration.ofMillis(resolveConnectTimeoutMs(properties)))
+                .setReadTimeout(Duration.ofMillis(resolveReadTimeoutMs(properties)))
                 .additionalInterceptors(requestIdInterceptor)
                 .errorHandler(aiErrorHandler)
-                .setConnectTimeout(Duration.ofSeconds(5))
-                .setReadTimeout(Duration.ofSeconds(60))
                 .build();
+    }
+
+    private long resolveConnectTimeoutMs(AiServerProperties properties) {
+        return properties.getConnectTimeoutMs() > 0
+                ? properties.getConnectTimeoutMs()
+                : properties.getConnectTimeoutSec() * 1000L;
+    }
+
+    private long resolveReadTimeoutMs(AiServerProperties properties) {
+        return properties.getReadTimeoutMs() > 0
+                ? properties.getReadTimeoutMs()
+                : properties.getReadTimeoutSec() * 1000L;
     }
 }

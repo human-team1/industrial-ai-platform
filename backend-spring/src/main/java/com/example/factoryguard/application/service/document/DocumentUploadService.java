@@ -73,26 +73,28 @@ public class DocumentUploadService implements UploadDocumentUseCase {
         try {
             DocumentIndexResponse indexResponse = callDocumentIndexingPort.index(
                     DocumentIndexRequest.builder()
+                            .indexJobId(jobId)
                             .documentId(created.getDocumentId())
                             .documentVersionId(created.getDocumentVersionId())
                             .fileId(originalFile.getFileId())
                             .fileKey(originalFile.getObjectKey())
+                            .fileName(originalFile.getFileName())
+                            .mimeType(originalFile.getMimeType())
+                            .checksum(originalFile.getChecksum())
                             .documentType(command.getDocumentType().name())
                             .organizationId(command.getOrganizationId())
+                            .title(command.getTitle())
+                            .category(command.getCategory())
+                            .equipmentType(command.getEquipmentType())
+                            .tags(command.getTags())
                             .build(),
                     command.getRequestId()
             );
-            documentIndexPersistencePort.replaceChunksAndVectors(
-                    created.getDocumentVersionId(),
-                    indexResponse.getEmbeddingModel(),
-                    indexResponse.getChunks()
-            );
-            documentIndexPersistencePort.markCompleted(
+            documentIndexPersistencePort.markEnqueued(
                     created.getDocumentId(),
                     created.getDocumentVersionId(),
                     jobId,
-                    nullToZero(indexResponse.getChunkCount()),
-                    indexResponse.getIndexedAt() == null ? LocalDateTime.now() : indexResponse.getIndexedAt()
+                    indexResponse.getAiJobId()
             );
             return DocumentUploadResult.builder()
                     .documentId(created.getDocumentId())

@@ -10,5 +10,7 @@ public class DocumentCreateResult {
 
     private final Long documentId;
     private final Long documentVersionId;
+    private final Long indexJobId;
+    private final String aiJobId;
     private final IndexingStatus indexingStatus;
 }

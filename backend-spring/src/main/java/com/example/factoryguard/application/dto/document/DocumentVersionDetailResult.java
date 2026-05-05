@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class DocumentVersionDetailResult {
 
     private final Long documentVersionId;
+    private final Long indexJobId;
     private final Integer versionNo;
     private final Long fileId;
     private final String fileName;

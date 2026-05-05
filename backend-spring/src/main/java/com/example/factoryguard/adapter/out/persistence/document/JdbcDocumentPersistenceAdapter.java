@@ -1,6 +1,7 @@
 package com.example.factoryguard.adapter.out.persistence.document;
 
 import com.example.factoryguard.application.dto.document.DocumentIndexedChunkResponse;
+import com.example.factoryguard.application.dto.document.DocumentIndexJobPollingTarget;
 import com.example.factoryguard.application.dto.document.DocumentIndexingTarget;
 import com.example.factoryguard.application.dto.document.DocumentUploadResult;
 import com.example.factoryguard.application.port.out.document.DocumentIndexPersistencePort;
@@ -77,23 +78,73 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
                 SELECT
                     d.document_id,
                     d.organization_id,
+                    d.title,
                     d.document_type,
+                    d.category,
+                    d.equipment_type,
                     dv.document_version_id,
                     dv.file_id,
-                    f.object_key
+                    dv.file_hash,
+                    f.object_key,
+                    f.file_name,
+                    f.mime_type,
+                    GROUP_CONCAT(dt.tag_name ORDER BY dt.tag_name SEPARATOR ',') AS tags
                 FROM DOCUMENT_VERSION dv
                 JOIN DOCUMENT d ON d.document_id = dv.document_id
                 JOIN `FILE` f ON f.file_id = dv.file_id
+                LEFT JOIN DOCUMENT_TAG dt ON dt.document_id = d.document_id
                 WHERE dv.document_version_id = ?
+                GROUP BY d.document_id, d.organization_id, d.title, d.document_type, d.category, d.equipment_type,
+                         dv.document_version_id, dv.file_id, dv.file_hash, f.object_key, f.file_name, f.mime_type
                 """, (rs, rowNum) -> DocumentIndexingTarget.builder()
                 .documentId(rs.getLong("document_id"))
                 .organizationId(rs.getLong("organization_id"))
+                .title(rs.getString("title"))
                 .documentType(DocumentType.valueOf(rs.getString("document_type")))
+                .category(rs.getString("category"))
+                .equipmentType(rs.getString("equipment_type"))
                 .documentVersionId(rs.getLong("document_version_id"))
                 .fileId(rs.getLong("file_id"))
+                .checksum(rs.getString("file_hash"))
                 .fileKey(rs.getString("object_key"))
+                .fileName(rs.getString("file_name"))
+                .mimeType(rs.getString("mime_type"))
+                .tags(toTags(rs.getString("tags")))
                 .build(), documentVersionId);
         return targets.stream().findFirst();
+    }
+
+    @Override
+    public Optional<DocumentIndexingTarget> findLatestIndexingTargetByDocumentId(Long documentId) {
+        List<Long> versionIds = jdbcTemplate.queryForList("""
+                SELECT dv.document_version_id
+                FROM DOCUMENT_VERSION dv
+                WHERE dv.document_id = ?
+                ORDER BY dv.version_no DESC
+                LIMIT 1
+                """, Long.class, documentId);
+        if (versionIds.isEmpty()) {
+            return Optional.empty();
+        }
+        return findIndexingTarget(versionIds.get(0));
+    }
+
+    @Override
+    public List<DocumentIndexJobPollingTarget> findProcessingJobs(int limit) {
+        return jdbcTemplate.query("""
+                SELECT dij.job_id, dij.ai_job_id, dv.document_id, dij.document_version_id
+                FROM DOCUMENT_INDEX_JOB dij
+                JOIN DOCUMENT_VERSION dv ON dv.document_version_id = dij.document_version_id
+                WHERE dij.job_status = ?
+                  AND dij.ai_job_id IS NOT NULL
+                ORDER BY dij.started_at ASC, dij.job_id ASC
+                LIMIT ?
+                """, (rs, rowNum) -> DocumentIndexJobPollingTarget.builder()
+                .indexJobId(rs.getLong("job_id"))
+                .aiJobId(rs.getString("ai_job_id"))
+                .documentId(rs.getLong("document_id"))
+                .documentVersionId(rs.getLong("document_version_id"))
+                .build(), DocumentIndexJobStatus.PROCESSING.name(), Math.max(limit, 1));
     }
 
     @Override
@@ -103,6 +154,23 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
                 SET indexing_status = ?, indexed_chunk_count = 0, index_error_message = NULL, indexed_at = NULL
                 WHERE document_version_id = ?
                 """, IndexingStatus.PROCESSING.name(), documentVersionId);
+        jdbcTemplate.update("""
+                UPDATE DOCUMENT SET current_status = ? WHERE document_id = ?
+                """, DocumentStatus.PROCESSING.name(), documentId);
+    }
+
+    @Override
+    public void markEnqueued(Long documentId, Long documentVersionId, Long jobId, String aiJobId) {
+        jdbcTemplate.update("""
+                UPDATE DOCUMENT_VERSION
+                SET indexing_status = ?, indexed_chunk_count = 0, index_error_message = NULL, indexed_at = NULL
+                WHERE document_version_id = ?
+                """, IndexingStatus.PROCESSING.name(), documentVersionId);
+        jdbcTemplate.update("""
+                UPDATE DOCUMENT_INDEX_JOB
+                SET job_status = ?, ai_job_id = ?, started_at = COALESCE(started_at, ?), error_message = NULL
+                WHERE job_id = ?
+                """, DocumentIndexJobStatus.PROCESSING.name(), aiJobId, Timestamp.valueOf(LocalDateTime.now()), jobId);
         jdbcTemplate.update("""
                 UPDATE DOCUMENT SET current_status = ? WHERE document_id = ?
                 """, DocumentStatus.PROCESSING.name(), documentId);
@@ -168,6 +236,16 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
         jdbcTemplate.update("""
                 UPDATE DOCUMENT SET current_status = ? WHERE document_id = ?
                 """, DocumentStatus.FAILED.name(), documentId);
+    }
+
+    @Override
+    public void recordDeindexFailure(Long documentVersionId, String errorMessage) {
+        Long jobId = createIndexJob(documentVersionId, DocumentIndexJobStatus.FAILED, LocalDateTime.now());
+        jdbcTemplate.update("""
+                UPDATE DOCUMENT_INDEX_JOB
+                SET completed_at = ?, error_message = ?
+                WHERE job_id = ?
+                """, Timestamp.valueOf(LocalDateTime.now()), summarize(errorMessage), jobId);
     }
 
     private Long insertDocument(Long organizationId, Long ownerUserId, String title, DocumentType documentType) {
@@ -250,5 +328,12 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
             return normalized;
         }
         return normalized.substring(0, 500);
+    }
+
+    private List<String> toTags(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        return List.of(raw.split(","));
     }
 }
