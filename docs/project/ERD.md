@@ -154,7 +154,7 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
 | message_status | VARCHAR(20) | SUCCESS / FAILED |
-| answer_status | VARCHAR(50) | ANSWERED / NO_RELEVANT_SOURCE / LLM_FAILED / VECTOR_STORE_FAILED / DOCUMENT_SCOPE_FORBIDDEN / VALIDATION_FAILED |
+| answer_status | VARCHAR(50) | ANSWERED / NO_RELEVANT_SOURCE / OUT_OF_SCOPE / LLM_FAILED / VECTOR_STORE_FAILED / DOCUMENT_SCOPE_FORBIDDEN / VALIDATION_FAILED |
 | error_code | VARCHAR(50) | 답변 생성 실패 코드 |
 | model_name | VARCHAR(100) | 사용 모델명 |
 
