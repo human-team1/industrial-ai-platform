@@ -2105,7 +2105,7 @@ FastAPI는 `memory_bank` 생성과 MinIO 업로드까지만 담당한다. `MODEL
     "models/tmp/normal/org-1001/target-10/job-abc/normal_001.jpg",
     "models/tmp/normal/org-1001/target-10/job-abc/normal_002.jpg",
     "...",
-    "models/tmp/normal/org-1001/target-10/job-abc/normal_100.jpg"
+    "models/tmp/normal/org-1001/target-10/job-abc/normal_010.jpg"
   ],
   "configFileKey": "models/base/performance-texture/config.json",
   "ckptFileKey": "models/base/performance-texture/model.ckpt",

@@ -25,8 +25,18 @@ class MemoryBankGenerateRequest(BaseModel):
     output_prefix: str | None = Field(default=None, alias="outputPrefix")
 
     def to_command(self, request_id: str) -> GenerateMemoryBankCommand:
+        if self.model_category is None:
+            raise AppException(400, "modelCategory is required", "modelCategory는 필수입니다.", "MODEL_CATEGORY_REQUIRED")
+        if self.model_profile is None:
+            raise AppException(400, "modelProfile is required", "modelProfile은 필수입니다.", "MODEL_PROFILE_REQUIRED")
         if self.normal_image_file_keys is None:
             raise AppException(400, "normalImageFileKeys is required", "normalImageFileKeys는 필수입니다.", "NORMAL_IMAGE_FILE_KEYS_REQUIRED")
+        if self.config_file_key is None:
+            raise AppException(400, "configFileKey is required", "configFileKey는 필수입니다.", "CONFIG_FILE_KEY_REQUIRED")
+        if self.ckpt_file_key is None:
+            raise AppException(400, "ckptFileKey is required", "ckptFileKey는 필수입니다.", "CKPT_FILE_KEY_REQUIRED")
+        if self.output_prefix is None:
+            raise AppException(400, "outputPrefix is required", "outputPrefix는 필수입니다.", "OUTPUT_PREFIX_REQUIRED")
         try:
             category = ModelCategory(str(self.model_category or "").upper())
         except ValueError as exc:

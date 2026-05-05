@@ -40,14 +40,14 @@ class GenerateMemoryBankUseCase:
         )
 
     def _validate_command(self, command: GenerateMemoryBankCommand) -> None:
-        if len(command.normal_image_file_keys) < 10:
-            raise AppException(422, "Not enough normal images", "memory_bank 생성을 위해 정상 이미지가 최소 10개 필요합니다.", "NORMAL_IMAGE_COUNT_TOO_SMALL")
         if not command.config_file_key.strip():
             raise AppException(400, "configFileKey is required", "configFileKey는 필수입니다.", "CONFIG_FILE_KEY_REQUIRED")
         if not command.ckpt_file_key.strip():
             raise AppException(400, "ckptFileKey is required", "ckptFileKey는 필수입니다.", "CKPT_FILE_KEY_REQUIRED")
         if not command.output_prefix.strip():
             raise AppException(400, "outputPrefix is required", "outputPrefix는 필수입니다.", "OUTPUT_PREFIX_REQUIRED")
+        if len(command.normal_image_file_keys) < 10:
+            raise AppException(422, "Not enough normal images", "memory_bank 생성을 위해 정상 이미지가 최소 10개 필요합니다.", "NORMAL_IMAGE_COUNT_TOO_SMALL")
 
     def _parse_config(self, config_bytes: bytes) -> dict:
         try:
