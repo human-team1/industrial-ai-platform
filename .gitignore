@@ -14,11 +14,14 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 
 # node
 node_modules/
 dist/
 build/
+**/build/
 coverage/
 
 # java / gradle
@@ -27,6 +30,8 @@ coverage/
 /bin/
 **/bin/
 *.class
+test-results/
+**/test-results/
 
 # ide
 .vscode/
@@ -38,6 +43,13 @@ Thumbs.db
 
 # logs
 *.log
+
+# large model / media artifacts
+*.pt
+*.onnx
+*.ckpt
+*.mp4
+*.avi
 
 # misc
 tmp/

@@ -86,8 +86,8 @@ export function ModelManagementPanel() {
       window.alert('모델을 먼저 선택하세요.')
       return
     }
-    if (normalImages.length < 100) {
-      window.alert('정상 이미지는 최소 100장 이상 업로드해야 합니다.')
+    if (normalImages.length < 10) {
+      window.alert('정상 이미지는 최소 10장 이상 업로드해야 합니다.')
       return
     }
     const invalidFile = normalImages.find((file) => !IMAGE_MIME_TYPES.has(file.type))
