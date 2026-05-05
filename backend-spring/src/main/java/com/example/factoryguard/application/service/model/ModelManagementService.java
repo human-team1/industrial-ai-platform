@@ -70,6 +70,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -131,31 +133,37 @@ public class ModelManagementService implements
             requestId = UUID.randomUUID().toString();
         }
 
+        List<GeneratedMemoryBank> generatedMemoryBanks = new ArrayList<>();
         List<StoredFile> normalImageFiles = uploadNormalImages(command, requestId);
         List<ModelProfile> profiles = resolveProfiles(command.getModelProfile());
-        List<GeneratedMemoryBank> generatedMemoryBanks = new ArrayList<>();
-        for (ModelProfile profile : profiles) {
-            FixedProfileFiles fixedProfile = resolveFixedProfile(command.getModelCategory(), profile);
-            String outputPrefix = buildOutputPrefix(command.getOrganizationId(), command.getTargetId(), command.getDeploymentScope(), profile, command.getModelCategory());
-            GenerateMemoryBankResult memoryBankResult = callMemoryBank(command, normalImageFiles, fixedProfile, outputPrefix, profile, requestId);
-            generatedMemoryBanks.add(new GeneratedMemoryBank(profile, fixedProfile, memoryBankResult));
-        }
 
-        final String finalRequestId = requestId;
-        List<CreatedModelVersionResponse> createdVersions = transactionTemplate.execute(status -> {
-            List<CreatedModelVersionResponse> responses = new ArrayList<>();
-            for (GeneratedMemoryBank generated : generatedMemoryBanks) {
-                responses.add(saveGeneratedModelVersion(model, command, generated, normalImageFiles, finalRequestId, profiles.size()));
+        try {
+            for (ModelProfile profile : profiles) {
+                FixedProfileFiles fixedProfile = resolveFixedProfile(command.getModelCategory(), profile);
+                String outputPrefix = buildOutputPrefix(command.getOrganizationId(), command.getTargetId(), command.getDeploymentScope(), profile, command.getModelCategory());
+                GenerateMemoryBankResult memoryBankResult = callMemoryBank(command, normalImageFiles, fixedProfile, outputPrefix, profile, requestId);
+                generatedMemoryBanks.add(new GeneratedMemoryBank(profile, fixedProfile, memoryBankResult));
             }
-            return responses;
-        });
 
-        return GenerateModelVersionsFromNormalImagesResponse.builder()
-                .modelId(model.getModelId())
-                .modelCategory(command.getModelCategory().name())
-                .normalImageCount(normalImageFiles.size())
-                .createdVersions(createdVersions == null ? List.of() : createdVersions)
-                .build();
+            final String finalRequestId = requestId;
+            List<CreatedModelVersionResponse> createdVersions = transactionTemplate.execute(status -> {
+                List<CreatedModelVersionResponse> responses = new ArrayList<>();
+                for (GeneratedMemoryBank generated : generatedMemoryBanks) {
+                    responses.add(saveGeneratedModelVersion(model, command, generated, normalImageFiles, finalRequestId, profiles.size()));
+                }
+                return responses;
+            });
+
+            return GenerateModelVersionsFromNormalImagesResponse.builder()
+                    .modelId(model.getModelId())
+                    .modelCategory(command.getModelCategory().name())
+                    .normalImageCount(normalImageFiles.size())
+                    .createdVersions(createdVersions == null ? List.of() : createdVersions)
+                    .build();
+        } catch (RuntimeException exception) {
+            cleanupGeneratedObjects(normalImageFiles, generatedMemoryBanks, requestId);
+            throw exception;
+        }
     }
 
     @Override
@@ -396,6 +404,18 @@ public class ModelManagementService implements
             if (contentType == null || !NORMAL_IMAGE_MIME_TYPES.contains(contentType.toLowerCase(Locale.ROOT))) {
                 throw new BusinessException(ErrorCode.INVALID_FILE_MIME);
             }
+            validateReadableImage(image);
+        }
+    }
+
+    private void validateReadableImage(MultipartFile image) {
+        try (InputStream inputStream = image.getInputStream()) {
+            BufferedImage decoded = ImageIO.read(inputStream);
+            if (decoded == null || decoded.getWidth() <= 0 || decoded.getHeight() <= 0) {
+                throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "손상되었거나 읽을 수 없는 정상 이미지가 포함되어 있습니다.");
+            }
+        } catch (IOException exception) {
+            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "손상되었거나 읽을 수 없는 정상 이미지가 포함되어 있습니다.");
         }
     }
 
@@ -590,6 +610,26 @@ public class ModelManagementService implements
                 .artifactType(artifactType)
                 .checksum(file.getChecksum())
                 .build();
+    }
+
+    private void cleanupGeneratedObjects(List<StoredFile> normalImageFiles, List<GeneratedMemoryBank> generatedMemoryBanks, String requestId) {
+        for (StoredFile file : normalImageFiles) {
+            cleanupObject(file.getObjectKey(), requestId);
+        }
+        for (GeneratedMemoryBank generated : generatedMemoryBanks) {
+            cleanupObject(generated.result().getMemoryBankFileKey(), requestId);
+        }
+    }
+
+    private void cleanupObject(String objectKey, String requestId) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return;
+        }
+        try {
+            minioStorageAdapter.delete(minioProperties.getBucketModels(), objectKey);
+        } catch (RuntimeException cleanupException) {
+            log.warn("Failed to cleanup model generation object, requestId={}, objectKey={}", requestId, objectKey, cleanupException);
+        }
     }
 
     private void validateUploadCommand(UploadModelVersionCommand command) {
@@ -828,12 +868,13 @@ public class ModelManagementService implements
     private String buildOutputPrefix(Long organizationId, Long targetId, DeploymentScope scope, ModelProfile profile, ModelCategory category) {
         String targetSegment = scope == DeploymentScope.TARGET ? "target-" + targetId : "organization";
         return "models/generated/org-" + organizationId + "/" + targetSegment + "/"
-                + profile.name().toLowerCase(Locale.ROOT) + "-" + category.name().toLowerCase(Locale.ROOT);
+                + profile.name().toLowerCase(Locale.ROOT) + "-" + category.name().toLowerCase(Locale.ROOT)
+                + "/job-" + UUID.randomUUID();
     }
 
     private String buildNormalImageObjectKey(Long organizationId, Long targetId, DeploymentScope scope, String requestId, String fileName) {
         String targetSegment = scope == DeploymentScope.TARGET ? "target-" + targetId : "organization";
-        return "models/tmp/normal/org-" + organizationId + "/" + targetSegment + "/request-" + requestId + "/" + fileName;
+        return "models/tmp/normal/org-" + organizationId + "/" + targetSegment + "/job-" + requestId + "/" + fileName;
     }
 
     private String buildUniqueFileName(String originalFilename, String defaultBaseName) {

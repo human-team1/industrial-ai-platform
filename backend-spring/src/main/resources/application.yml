@@ -111,7 +111,7 @@ app:
 factoryguard:
   model:
     memory-bank:
-      min-normal-image-count: ${MODEL_MEMORY_BANK_MIN_NORMAL_IMAGE_COUNT:1}
+      min-normal-image-count: ${MODEL_MEMORY_BANK_MIN_NORMAL_IMAGE_COUNT:100}
     fixed-profiles:
       speed-object:
         ckpt-file-key: ${MODEL_SPEED_OBJECT_CKPT_KEY:models/base/speed-object/model.ckpt}
