@@ -20,12 +20,14 @@ def normalize_organization_id_for_retrieval(
     default_organization_id: str,
 ) -> str:
     if value is None:
-        return default_organization_id
+        normalized_default = str(default_organization_id).strip()
+        if normalized_default.lower().startswith("org-"):
+            suffix = normalized_default[4:]
+            if suffix.isdigit():
+                return suffix
+        return normalized_default
 
-    if str(value) == "1":
-        return default_organization_id
-
-    return str(value)
+    return str(value).strip()
 
 
 def source_to_source_chunk(source: Any) -> SourceChunk:

@@ -99,12 +99,38 @@ class RagQuerySuccessResponse(ApiSuccessResponse[RagQueryResponse]):
     pass
 
 
+def normalize_answer_status(result: RagQueryResult) -> str:
+    raw_status = result.metadata.get("answerStatus")
+    if isinstance(raw_status, str) and raw_status.strip():
+        return raw_status.strip().upper()
+
+    answer_type_raw = result.answer_type.value if hasattr(result.answer_type, "value") else result.answer_type
+    answer_type = str(answer_type_raw or "").strip().lower()
+    if answer_type in {"result_linked", "document_search", "general"}:
+        return "ANSWERED"
+    if answer_type == "no_retrieval_result":
+        return "NO_RELEVANT_SOURCE"
+    if answer_type == "out_of_scope":
+        return "OUT_OF_SCOPE"
+    if answer_type == "retriever_error":
+        return "VECTOR_STORE_FAILED"
+    if answer_type == "validation_error":
+        return "VALIDATION_FAILED"
+    if answer_type in {"need_result_context", "system_error"}:
+        return "LLM_FAILED"
+    return "LLM_FAILED"
+
+
 def rag_result_to_response(result: RagQueryResult) -> RagQueryResponse:
-    answer_status = str(result.metadata.get("answerStatus") or result.answer_type)
+    metadata = {**asdict(result).get("metadata", {})}
     return RagQueryResponse(
         answer=result.answer,
-        answer_status=answer_status,
-        question_mode=str(result.question_mode) if result.question_mode is not None else None,
+        answer_status=normalize_answer_status(result),
+        question_mode=(
+            result.question_mode.value
+            if hasattr(result.question_mode, "value")
+            else (str(result.question_mode) if result.question_mode is not None else None)
+        ),
         sources=[
             RagSourceResponse(
                 document_id=str(source.document_id),
@@ -118,8 +144,8 @@ def rag_result_to_response(result: RagQueryResult) -> RagQueryResponse:
             )
             for source in result.sources
         ],
-        llm_model=result.metadata.get("llmModel"),
-        created_at=result.metadata.get("createdAt"),
+        llm_model=metadata.get("llmModel") or metadata.get("llm_model"),
+        created_at=metadata.get("createdAt") or metadata.get("created_at"),
         answer_type=result.answer_type,
         citation_ok=result.citation_ok,
         need_clarification=result.need_clarification,
@@ -129,5 +155,5 @@ def rag_result_to_response(result: RagQueryResult) -> RagQueryResponse:
         result_id=result.result_id,
         conversation_id=result.conversation_id,
         message_id=result.message_id,
-        metadata={**asdict(result).get("metadata", {})},
+        metadata=metadata,
     )

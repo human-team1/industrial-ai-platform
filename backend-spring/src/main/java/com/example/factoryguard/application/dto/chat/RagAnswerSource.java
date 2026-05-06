@@ -14,6 +14,7 @@ public class RagAnswerSource {
     private final String documentTitle;
     private final String documentType;
     private final Long chunkId;
+    private final String vectorRef;
     private final Integer page;
     private final String section;
     private final String sourceSnippet;

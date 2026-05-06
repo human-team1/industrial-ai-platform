@@ -8,8 +8,10 @@ from application.document_index_jobs import (
     GetDocumentIndexJobStatusUseCase,
     ProcessDocumentIndexJobUseCase,
 )
+from application.rag.graph_runner import RagGraphRunner
 from application.rag_service import RagService
 from application.vision_inference_service import VisionInferenceService
+from container.rag_container import create_rag_graph_runner
 from config.settings import get_settings
 from infrastructure.chroma_client import ChromaClientWrapper
 from infrastructure.concurrency.inference_limiter import InferenceLimiter
@@ -70,6 +72,11 @@ def get_rag_service() -> RagService:
         retriever=get_chroma_retriever(),
         llm_client=get_ollama_llm_client(),
     )
+
+
+@lru_cache
+def get_rag_graph_runner() -> RagGraphRunner:
+    return create_rag_graph_runner(get_settings())
 
 
 def get_enqueue_document_index_job_usecase() -> EnqueueDocumentIndexJobUseCase:

@@ -133,7 +133,8 @@ class Settings(BaseSettings):
 
     rag_organization_filter_required: bool = True
     rag_document_status_filter_required: bool = True
-    rag_default_organization_id: str = "org-001"
+    # rag_default_organization_id: str = "org-001"
+    rag_default_organization_id: str = "9001"
     rag_default_document_status: str = "PUBLISHED"
 
     rag_source_fields: str = (
@@ -194,7 +195,8 @@ class Settings(BaseSettings):
     embedding_provider: str = "local"
     embedding_dimension: int = 256
     embedding_model_name: str = "BAAI/bge-m3"
-    embedding_local_files_only: bool = False
+    embedding_local_files_only: bool = True
+    # embedding_local_files_only: bool = False
     embedding_cache_dir: str = str(
         RAG_EXPERIMENT_ROOT / "results" / "embedding_eval" / "cache" / "huggingface"
     )
@@ -273,6 +275,7 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
 
     rag_embedding_model_name: str = "deterministic-hash-embedding"
+    
 
 @lru_cache
 def get_settings() -> Settings:

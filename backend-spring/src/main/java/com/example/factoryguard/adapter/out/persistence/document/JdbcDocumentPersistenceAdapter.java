@@ -5,9 +5,11 @@ import com.example.factoryguard.application.dto.document.DocumentIndexJobPolling
 import com.example.factoryguard.application.dto.document.DocumentIndexingTarget;
 import com.example.factoryguard.application.dto.document.DocumentUploadResult;
 import com.example.factoryguard.application.port.out.document.DocumentIndexPersistencePort;
+import com.example.factoryguard.application.port.out.document.LoadVectorIndexPort;
 import com.example.factoryguard.application.port.out.document.SaveUploadedDocumentPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
+import com.example.factoryguard.domain.document.model.VectorIndex;
 import com.example.factoryguard.domain.document.vo.DocumentIndexJobStatus;
 import com.example.factoryguard.domain.document.vo.DocumentStatus;
 import com.example.factoryguard.domain.document.vo.DocumentType;
@@ -27,7 +29,7 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort, DocumentIndexPersistencePort {
+public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort, DocumentIndexPersistencePort, LoadVectorIndexPort {
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -246,6 +248,40 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
                 SET completed_at = ?, error_message = ?
                 WHERE job_id = ?
                 """, Timestamp.valueOf(LocalDateTime.now()), summarize(errorMessage), jobId);
+    }
+
+    @Override
+    public Optional<VectorIndex> findByChunkId(Long chunkId) {
+        List<VectorIndex> rows = jdbcTemplate.query("""
+                SELECT vector_id, chunk_id, embedding_model, vector_ref, created_at
+                FROM vector_index
+                WHERE chunk_id = ?
+                LIMIT 1
+                """, (rs, rowNum) -> VectorIndex.builder()
+                .vectorId(rs.getLong("vector_id"))
+                .chunkId(rs.getLong("chunk_id"))
+                .embeddingModel(rs.getString("embedding_model"))
+                .vectorRef(rs.getString("vector_ref"))
+                .createdAt(rs.getTimestamp("created_at").toLocalDateTime())
+                .build(), chunkId);
+        return rows.stream().findFirst();
+    }
+
+    @Override
+    public Optional<VectorIndex> findByVectorRef(String vectorRef) {
+        List<VectorIndex> rows = jdbcTemplate.query("""
+                SELECT vector_id, chunk_id, embedding_model, vector_ref, created_at
+                FROM vector_index
+                WHERE vector_ref = ?
+                LIMIT 1
+                """, (rs, rowNum) -> VectorIndex.builder()
+                .vectorId(rs.getLong("vector_id"))
+                .chunkId(rs.getLong("chunk_id"))
+                .embeddingModel(rs.getString("embedding_model"))
+                .vectorRef(rs.getString("vector_ref"))
+                .createdAt(rs.getTimestamp("created_at").toLocalDateTime())
+                .build(), vectorRef);
+        return rows.stream().findFirst();
     }
 
     private Long insertDocument(Long organizationId, Long ownerUserId, String title, DocumentType documentType) {

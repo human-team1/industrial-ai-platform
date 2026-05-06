@@ -51,11 +51,51 @@ class EmbeddingClient:
 
         from sentence_transformers import SentenceTransformer
 
+        model_name_or_path = self._resolve_local_model_path(cache_dir)
         return SentenceTransformer(
-            self._settings.embedding_model_name,
+            model_name_or_path,
             cache_folder=str(cache_dir),
             local_files_only=self._settings.embedding_local_files_only,
         )
+
+    def _resolve_local_model_path(self, cache_dir: Path) -> str:
+        model_name = self._settings.embedding_model_name
+        model_path = Path(model_name)
+
+        if model_path.exists():
+            return str(model_path)
+
+        if not self._settings.embedding_local_files_only:
+            return model_name
+
+        repo_snapshot = self._find_cached_snapshot(cache_dir, model_name)
+        if repo_snapshot is not None:
+            return str(repo_snapshot)
+
+        return model_name
+
+    def _find_cached_snapshot(self, cache_dir: Path, model_name: str) -> Path | None:
+        normalized = model_name.strip().replace("/", "--")
+        candidates = [
+            cache_dir / f"models--{normalized}" / "snapshots",
+            cache_dir / "hub" / f"models--{normalized}" / "snapshots",
+        ]
+
+        valid_snapshots: list[Path] = []
+        for snapshots_dir in candidates:
+            if not snapshots_dir.exists():
+                continue
+            for snapshot in snapshots_dir.iterdir():
+                if not snapshot.is_dir():
+                    continue
+                if (snapshot / "modules.json").exists() and (snapshot / "config.json").exists():
+                    valid_snapshots.append(snapshot)
+
+        if not valid_snapshots:
+            return None
+
+        valid_snapshots.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+        return valid_snapshots[0]
 
     def _embed_with_sentence_transformers(self, texts: list[str]) -> list[list[float]]:
         vector = self._sentence_transformer.encode(
