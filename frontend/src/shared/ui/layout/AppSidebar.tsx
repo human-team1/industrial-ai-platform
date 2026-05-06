@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useMatch } from 'react-router-dom'
 import { useAuth } from '../../../features/auth/model'
 import type { AuthRole } from '../../../features/auth/types'
 
@@ -70,6 +70,46 @@ function IconSettings() {
   )
 }
 
+function SidebarSystemStatus() {
+  const rows: { label: string; value: string }[] = [
+    { label: '전체', value: 'OK' },
+    { label: '모델 서버', value: 'OK' },
+    { label: '스트리밍 서버', value: 'OK' },
+    { label: '스토리지', value: 'OK' },
+  ]
+
+  return (
+    <div className="mb-5 rounded border border-[#2d3347] bg-[#171c2a] p-4 text-xs text-[#a5b0c4]">
+      <p className="mb-3 font-semibold text-[#d8dbe2]">시스템 상태</p>
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <div key={row.label} className="flex items-center justify-between">
+            <span className="text-[11px] text-[#8d95aa]">{row.label}</span>
+            <span
+              className={`rounded px-2 py-0.5 text-[10px] font-semibold ${statusBadgeTone(row.value)}`}
+            >
+              {statusBadgeLabel(row.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[10px] text-[#6a7089]">최근 업데이트 -</p>
+    </div>
+  )
+}
+
+function statusBadgeTone(value: string) {
+  if (value === 'ERROR') return 'bg-rose-500/15 text-rose-300'
+  if (value === 'WARNING') return 'bg-amber-500/15 text-amber-300'
+  return 'bg-emerald-500/15 text-emerald-300'
+}
+
+function statusBadgeLabel(value: string) {
+  if (value === 'ERROR') return '오류'
+  if (value === 'WARNING') return '주의'
+  return '정상'
+}
+
 function IconCollapseMenu() {
   return (
     <svg className="h-[11px] w-2.5 shrink-0" fill="none" viewBox="0 0 10 11" stroke="currentColor" strokeWidth={1.5}>
@@ -112,6 +152,7 @@ export function AppSidebar({
   const visibleNavItems = navItems.filter(
     (item) => !item.roles || (user && item.roles.includes(user.role)),
   )
+  const documentEditMatch = useMatch('/documents/:documentId/edit')
 
   if (isCollapsed) {
     return (
@@ -145,14 +186,17 @@ export function AppSidebar({
               {item.to ? (
                 <NavLink
                   to={item.to}
-                  end={item.to === '/inspections'}
-                  className={({ isActive }) =>
-                    `flex w-full items-center gap-3 px-5 py-[13px] text-left text-[13px] transition-colors ${
-                      isActive
+                  end={item.to === '/inspections' || item.to === '/documents'}
+                  className={({ isActive }) => {
+                    const forceActive =
+                      item.to === '/documents/new' && Boolean(documentEditMatch)
+                    const active = isActive || forceActive
+                    return `flex w-full items-center gap-3 px-5 py-[13px] text-left text-[13px] transition-colors ${
+                      active
                         ? 'bg-blue-50 text-blue-700'
                         : 'text-[#d8dbe2] hover:bg-white/5'
                     }`
-                  }
+                  }}
                 >
                   <span className="text-current">{item.icon}</span>
                   {item.label}
@@ -173,12 +217,8 @@ export function AppSidebar({
       </nav>
 
       <div className="px-5 pb-[55px]">
-        <div className="mb-5 rounded border border-[#2d3347] bg-[#171c2a] p-4 text-xs text-[#a5b0c4]">
-          <p className="mb-3 font-semibold text-[#d8dbe2]">시스템 상태</p>
-          <p className="text-[11px] leading-5 text-[#8d95aa]">
-            실시간 상태는 운영 모니터링 화면의 실제 API 데이터로 확인합니다.
-          </p>
-        </div>
+        <SidebarSystemStatus />
+
         <button
           type="button"
           onClick={onCollapse}

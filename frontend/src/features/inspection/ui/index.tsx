@@ -1,9 +1,12 @@
 import type { DragEvent, ReactNode, RefObject } from 'react'
 import { useRef, useState } from 'react'
+import { formatElapsedTime } from '../../../shared/lib/date'
+import { computeProgressSteps } from '../model'
 import type {
   AnalysisTargetOption,
   BrowserCameraDevice,
   InspectionEvent,
+  ProgressStepState,
   SelectedInspectionFile,
   ThresholdOption,
   UploadInspectionResponse,
@@ -235,7 +238,7 @@ export function FileUploadCard({
   }
 
   return (
-    <Card title="1. 이미지 업로드" className="xl:col-span-7">
+    <Card title="1. 이미지 업로드">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(260px,0.8fr)]">
         <div
           role="button"
@@ -261,9 +264,6 @@ export function FileUploadCard({
               이미지를 드래그하거나 클릭해서 업로드해 주세요
             </p>
             <p className="mt-2 text-sm text-slate-500">JPG, PNG, WEBP 이미지 파일만 지원합니다.</p>
-            <p className="mt-1 text-xs text-slate-400">
-              영상 파일과 자동 프레임 업로드는 MVP 범위에서 제외됩니다.
-            </p>
           </div>
           <button type="button" className="btn-blue mt-2" disabled={uploading}>
             이미지 선택
@@ -352,7 +352,6 @@ export function PreviewCard({
   return (
     <Card
       title="2. 미리보기"
-      className="xl:col-span-5"
       action={selectedFile ? <Badge tone="blue">이미지</Badge> : null}
     >
       <div className="relative flex min-h-[360px] items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
@@ -405,78 +404,75 @@ export function InspectionRunCard({
   const thresholdSelectable = thresholdOptions.some((option) => option.id)
 
   return (
-    <Card title="3. 검사 실행" className="xl:col-span-4">
-      <div className="space-y-4">
-        <Field label="검사 모델">
-          <div className="flex gap-2">
+    <Card title="3. 검사 실행">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <Field label="검사 모델">
+            <div className="flex gap-2">
+              <select
+                className="control min-w-0 flex-1"
+                value={selectedModel}
+                onChange={(event) => onModelChange(event.target.value)}
+                disabled={uploading}
+              >
+                <option value="default">기본 이상 탐지 모델</option>
+                <option value="conveyor">컨베이어 벨트 이상 탐지 모델</option>
+              </select>
+              <button type="button" className="btn-secondary" onClick={onSettingClick} disabled={uploading}>
+                설정
+              </button>
+            </div>
+          </Field>
+
+          <Field label="검사 대상">
             <select
-              className="control min-w-0 flex-1"
-              value={selectedModel}
-              onChange={(event) => onModelChange(event.target.value)}
-              disabled={uploading}
+              className="control w-full"
+              value={selectedTargetId ?? ''}
+              onChange={(event) => onTargetChange(event.target.value ? Number(event.target.value) : null)}
+              disabled={uploading || loadingOptions}
             >
-              <option value="default">기본 이상 탐지 모델</option>
-              <option value="conveyor">컨베이어 벨트 이상 탐지 모델</option>
-            </select>
-            <button type="button" className="btn-secondary" onClick={onSettingClick} disabled={uploading}>
-              설정
-            </button>
-          </div>
-        </Field>
-
-        <Field label="검사 대상">
-          <select
-            className="control w-full"
-            value={selectedTargetId ?? ''}
-            onChange={(event) => onTargetChange(event.target.value ? Number(event.target.value) : null)}
-            disabled={uploading || loadingOptions}
-          >
-            <option value="">검사 대상을 선택해 주세요</option>
-            {targetOptions.map((target) => (
-              <option key={target.id} value={target.id}>
-                {target.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field label="임계값">
-          <select
-            className="control w-full"
-            value={selectedThresholdId ?? ''}
-            onChange={(event) => onThresholdChange(event.target.value ? Number(event.target.value) : null)}
-            disabled={uploading || loadingOptions || !thresholdSelectable}
-          >
-            <option value="">기본 임계값 사용</option>
-            {thresholdOptions
-              .filter((threshold) => threshold.id)
-              .map((threshold) => (
-                <option key={threshold.id} value={threshold.id}>
-                  {threshold.name}
+              <option value="">검사 대상을 선택해 주세요</option>
+              {targetOptions.map((target) => (
+                <option key={target.id} value={target.id}>
+                  {target.name}
                 </option>
               ))}
-          </select>
-          {!thresholdSelectable && thresholdOptions[0] ? (
-            <p className="mt-1 text-xs text-slate-500">
-              조회된 임계값 중 선택 가능한 항목이 없어 기본 정책으로 요청합니다.
-            </p>
-          ) : null}
-        </Field>
+            </select>
+          </Field>
 
-        <button
-          type="button"
-          className="h-12 w-full rounded-md bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={!selectedFile || uploading}
-          onClick={onSubmit}
-        >
-          {uploading ? '요청 중...' : '검사 실행'}
-        </button>
+          <Field label="임계값">
+            <select
+              className="control w-full"
+              value={selectedThresholdId ?? ''}
+              onChange={(event) => onThresholdChange(event.target.value ? Number(event.target.value) : null)}
+              disabled={uploading || loadingOptions || !thresholdSelectable}
+            >
+              <option value="">기본 임계값 사용</option>
+              {thresholdOptions
+                .filter((threshold) => threshold.id)
+                .map((threshold) => (
+                  <option key={threshold.id} value={threshold.id}>
+                    {threshold.name}
+                  </option>
+                ))}
+            </select>
+            {!thresholdSelectable && thresholdOptions[0] ? (
+              <p className="mt-1 text-xs text-slate-500">
+                조회된 임계값 중 선택 가능한 항목이 없어 기본 정책으로 요청합니다.
+              </p>
+            ) : null}
+          </Field>
+        </div>
 
-        <div className="space-y-1 rounded-md bg-slate-50 p-3 text-xs leading-5 text-slate-500">
-          <p>입력 모드: IMAGE</p>
-          <p>입력 출처: 이미지 업로드</p>
-          <p>ROI 모드: FULL_FRAME</p>
-          <p>ROI UI가 아직 없어 전체 프레임 기준으로 요청합니다.</p>
+        <div className="flex items-center justify-center">
+          <button
+            type="button"
+            className="h-12 w-full rounded-md bg-blue-600 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!selectedFile || uploading}
+            onClick={onSubmit}
+          >
+            {uploading ? '요청 중...' : '검사 실행'}
+          </button>
         </div>
       </div>
     </Card>
@@ -494,39 +490,73 @@ export function ProgressStatusCard({
   uploadResult: UploadInspectionResponse | null
   requestDurationMs: number | null
 }) {
-  const steps = [
-    getStep('이미지 선택', !selectedFile ? '대기' : uploading ? '진행 중' : uploadResult ? '완료' : '준비'),
-    getStep('업로드 검증', uploadResult ? '처리 예정' : '대기'),
-    getStep('모델 추론', uploadResult ? '처리 예정' : '대기'),
-    getStep('결과 생성', uploadResult ? '처리 예정' : '대기'),
-  ]
+  const steps = computeProgressSteps({ selectedFile, uploading, uploadResult })
+  const completedCount = steps.filter((s) => s.state === 'complete').length
+  const percent = Math.round((completedCount / steps.length) * 100)
+  const elapsed = formatElapsedTime(requestDurationMs)
+  const summaryLabel = uploadResult ? '분석 완료' : uploading ? '분석 중' : '대기 중'
 
   return (
-    <Card title="4. 진행 상태" className="xl:col-span-4">
-      <div className="flex items-center gap-5">
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full border-[10px] border-blue-100 bg-white text-center">
-          <div>
-            <p className="text-lg font-bold text-blue-700">{uploadResult ? '25%' : uploading ? '...' : '0%'}</p>
-            <p className="text-[11px] text-slate-500">{uploadResult ? '접수 완료' : '대기'}</p>
-          </div>
-        </div>
-        <div className="min-w-0 flex-1 space-y-3">
-          {steps.map((step) => (
-            <div key={step.label} className="flex items-center gap-3">
-              <span className={`h-3 w-3 rounded-full ${step.color}`} />
-              <div className="flex min-w-0 flex-1 items-center justify-between gap-2 text-sm">
-                <span className="font-medium text-slate-700">{step.label}</span>
-                <span className="text-xs text-slate-500">{step.status}</span>
+    <Card title="4. 진행 상태">
+      <div className="flex items-stretch gap-5">
+        <ol className="min-w-0 flex-1 space-y-0">
+          {steps.map((step, i) => (
+            <li key={step.label} className="relative">
+              <div className="flex items-center gap-3">
+                <ProgressStepCircle state={step.state} />
+                <span
+                  className={`text-sm font-medium ${
+                    step.state === 'pending' ? 'text-slate-400' : 'text-slate-700'
+                  }`}
+                >
+                  {step.label}
+                </span>
               </div>
-            </div>
+              {i < steps.length - 1 ? (
+                <span
+                  aria-hidden="true"
+                  className={`ml-[11px] block h-5 w-px ${
+                    step.state === 'complete' ? 'bg-emerald-300' : 'bg-slate-200'
+                  }`}
+                />
+              ) : null}
+            </li>
           ))}
-          <p className="pt-2 text-xs text-slate-500">
-            요청 소요 시간: {requestDurationMs == null ? '-' : `${(requestDurationMs / 1000).toFixed(2)}초`}
-          </p>
-          {uploadResult ? <Badge tone="blue">PROCESSING</Badge> : null}
+        </ol>
+
+        <div className="flex shrink-0 flex-col items-center justify-center gap-2">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full border-[10px] border-blue-100 bg-white">
+            <p className="text-lg font-bold text-blue-700">{percent}%</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-slate-500">{summaryLabel}</p>
+            <p className="font-mono text-sm font-semibold text-slate-700">{elapsed}</p>
+          </div>
         </div>
       </div>
     </Card>
+  )
+}
+
+function ProgressStepCircle({ state }: { state: ProgressStepState }) {
+  if (state === 'complete') {
+    return (
+      <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12l5 5L20 7" />
+        </svg>
+      </span>
+    )
+  }
+  if (state === 'progress') {
+    return (
+      <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 border-blue-500 bg-blue-50">
+        <span className="h-2 w-2 rounded-full bg-blue-500" />
+      </span>
+    )
+  }
+  return (
+    <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 border-slate-200 bg-white" />
   )
 }
 
@@ -542,7 +572,7 @@ export function ResultSummaryCard({
   onReset: () => void
 }) {
   return (
-    <Card title="5. 검사 요청 요약" className="xl:col-span-4">
+    <Card title="5. 검사 요청 요약">
       {!uploadResult ? (
         <Placeholder
           title="아직 검사 요청이 없습니다."
@@ -581,7 +611,7 @@ export function AnalysisInsightCard({
   onGoResults: () => void
 }) {
   return (
-    <Card title="6. 분석 안내" className="xl:col-span-4">
+    <Card title="6. 분석 안내">
       {!uploadResult ? (
         <Placeholder
           title="분석 안내는 검사 요청 후 표시됩니다."
@@ -669,17 +699,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function getStep(label: string, status: string) {
-  const color =
-    status === '완료'
-      ? 'bg-emerald-500'
-      : status === '진행 중'
-        ? 'bg-blue-500'
-        : status === '준비'
-          ? 'bg-amber-400'
-          : 'bg-slate-300'
-  return { label, status, color }
-}
 
 function formatResolution(selectedFile: SelectedInspectionFile) {
   if (!selectedFile.width || !selectedFile.height) return '-'

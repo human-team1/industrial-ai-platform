@@ -1,14 +1,16 @@
 import { apiClient, normalizeApiError } from '../../../shared/api/client'
 import type {
+  ChatConversationDetail,
+  ChatMessage,
+  ChatSource,
+} from '../../../entities/chatbot/model/types'
+import type {
   AskChatRequest,
   AskChatResponse,
-  ChatConversationDetail,
   ChatConversationPage,
   ChatConversationResult,
   ChatHistoryQuery,
-  ChatMessage,
-  ChatSource,
-} from '../types'
+} from './types'
 
 type ApiResponse<T> = {
   success: boolean

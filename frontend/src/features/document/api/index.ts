@@ -1,11 +1,11 @@
 import { apiClient, normalizeApiError } from '../../../shared/api/client'
 import type {
   DocumentCreateResult,
-  DocumentDetail,
+  DocumentDetailResponse,
   DocumentPageResponse,
   DocumentSearchParams,
-  DocumentSummary,
-} from '../types'
+  UpdateDocumentMetadataPayload,
+} from './types'
 
 type ApiResponse<T> = {
   success: boolean
@@ -34,18 +34,9 @@ export async function getDocuments(
   }
 }
 
-export async function getDocumentSummary(signal?: AbortSignal): Promise<DocumentSummary> {
+export async function getDocumentDetail(documentId: number): Promise<DocumentDetailResponse> {
   try {
-    const response = await apiClient.get<ApiResponse<DocumentSummary>>('/documents/summary', { signal })
-    return response.data.data
-  } catch (error) {
-    throw normalizeApiError(error)
-  }
-}
-
-export async function getDocumentDetail(documentId: number): Promise<DocumentDetail> {
-  try {
-    const response = await apiClient.get<ApiResponse<DocumentDetail>>(`/documents/${documentId}`)
+    const response = await apiClient.get<ApiResponse<DocumentDetailResponse>>(`/documents/${documentId}`)
     return response.data.data
   } catch (error) {
     throw normalizeApiError(error)
@@ -61,17 +52,12 @@ export async function createDocument(formData: FormData): Promise<DocumentCreate
   }
 }
 
-export type UpdateDocumentMetadataPayload = {
-  title: string
-  category?: string
-  equipmentType?: string
-  description?: string
-  tags: string[]
-}
-
 export async function updateDocument(documentId: number, body: UpdateDocumentMetadataPayload) {
   try {
-    const response = await apiClient.patch<ApiResponse<DocumentDetail>>(`/documents/${documentId}`, body)
+    const response = await apiClient.patch<ApiResponse<DocumentDetailResponse>>(
+      `/documents/${documentId}`,
+      body,
+    )
     return response.data.data
   } catch (error) {
     throw normalizeApiError(error)
@@ -97,3 +83,5 @@ export async function deleteDocument(documentId: number) {
     throw normalizeApiError(error)
   }
 }
+
+export type { UpdateDocumentMetadataPayload } from './types'

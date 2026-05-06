@@ -81,7 +81,7 @@ function DashboardSkeleton() {
           <div key={index} className="h-32 animate-pulse rounded border border-slate-200 bg-white" />
         ))}
       </div>
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,4fr)_minmax(0,1fr)]">
         <div className="h-80 animate-pulse rounded border border-slate-200 bg-white" />
         <div className="h-80 animate-pulse rounded border border-slate-200 bg-white" />
       </div>
