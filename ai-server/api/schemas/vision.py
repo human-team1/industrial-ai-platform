@@ -3,13 +3,11 @@ from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-<<<<<<< HEAD
+
 from typing import Literal
 =======
 
 INPUT_SIZE_PATTERN = re.compile(r"^\d+(x\d+)?$")
-
->>>>>>> 466d72f1078d66333c2f647399668c33240aad01
 
 class ApiSuccessResponse(BaseModel):
     success: bool = True
