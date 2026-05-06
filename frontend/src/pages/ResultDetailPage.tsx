@@ -9,11 +9,16 @@ import {
   DescriptionCard,
   DetectionInfoCard,
   EventLogCard,
+  ModelInfoCard,
   OriginalImageCard,
   ProbabilityDecisionCard,
   RelatedResultsCard,
   VisualizationCard,
-} from '../features/result/ui'
+  type EventLogItem,
+  type RelatedResult,
+  type ResultChecklistItem,
+  type ResultDescriptionView,
+} from '../widgets/result-detail'
 import { BarChartCard } from '../shared/ui/chart/BarChartCard'
 
 export function ResultDetailPage() {
@@ -31,6 +36,11 @@ export function ResultDetailPage() {
     () => data?.images.find((image) => image.imageRole === 'ORIGINAL') ?? data?.images[0],
     [data],
   )
+
+  const eventLogs: EventLogItem[] = []
+  const checklist: ResultChecklistItem[] = []
+  const relatedResults: RelatedResult[] = []
+  const description: ResultDescriptionView | null = null
 
   useEffect(() => {
     if (!data?.review.reviewQueueId) {
@@ -61,7 +71,9 @@ export function ResultDetailPage() {
         if (!controller.signal.aborted) {
           setReviewModelOptions([])
           setSelectedDeploymentId(null)
-          setRerunError(nextError instanceof Error ? nextError.message : '재검사 가능 모델을 조회하지 못했습니다.')
+          setRerunError(
+            nextError instanceof Error ? nextError.message : '재검사 가능 모델을 조회하지 못했습니다.',
+          )
         }
       })
 
@@ -104,7 +116,7 @@ export function ResultDetailPage() {
     <div className="space-y-5">
       <section className="page-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="mb-2 text-xs font-semibold text-slate-500">탐지 이력 &gt; 결과 상세</p>
+          <p className="mb-2 text-xs font-semibold text-slate-500">검사 이력 &gt; 결과 상세</p>
           <h1 className="text-2xl font-semibold text-slate-900">결과 상세</h1>
         </div>
         <button type="button" onClick={goBack} className="btn-secondary">
@@ -116,7 +128,7 @@ export function ResultDetailPage() {
         <div className="space-y-5">
           <OriginalImageCard images={data.images} />
           <VisualizationCard artifacts={data.artifacts} regions={regions} />
-          <EventLogCard eventLogs={data.eventLogs} />
+          <EventLogCard events={eventLogs} />
         </div>
 
         <div className="space-y-5">
@@ -126,49 +138,26 @@ export function ResultDetailPage() {
             result={data.result}
             originalImage={originalImage}
           />
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-base font-semibold text-slate-950">사용 모델</h2>
-            {data.model ? (
-              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs font-semibold uppercase text-slate-500">모델명</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{data.model.modelName ?? '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold uppercase text-slate-500">버전명</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{data.model.versionName ?? '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold uppercase text-slate-500">카테고리</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{data.model.modelCategory ?? '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold uppercase text-slate-500">프로필</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{data.model.modelProfile ?? '-'}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-semibold uppercase text-slate-500">modelVersionId</dt>
-                  <dd className="mt-1 text-sm text-slate-900">{data.result.modelVersionId ?? '-'}</dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="text-sm text-slate-500">모델 정보 없음</p>
-            )}
-          </section>
+          <ModelInfoCard model={data.model ?? null} result={data.result} />
+
           {data.review.reviewQueueId ? (
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-4 text-base font-semibold text-slate-950">재검토 재검사</h2>
+              <h2 className="mb-4 text-base font-semibold text-slate-950">재검사 실행</h2>
               <div className="space-y-3">
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-medium text-slate-700">재검사 모델</span>
                   <select
                     className="control w-full"
                     value={selectedDeploymentId ?? ''}
-                    onChange={(event) => setSelectedDeploymentId(event.target.value ? Number(event.target.value) : null)}
+                    onChange={(event) =>
+                      setSelectedDeploymentId(event.target.value ? Number(event.target.value) : null)
+                    }
                     disabled={rerunLoading || reviewModelOptions.length === 0}
                   >
                     <option value="">
-                      {reviewModelOptions.length === 0 ? '사용 가능한 배포 모델이 없습니다.' : '배포 모델을 선택해 주세요.'}
+                      {reviewModelOptions.length === 0
+                        ? '사용 가능한 배포 모델이 없습니다.'
+                        : '배포 모델을 선택해 주세요.'}
                     </option>
                     {reviewModelOptions.map((model) => (
                       <option key={model.deploymentId} value={model.deploymentId}>
@@ -200,12 +189,17 @@ export function ResultDetailPage() {
                     setRerunError(null)
                     setRerunMessage(null)
                     try {
-                      const response = await rerunReviewInspection(data.review.reviewQueueId, selectedDeploymentId)
+                      const response = await rerunReviewInspection(
+                        data.review.reviewQueueId,
+                        selectedDeploymentId,
+                      )
                       setRerunMessage(
                         `재검사 요청이 접수되었습니다. inspectionId=${response.inspectionId}, runStatus=${response.runStatus}`,
                       )
                     } catch (nextError) {
-                      setRerunError(nextError instanceof Error ? nextError.message : '재검사 요청에 실패했습니다.')
+                      setRerunError(
+                        nextError instanceof Error ? nextError.message : '재검사 요청에 실패했습니다.',
+                      )
                     } finally {
                       setRerunLoading(false)
                     }
@@ -216,14 +210,18 @@ export function ResultDetailPage() {
               </div>
             </section>
           ) : null}
+
           <ProbabilityDecisionCard result={data.result} />
           <BarChartCard
             viewModel={toRegionScoreChart(data)}
             empty={{ reason: 'NO_DATA', message: '표시할 region score가 없습니다.' }}
           />
-          <DescriptionCard description={data.description} />
-          <ChecklistCard checklist={data.checklist} />
-          <RelatedResultsCard relatedResults={data.relatedResults} onDetail={(nextResultId) => navigate(`/results/${nextResultId}`)} />
+          <DescriptionCard description={description} />
+          <ChecklistCard checklist={checklist} />
+          <RelatedResultsCard
+            relatedResults={relatedResults}
+            onDetail={(nextResultId) => navigate(`/results/${nextResultId}`)}
+          />
         </div>
       </div>
     </div>

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+AI_SERVER_ROOT = Path(__file__).resolve().parent.parent
+RAG_EXPERIMENT_ROOT = AI_SERVER_ROOT / "experiments" / "rag_langgraph_eval"
 
 
 class Settings(BaseSettings):
@@ -39,10 +44,10 @@ class Settings(BaseSettings):
     # Experiment
     # ==================================================
     experiment_name: str = "rag_langgraph_3day_eval"
-    experiment_root: str = "./experiments/rag_langgraph_eval"
-    corpus_dir: str = "./experiments/rag_langgraph_eval/corpus"
-    dataset_dir: str = "./experiments/rag_langgraph_eval/datasets"
-    result_dir: str = "./experiments/rag_langgraph_eval/results"
+    experiment_root: str = str(RAG_EXPERIMENT_ROOT)
+    corpus_dir: str = str(RAG_EXPERIMENT_ROOT / "corpus")
+    dataset_dir: str = str(RAG_EXPERIMENT_ROOT / "datasets")
+    result_dir: str = str(RAG_EXPERIMENT_ROOT / "results")
 
     # ==================================================
     # Retriever
@@ -50,11 +55,11 @@ class Settings(BaseSettings):
     # retriever_type: str = "mock"
     retriever_type: str = "chroma"
     retrieval_config_id: str = "R3_HYBRID_TK10_S04"
-    best_retrieval_config_path: str = (
-        "./experiments/rag_langgraph_eval/config/best_retrieval_config.yaml"
+    best_retrieval_config_path: str = str(
+        RAG_EXPERIMENT_ROOT / "config" / "best_retrieval_config.yaml"
     )
-    mock_sources_path: str = (
-        "./experiments/rag_langgraph_eval/datasets/mock_sources_v1.json"
+    mock_sources_path: str = str(
+        RAG_EXPERIMENT_ROOT / "datasets" / "mock_sources_v1.json"
     )
 
     # ==================================================
@@ -72,7 +77,7 @@ class Settings(BaseSettings):
     chroma_metadata_document_version_key: str = "document_version_id"
     chroma_allowed_document_status: str = "PUBLISHED"
 
-    chroma_persist_dir: str = "./experiments/rag_langgraph_eval/chroma_smoke"
+    chroma_persist_dir: str = str(RAG_EXPERIMENT_ROOT / "chroma_smoke")
     chroma_collection_name: str = "industrial_rag_chunks_a_v1"
     chroma_collection_suffix: str = "dev"
 
@@ -128,7 +133,8 @@ class Settings(BaseSettings):
 
     rag_organization_filter_required: bool = True
     rag_document_status_filter_required: bool = True
-    rag_default_organization_id: str = "org-001"
+    # rag_default_organization_id: str = "org-001"
+    rag_default_organization_id: str = "9001"
     rag_default_document_status: str = "PUBLISHED"
 
     rag_source_fields: str = (
@@ -156,8 +162,8 @@ class Settings(BaseSettings):
     result_linked_required_keys: str = "result_id,user_id,organization_id"
     result_context_resolution_enabled: bool = False
     result_context_source: str = "mock"
-    result_context_sample_path: str = (
-        "./experiments/rag_langgraph_eval/datasets/result_context_samples_v1.json"
+    result_context_sample_path: str = str(
+        RAG_EXPERIMENT_ROOT / "datasets" / "result_context_samples_v1.json"
     )
 
     document_retrieval_auto_decide: bool = True
@@ -189,16 +195,17 @@ class Settings(BaseSettings):
     embedding_provider: str = "local"
     embedding_dimension: int = 256
     embedding_model_name: str = "BAAI/bge-m3"
-    embedding_local_files_only: bool = False
-    embedding_cache_dir: str = (
-        "./experiments/rag_langgraph_eval/results/embedding_eval/cache/huggingface"
+    embedding_local_files_only: bool = True
+    # embedding_local_files_only: bool = False
+    embedding_cache_dir: str = str(
+        RAG_EXPERIMENT_ROOT / "results" / "embedding_eval" / "cache" / "huggingface"
     )
 
     # ==================================================
     # Prompt / Answer Policy
     # ==================================================
     prompt_version: str = "prompt_v2_action_grounded"
-    prompt_dir: str = "./experiments/rag_langgraph_eval/prompts"
+    prompt_dir: str = str(RAG_EXPERIMENT_ROOT / "prompts")
 
     answer_language: str = "ko"
     answer_format: str = "industrial_action_guide"
@@ -267,7 +274,8 @@ class Settings(BaseSettings):
 
     gemini_api_key: str | None = None
 
-    # RAG_EMBEDDING_MODEL_NAME="deterministic-hash-embedding"
+    rag_embedding_model_name: str = "deterministic-hash-embedding"
+    
 
 @lru_cache
 def get_settings() -> Settings:

@@ -18,6 +18,7 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
@@ -30,7 +31,7 @@ public class RagAnswerAdapter implements RequestRagAnswerPort {
 
     private static final Logger log = LoggerFactory.getLogger(RagAnswerAdapter.class);
     private static final String INTERNAL_RAG_PATH = "/ai/v1/internal/rag/query";
-    private static final String FALLBACK_ANSWER = "챗봇 답변을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+    private static final String FALLBACK_ANSWER = "RAG answer generation failed.";
 
     private final FastApiClient fastApiClient;
     private final RestTemplate restTemplate;
@@ -38,24 +39,55 @@ public class RagAnswerAdapter implements RequestRagAnswerPort {
 
     @Override
     public RagAnswerResponse requestAnswer(RagAnswerRequest request) {
+        FastApiRagRequest payload = FastApiRagRequest.from(request, defaultTopK());
         try {
+            log.info("FastAPI RAG request, requestId={}, endpoint={}, conversationId={}, organizationId={}, resultId={}, topK={}, hasResultContext={}, questionPreview={}",
+                    MDC.get("requestId"), INTERNAL_RAG_PATH, request.getConversationId(), request.getOrganizationId(), request.getResultId(),
+                    payload.getTopK(), request.getResultContext() != null, previewQuestion(request.getQuestion()));
+
             FastApiRagResponse response = restTemplate.postForObject(
                     fastApiClient.baseUrl() + INTERNAL_RAG_PATH,
-                    FastApiRagRequest.from(request, defaultTopK()),
+                    payload,
                     FastApiRagResponse.class);
             RagAnswerResponse mapped = mapResponse(response == null ? null : response.getData());
-            log.info("FastAPI RAG completed, requestId={}, endpoint={}, conversationId={}, organizationId={}, status={}",
-                    MDC.get("requestId"), INTERNAL_RAG_PATH, request.getConversationId(), request.getOrganizationId(), mapped.getAnswerStatus());
+            log.info("FastAPI RAG completed, requestId={}, endpoint={}, conversationId={}, organizationId={}, status={}, sourceCount={}",
+                    MDC.get("requestId"), INTERNAL_RAG_PATH, request.getConversationId(), request.getOrganizationId(),
+                    mapped.getAnswerStatus(), mapped.getSources() == null ? 0 : mapped.getSources().size());
             return mapped;
         } catch (ResourceAccessException e) {
+            log.error("FastAPI RAG timeout, requestId={}, endpoint={}, conversationId={}, organizationId={}, message={}",
+                    MDC.get("requestId"), INTERNAL_RAG_PATH, request.getConversationId(), request.getOrganizationId(), e.getMessage(), e);
             return failedResponse(ChatAnswerStatus.VECTOR_STORE_FAILED, "RAG_TIMEOUT");
+        } catch (RestClientResponseException e) {
+            log.error("FastAPI RAG HTTP error, requestId={}, endpoint={}, conversationId={}, organizationId={}, statusCode={}, responseBody={}",
+                    MDC.get("requestId"), INTERNAL_RAG_PATH, request.getConversationId(), request.getOrganizationId(),
+                    e.getRawStatusCode(), trimForLog(e.getResponseBodyAsString()), e);
+            return failedResponse(ChatAnswerStatus.LLM_FAILED, "RAG_SERVER_ERROR");
         } catch (RestClientException e) {
+            log.error("FastAPI RAG client error, requestId={}, endpoint={}, conversationId={}, organizationId={}, message={}",
+                    MDC.get("requestId"), INTERNAL_RAG_PATH, request.getConversationId(), request.getOrganizationId(), e.getMessage(), e);
             return failedResponse(ChatAnswerStatus.LLM_FAILED, "RAG_SERVER_ERROR");
         }
     }
 
     private int defaultTopK() {
         return Math.max(aiServerProperties.getRag().getDefaultTopK(), 1);
+    }
+
+    private String previewQuestion(String question) {
+        if (question == null || question.isBlank()) {
+            return "";
+        }
+        String normalized = question.trim().replaceAll("\s+", " ");
+        return normalized.length() <= 80 ? normalized : normalized.substring(0, 80) + "...";
+    }
+
+    private String trimForLog(String text) {
+        if (text == null || text.isBlank()) {
+            return "";
+        }
+        String normalized = text.trim().replaceAll("\s+", " ");
+        return normalized.length() <= 1000 ? normalized : normalized.substring(0, 1000) + "...";
     }
 
     private RagAnswerResponse mapResponse(RagData data) {
@@ -97,11 +129,12 @@ public class RagAnswerAdapter implements RequestRagAnswerPort {
 
     private RagAnswerSource toSource(RagSource source) {
         return RagAnswerSource.builder()
-                .sourceId(source.getChunkId() != null ? source.getChunkId() : source.getDocumentId())
+                .sourceId(source.getDocumentId())
                 .documentId(source.getDocumentId())
                 .documentTitle(source.getDocumentTitle())
                 .documentType(source.getDocumentType())
-                .chunkId(source.getChunkId())
+                .chunkId(null)
+                .vectorRef(source.getChunkId())
                 .page(source.getPageNo())
                 .section(source.getSection())
                 .sourceSnippet(source.getSourceSnippet())
@@ -161,7 +194,7 @@ public class RagAnswerAdapter implements RequestRagAnswerPort {
         private Long documentVersionId;
         private String documentTitle;
         private String documentType;
-        private Long chunkId;
+        private String chunkId;
         private Integer pageNo;
         private String section;
         private BigDecimal score;

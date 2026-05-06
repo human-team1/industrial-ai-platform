@@ -104,3 +104,10 @@ export type InspectionEvent = {
   message?: string
   createdAt?: string
 }
+
+export type ProgressStepState = 'complete' | 'progress' | 'pending'
+
+export type ProgressStep = {
+  label: string
+  state: ProgressStepState
+}

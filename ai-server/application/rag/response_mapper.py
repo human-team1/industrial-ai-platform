@@ -23,10 +23,12 @@ def build_rag_query_response(state: GraphState) -> RagQueryResult:
         errors=list(state.errors),
         result_id=state.result_id,
         metadata={
+            "answerStatus": normalize_answer_status(state),
             "retriever_type": state.retriever_type,
             "retrieval_config_id": state.retrieval_config_id,
             "prompt_version": state.prompt_version,
             "llm_provider": state.llm_provider,
+            "llmModel": state.llm_model or state.llm_model_name,
             "llm_model": state.llm_model or state.llm_model_name,
             "llm_latency_ms": state.llm_latency_ms,
             "source_count": len(state.sources),
@@ -87,3 +89,21 @@ def normalize_source_uri(source_uri: str | None) -> str | None:
         return None
 
     return source_uri
+
+
+def normalize_answer_status(state: GraphState) -> str:
+    answer_type_raw = state.answer_type.value if hasattr(state.answer_type, "value") else state.answer_type
+    answer_type = str(answer_type_raw or "").strip().lower()
+    if answer_type in {"result_linked", "document_search", "general"}:
+        return "ANSWERED"
+    if answer_type == "no_retrieval_result":
+        return "NO_RELEVANT_SOURCE"
+    if answer_type == "out_of_scope":
+        return "OUT_OF_SCOPE"
+    if answer_type == "retriever_error":
+        return "VECTOR_STORE_FAILED"
+    if answer_type == "validation_error":
+        return "VALIDATION_FAILED"
+    if answer_type in {"need_result_context", "system_error"}:
+        return "LLM_FAILED"
+    return "LLM_FAILED"

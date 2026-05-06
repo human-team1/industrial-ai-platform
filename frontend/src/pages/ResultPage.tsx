@@ -1,12 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { useResultList } from '../features/result/model'
 import { toResultDecisionChart, toResultScoreRangeChart } from '../features/result/model/chartViewModels'
-import {
-  AppliedFilterChips,
-  ResultListFilter,
-  ResultListTable,
-  ResultSummaryCards,
-} from '../features/result/ui'
+import { ResultFilterForm } from '../features/result/ui/ResultFilterForm'
+import { AppliedFilterChips, ResultListTable, ResultSummaryCards } from '../widgets/result-list'
 import { BarChartCard } from '../shared/ui/chart/BarChartCard'
 import { PaginationBar } from '../shared/ui/pagination/PaginationBar'
 
@@ -35,7 +31,7 @@ export function ResultPage() {
         </p>
       </div>
 
-      <ResultListFilter
+      <ResultFilterForm
         filters={filters}
         loading={loading}
         onChange={setFilters}

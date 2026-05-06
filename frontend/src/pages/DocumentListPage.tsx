@@ -1,18 +1,23 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { removeDocument, useDocumentList } from '../features/document/model'
+import { DocumentFilterForm, DocumentSearchBar } from '../features/document/ui'
 import {
-  toDocumentIndexingStatusChart,
-  toDocumentPageStatusChart,
-  toDocumentTypeChart,
-} from '../features/document/model/chartViewModels'
-import { DocumentSummaryCards, DocumentTable } from '../features/document/ui'
-import { BarChartCard } from '../shared/ui/chart/BarChartCard'
+  buildDocumentSummaryView,
+  DocumentSummaryCards,
+  DocumentTable,
+} from '../widgets/document-list'
 import { PaginationBar } from '../shared/ui/pagination/PaginationBar'
 
 export function DocumentListPage() {
   const navigate = useNavigate()
-  const { draft, setDraft, data, summary, loading, error, search, resetFilters, setPage, reload } =
+  const { draft, setDraft, data, loading, error, search, resetFilters, setPage, reload } =
     useDocumentList()
+
+  const summary = useMemo(
+    () => (data ? buildDocumentSummaryView(data.content) : null),
+    [data],
+  )
 
   const onDelete = async (documentId: number) => {
     if (!window.confirm('문서를 삭제하시겠습니까?')) return
@@ -38,98 +43,22 @@ export function DocumentListPage() {
         </button>
       </div>
 
+      <DocumentSearchBar
+        draft={draft}
+        loading={loading}
+        onChange={setDraft}
+        onSearch={search}
+      />
+
+      <DocumentFilterForm
+        draft={draft}
+        loading={loading}
+        onChange={setDraft}
+        onSearch={search}
+        onReset={resetFilters}
+      />
+
       <DocumentSummaryCards summary={summary} loading={loading && !summary} />
-
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <BarChartCard
-          viewModel={toDocumentIndexingStatusChart(summary)}
-          loading={loading && !summary}
-          empty={{ reason: 'NO_DATA', message: '문서 상태 데이터가 없습니다.' }}
-        />
-        <BarChartCard
-          viewModel={toDocumentTypeChart(data?.content ?? [])}
-          loading={loading && !data}
-          empty={{ reason: 'NO_DATA', message: '현재 페이지에 문서가 없습니다.' }}
-        />
-        <BarChartCard
-          viewModel={toDocumentPageStatusChart(data?.content ?? [])}
-          loading={loading && !data}
-          empty={{ reason: 'NO_DATA', message: '현재 페이지에 문서 상태가 없습니다.' }}
-        />
-      </div>
-
-      <section className="page-panel space-y-3">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <input
-            className="control"
-            placeholder="제목/설명/태그 검색"
-            value={draft.keyword ?? ''}
-            onChange={(event) => setDraft((prev) => ({ ...prev, keyword: event.target.value }))}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') search()
-            }}
-          />
-          <select
-            className="control"
-            value={draft.documentType ?? ''}
-            onChange={(event) =>
-              setDraft((prev) => ({ ...prev, documentType: event.target.value || undefined }))
-            }
-          >
-            <option value="">전체 유형</option>
-            <option value="PDF">PDF</option>
-            <option value="DOCX">DOCX</option>
-            <option value="MD">MD</option>
-          </select>
-          <input
-            className="control"
-            placeholder="카테고리"
-            value={draft.category ?? ''}
-            onChange={(event) => setDraft((prev) => ({ ...prev, category: event.target.value }))}
-          />
-          <input
-            className="control"
-            placeholder="설비 유형"
-            value={draft.equipmentType ?? ''}
-            onChange={(event) => setDraft((prev) => ({ ...prev, equipmentType: event.target.value }))}
-          />
-        </div>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <select
-            className="control"
-            value={draft.indexingStatus ?? ''}
-            onChange={(event) =>
-              setDraft((prev) => ({ ...prev, indexingStatus: event.target.value || undefined }))
-            }
-          >
-            <option value="">전체 반영 상태</option>
-            <option value="PENDING">대기</option>
-            <option value="PROCESSING">처리중</option>
-            <option value="COMPLETED">반영완료</option>
-            <option value="FAILED">반영실패</option>
-          </select>
-          <input
-            className="control"
-            type="date"
-            value={draft.startDate ?? ''}
-            onChange={(event) => setDraft((prev) => ({ ...prev, startDate: event.target.value }))}
-          />
-          <input
-            className="control"
-            type="date"
-            value={draft.endDate ?? ''}
-            onChange={(event) => setDraft((prev) => ({ ...prev, endDate: event.target.value }))}
-          />
-          <div className="flex items-end gap-2">
-            <button type="button" className="btn-secondary w-full whitespace-nowrap" disabled={loading} onClick={resetFilters}>
-              필터 초기화
-            </button>
-            <button type="button" className="btn-primary w-full whitespace-nowrap" disabled={loading} onClick={search}>
-              검색
-            </button>
-          </div>
-        </div>
-      </section>
 
       <DocumentTable
         items={data?.content ?? []}
@@ -140,6 +69,7 @@ export function DocumentListPage() {
         onDelete={onDelete}
         onRegister={() => navigate('/documents/new')}
         onRetry={() => void reload()}
+        onShowFailureReason={(id) => navigate(`/documents/${id}/edit`)}
       />
 
       {data ? (

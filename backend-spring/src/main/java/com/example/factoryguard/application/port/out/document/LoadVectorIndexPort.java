@@ -7,4 +7,6 @@ import java.util.Optional;
 public interface LoadVectorIndexPort {
 
     Optional<VectorIndex> findByChunkId(Long chunkId);
+
+    Optional<VectorIndex> findByVectorRef(String vectorRef);
 }

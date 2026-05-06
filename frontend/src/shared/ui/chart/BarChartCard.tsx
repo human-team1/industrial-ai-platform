@@ -24,7 +24,7 @@ export function BarChartCard({ viewModel, loading, error, empty }: Props) {
       {values.length === 0 ? (
         <StateText text="표시할 숫자 데이터가 없습니다." />
       ) : (
-        <div className="space-y-3" role="img" aria-label={`${viewModel.title} 막대 그래프`}>
+        <div className="flex h-full flex-col justify-between" role="img" aria-label={`${viewModel.title} 막대 그래프`}>
           {viewModel.points.slice(0, 10).map((point) => {
             const width = point.value === 0 ? 3 : Math.max(3, Math.round((point.value / scaleMax) * 100))
             return (
@@ -48,12 +48,12 @@ export function BarChartCard({ viewModel, loading, error, empty }: Props) {
 
 function ChartShell({ title, caption, children }: { title: string; caption?: string; children: ReactNode }) {
   return (
-    <section className="rounded border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
+    <section className="flex h-full flex-col rounded border border-slate-200 bg-white p-[15px] shadow-sm">
+      <div className="flex shrink-0 items-start justify-between gap-3">
         <h2 className="text-base font-semibold text-slate-900">{title}</h2>
         {caption ? <span className="text-xs text-slate-400">{caption}</span> : null}
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-4 min-h-0 flex-1">{children}</div>
     </section>
   )
 }

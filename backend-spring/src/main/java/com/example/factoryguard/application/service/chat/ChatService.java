@@ -30,6 +30,7 @@ import com.example.factoryguard.application.port.out.chat.RequestRagAnswerPort;
 import com.example.factoryguard.application.port.out.chat.SaveChatConversationPort;
 import com.example.factoryguard.application.port.out.chat.SaveChatMessagePort;
 import com.example.factoryguard.application.port.out.chat.SaveChatSourcePort;
+import com.example.factoryguard.application.port.out.document.LoadVectorIndexPort;
 import com.example.factoryguard.application.port.out.result.ResultQueryPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
@@ -66,6 +67,7 @@ public class ChatService implements AskChatUseCase, CreateChatConversationUseCas
     private final DeleteChatConversationPort deleteChatConversationPort;
     private final RequestRagAnswerPort requestRagAnswerPort;
     private final ResultQueryPort resultQueryPort;
+    private final LoadVectorIndexPort loadVectorIndexPort;
 
     @Override
     @Transactional
@@ -226,13 +228,25 @@ public class ChatService implements AskChatUseCase, CreateChatConversationUseCas
                 .documentId(source.getDocumentId())
                 .documentTitle(source.getDocumentTitle())
                 .documentType(source.getDocumentType())
-                .chunkId(source.getChunkId())
+                .chunkId(resolveChunkId(source))
                 .pageNo(source.getPage())
                 .section(source.getSection())
                 .sourceSnippet(source.getSourceSnippet())
                 .score(source.getScore())
                 .createdAt(LocalDateTime.now())
                 .build()));
+    }
+
+    private Long resolveChunkId(RagAnswerSource source) {
+        if (source.getChunkId() != null) {
+            return source.getChunkId();
+        }
+        if (source.getVectorRef() == null || source.getVectorRef().isBlank()) {
+            return null;
+        }
+        return loadVectorIndexPort.findByVectorRef(source.getVectorRef())
+                .map(vectorIndex -> vectorIndex.getChunkId())
+                .orElse(null);
     }
 
     private String normalizeAnswer(RagAnswerResponse ragAnswer, ChatAnswerStatus answerStatus) {
