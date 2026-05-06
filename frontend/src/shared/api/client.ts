@@ -15,7 +15,8 @@ export function getMemoryToken(): string | null {
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
-  timeout: 10_000,
+  // timeout: 10_000,
+  timeout: 30000_000,
   withCredentials: true,
 })
 

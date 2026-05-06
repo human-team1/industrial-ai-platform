@@ -12,8 +12,7 @@ from infrastructure.result_context.mock_result_context_store import (
     MockResultContextStore,
 )
 from infrastructure.retriever.chroma_retriever import ChromaRetriever
-from infrastructure.retriever.mock_retriever import MockRetriever
-from infrastructure.tracing.langsmith_tracer import LangSmithTracer
+from infrastructure.tracing.noop_tracer import NoOpTracer
 
 
 def _resolve_settings(settings: Settings | None = None) -> Settings:
@@ -23,9 +22,6 @@ def _resolve_settings(settings: Settings | None = None) -> Settings:
 def create_retriever(settings: Settings | None = None):
     current = _resolve_settings(settings)
     retriever_type = current.retriever_type.lower()
-
-    if retriever_type == "mock":
-        return MockRetriever(current.mock_sources_path)
 
     if retriever_type in {"a_chroma", "chroma"}:
         return ChromaRetriever(
@@ -55,9 +51,9 @@ def create_llm_client(settings: Settings | None = None) -> OllamaLLMClient:
     )
 
 
-def create_langsmith_tracer(settings: Settings | None = None) -> LangSmithTracer:
-    current = _resolve_settings(settings)
-    return LangSmithTracer(current)
+def create_langsmith_tracer(settings: Settings | None = None) -> NoOpTracer:
+    _resolve_settings(settings)
+    return NoOpTracer()
 
 
 def create_prompt_builder(
