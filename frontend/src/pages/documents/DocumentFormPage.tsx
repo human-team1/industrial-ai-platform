@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useDocumentForm } from '../../features/document-form/model'
-import { DocumentForm } from '../../features/document-form/ui'
+import {
+  DocumentFileUpload,
+  DocumentFormActions,
+  DocumentIndexingStatus,
+  DocumentMetadataFields,
+  DocumentPreviewPanel,
+} from '../../widgets/document-edit'
 import type { DocumentCreateResult } from '../../features/document/types'
 import { indexingStatusLabel } from '../../features/document/lib/indexingStatusLabel'
 
@@ -21,6 +27,10 @@ export function DocumentFormPage() {
       return
     }
     navigate('/documents')
+  }
+
+  const onDelete = () => {
+    window.alert('문서 삭제 기능은 준비 중입니다. (UI 전용)')
   }
 
   if (createResult) {
@@ -59,26 +69,64 @@ export function DocumentFormPage() {
     )
   }
 
+  if (form.loading) return <div className="page-panel">문서 정보를 불러오는 중입니다.</div>
+
+  if (form.mode === 'edit' && form.errorMessage && !form.detail) {
+    return <div className="page-panel text-sm text-red-600">{form.errorMessage}</div>
+  }
+
   return (
-    <DocumentForm
-      mode={form.mode}
-      title={form.pageText.title}
-      description={form.pageText.description}
-      submitLabel={form.pageText.submitLabel}
-      values={form.values}
-      file={form.file}
-      detail={form.detail}
-      loading={form.loading}
-      saving={form.saving}
-      previewLoading={form.previewLoading}
-      previewErrorMessage={form.previewErrorMessage}
-      errorMessage={form.errorMessage}
-      fieldErrors={form.fieldErrors}
-      onChange={form.setFieldValue}
-      onFileChange={form.setSelectedFile}
-      onCancel={() => navigate('/documents')}
-      onPreviewOpen={() => void form.openPreview()}
-      onSubmit={() => void onSubmit()}
-    />
+    <section className="mx-auto w-full max-w-[min(100%,72rem)] space-y-5">
+      <div className="page-panel">
+        <h1 className="text-2xl font-semibold text-slate-900">문서 등록 및 수정</h1>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">{form.pageText.description}</p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <section className="page-panel">
+          <DocumentFileUpload
+            mode={form.mode}
+            file={form.file}
+            latestVersion={form.detail?.latestVersion ?? null}
+            errorMessage={form.fieldErrors.file}
+            onFileChange={form.setSelectedFile}
+          />
+        </section>
+        <section className="page-panel">
+          <DocumentIndexingStatus mode={form.mode} latestVersion={form.detail?.latestVersion ?? null} />
+        </section>
+        <section className="page-panel">
+          <DocumentMetadataFields
+            values={form.values}
+            fieldErrors={form.fieldErrors}
+            onChange={form.setFieldValue}
+          />
+        </section>
+        <section className="page-panel">
+          <DocumentPreviewPanel
+            mode={form.mode}
+            latestVersion={form.detail?.latestVersion ?? null}
+            loading={form.previewLoading}
+            errorMessage={form.previewErrorMessage}
+            onPreviewOpen={() => void form.openPreview()}
+          />
+        </section>
+      </div>
+
+      {form.errorMessage ? (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {form.errorMessage}
+        </p>
+      ) : null}
+
+      <DocumentFormActions
+        mode={form.mode}
+        saving={form.saving}
+        submitLabel={form.pageText.submitLabel}
+        onCancel={() => navigate('/documents')}
+        onSubmit={() => void onSubmit()}
+        onDelete={onDelete}
+      />
+    </section>
   )
 }

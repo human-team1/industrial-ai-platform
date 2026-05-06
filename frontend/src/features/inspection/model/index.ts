@@ -11,10 +11,37 @@ import type {
   BrowserCameraDevice,
   InspectionDetail,
   InspectionEvent,
+  ProgressStep,
   SelectedInspectionFile,
   ThresholdOption,
   UploadInspectionResponse,
 } from '../types'
+
+export function computeProgressSteps({
+  selectedFile,
+  uploading,
+  uploadResult,
+}: {
+  selectedFile: SelectedInspectionFile | null
+  uploading: boolean
+  uploadResult: UploadInspectionResponse | null
+}): ProgressStep[] {
+  const labels = ['파일 업로드', '전처리', '모델 추론', '결과 분석']
+
+  if (uploadResult) {
+    return labels.map((label) => ({ label, state: 'complete' as const }))
+  }
+  if (uploading) {
+    return labels.map((label, i) => ({
+      label,
+      state: i === 0 ? ('progress' as const) : ('pending' as const),
+    }))
+  }
+  return labels.map((label, i) => ({
+    label,
+    state: i === 0 && selectedFile ? ('progress' as const) : ('pending' as const),
+  }))
+}
 
 const MAX_UPLOAD_SIZE = 2 * 1024 * 1024 * 1024
 const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']

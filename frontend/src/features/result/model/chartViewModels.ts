@@ -1,7 +1,8 @@
-import type { AnomalyRegion, ResultDetail, ResultPageResponse } from '../types'
+import type { AnomalyRegion } from '../../../entities/result/model/types'
+import type { ResultDetail, ResultPageResponse } from '../api/types'
 import type { BarChartViewModel } from '../../../shared/lib/chartViewModel'
 import { countBy, truncateChartLabel } from '../../../shared/lib/chartViewModel'
-import { labelDecision } from './mapper'
+import { labelDecision } from '../../../entities/result/model/labels'
 
 export function toResultDecisionChart(data: ResultPageResponse | null): BarChartViewModel {
   const rows = data?.content ?? []

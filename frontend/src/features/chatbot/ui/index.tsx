@@ -1,10 +1,9 @@
 import type { FormEvent } from 'react'
 import { useState } from 'react'
-import { formatDateTime } from '../../../shared/lib/date'
 import type { ChatSendStatus } from '../model/sendStatus'
 import { assistantDeliveryLabel } from '../model/mapper'
 import { STATIC_RECOMMENDED_CHAT_QUESTIONS } from '../model/recommendedQuestions'
-import type { ChatConversationSummary, ChatMessage, ChatSource, DocumentScope } from '../types'
+import type { ChatMessage, ChatSource, DocumentScope } from '../types'
 
 const roleLabel: Record<ChatMessage['role'], string> = {
   USER: '사용자',
@@ -235,103 +234,6 @@ export function RecommendedQuestions({
         </li>
       ))}
     </ul>
-  )
-}
-
-export function ChatConversationList({
-  items,
-  selectedId,
-  loading,
-  emptyMessage,
-  onSelect,
-  onDelete,
-}: {
-  items: ChatConversationSummary[]
-  selectedId?: number
-  loading: boolean
-  emptyMessage: string
-  onSelect: (conversationId: number) => void
-  onDelete: (conversationId: number) => void
-}) {
-  if (loading) {
-    return (
-      <div className="page-panel flex min-h-[200px] items-center justify-center text-sm text-slate-600">
-        챗봇 이력을 불러오는 중입니다.
-      </div>
-    )
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="page-panel flex min-h-[200px] items-center justify-center text-center text-sm text-slate-600">
-        {emptyMessage}
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      {items.map((item) => (
-        <div
-          key={item.conversationId}
-          className={`flex w-full items-stretch overflow-hidden rounded-md border transition-colors ${
-            selectedId === item.conversationId ? 'border-slate-900 bg-slate-50' : 'border-slate-200 bg-white hover:border-slate-300'
-          }`}
-        >
-          <button
-            type="button"
-            className="min-w-0 flex-1 px-4 py-4 text-left"
-            onClick={() => onSelect(item.conversationId)}
-          >
-            <p className="truncate text-sm font-semibold text-slate-900">{item.title}</p>
-            <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-slate-600">{item.lastMessagePreview}</p>
-            <p className="mt-2.5 text-xs text-slate-500">
-              메시지 {item.messageCount}개 · 출처 {item.sourceCount}개 · {formatDateTime(item.updatedAt)}
-            </p>
-          </button>
-          <div className="flex shrink-0 items-center border-l border-slate-100 px-3">
-            <button
-              type="button"
-              className="btn-secondary inline-flex items-center justify-center whitespace-nowrap px-4"
-              onClick={() => onDelete(item.conversationId)}
-            >
-              삭제
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-export function ChatDetailPanel({
-  detail,
-  loading,
-}: {
-  detail: { title: string; messages: ChatMessage[] } | null
-  loading: boolean
-}) {
-  if (loading) {
-    return (
-      <div className="page-panel flex min-h-[360px] flex-col items-center justify-center text-center text-sm text-slate-600">
-        대화 상세를 불러오는 중입니다.
-      </div>
-    )
-  }
-  if (!detail) {
-    return (
-      <div className="page-panel flex min-h-[360px] flex-col items-center justify-center px-6 text-center text-sm leading-relaxed text-slate-600">
-        왼쪽 목록에서 대화를 선택해 주세요.
-      </div>
-    )
-  }
-  return (
-    <div className="page-panel flex min-h-[360px] flex-col space-y-4">
-      <h2 className="text-lg font-semibold text-slate-900">{detail.title}</h2>
-      <div className="min-h-0 flex-1">
-        <ChatMessageList messages={detail.messages} detailLoading={false} sendStatus="idle" />
-      </div>
-    </div>
   )
 }
 
