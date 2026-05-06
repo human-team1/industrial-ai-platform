@@ -143,6 +143,23 @@ public class MinioStorageAdapter {
         }
     }
 
+    public boolean objectExists(String bucketName, String objectKey) {
+        try {
+            minioClient.statObject(StatObjectArgs.builder()
+                    .bucket(bucketName)
+                    .object(objectKey)
+                    .build());
+            return true;
+        } catch (ErrorResponseException exception) {
+            if ("NoSuchKey".equals(exception.errorResponse().code()) || "NoSuchBucket".equals(exception.errorResponse().code())) {
+                return false;
+            }
+            throw new IllegalStateException("MinIO object stat failed: " + bucketName + "/" + objectKey, exception);
+        } catch (Exception exception) {
+            throw new IllegalStateException("MinIO object stat failed: " + bucketName + "/" + objectKey, exception);
+        }
+    }
+
     public boolean canListBuckets() {
         try {
             minioClient.listBuckets();

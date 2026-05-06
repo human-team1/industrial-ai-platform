@@ -88,6 +88,7 @@ class AiInferenceJobWorkerTest {
     @Mock MinioProperties minioProperties;
     @Mock ResolveInspectionThresholdService resolveInspectionThresholdService;
     @Mock ActiveModelDeploymentResolver activeModelDeploymentResolver;
+    @Mock InferenceModelArtifactResolver inferenceModelArtifactResolver;
 
     private AiInferenceJobWorker worker;
 
@@ -103,6 +104,7 @@ class AiInferenceJobWorkerTest {
                 loadInspectionRunPort, saveInspectionRunPort,
                 loadInspectionInputPort, loadFilePort, modelManagementPort,
                 activeModelDeploymentResolver,
+                inferenceModelArtifactResolver,
                 callAiInspectionPort, saveInspectionResultPort,
                 saveResultArtifactPort, saveResultImagePort, saveReviewQueuePort,
                 saveNotificationPort,

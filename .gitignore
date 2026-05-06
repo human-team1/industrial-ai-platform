@@ -6,6 +6,23 @@
 !.env.example
 !**/.env.example
 
+# Gradle local/cache
+.gradle/
+.gradle-home/
+.gradle-user-home/
+**/.gradle/
+**/.gradle-home/
+**/.gradle-user-home/
+**/build/
+
+# Local runtime logs
+*.log
+*.err.log
+runtime-*.log
+runtime-*.err.log
+bootrun-validation.log
+bootrun-validation.err.log
+
 # python
 __pycache__/
 *.pyc
@@ -43,11 +60,15 @@ Thumbs.db
 
 # logs
 *.log
+ai-server/.cache/
+ai-server/runtime-*.log
+ai-server/runtime-*.err.log
+**/memory_bank.pt
+**/generated/
 
 # large model / media artifacts
 *.pt
 *.onnx
-*.ckpt
 *.mp4
 *.avi
 

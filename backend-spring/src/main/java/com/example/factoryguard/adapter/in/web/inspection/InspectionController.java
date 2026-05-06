@@ -57,6 +57,7 @@ public class InspectionController {
     public ResponseEntity<ApiResponse<UploadInspectionResponse>> upload(
             @RequestPart("file") MultipartFile file,
             @RequestPart(value = "targetId", required = false) String targetId,
+            @RequestPart(value = "deploymentId", required = false) String deploymentId,
             @RequestPart(value = "thresholdId", required = false) String thresholdId,
             @RequestPart(value = "inputMode", required = false) String inputMode,
             @RequestPart(value = "sourceType", required = false) String sourceType,
@@ -74,6 +75,7 @@ public class InspectionController {
                 principal.userId(),
                 principal.sessionId(),
                 parseOptionalLong(targetId),
+                parseOptionalLong(deploymentId),
                 parseOptionalLong(thresholdId),
                 inputMode,
                 sourceType,

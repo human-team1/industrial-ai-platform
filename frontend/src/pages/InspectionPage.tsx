@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useRealtimeInspection } from '../features/inspection/model'
 import {
   CurrentDetectionResultCard,
@@ -10,37 +9,25 @@ import {
 
 export function InspectionPage() {
   const realtime = useRealtimeInspection()
-  const [snapshotMessage, setSnapshotMessage] = useState<string | null>(null)
 
   return (
     <section className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Realtime Inspection</p>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">카메라 단건 검사</h1>
+          <h1 className="mt-2 text-2xl font-semibold text-slate-900">실시간 탐지</h1>
           <p className="mt-2 text-sm text-slate-600">
-            현재 시연 환경에서는 실제 설비 센서가 없으므로, 검사 버튼 클릭이 센서 트리거를 대체합니다. 버튼을 누른 순간의 카메라 프레임 1장을 캡처해 기존 이미지 업로드 검사 API로 처리합니다.
+            조직에 등록된 활성 카메라와 배포 모델을 선택해 실시간 탐지 세션을 시작합니다. 선택값은
+            <code className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 text-xs">cameraId</code>와
+            <code className="mx-1 rounded bg-slate-100 px-1.5 py-0.5 text-xs">deploymentId</code>로 backend에 전달됩니다.
           </p>
           <p className="mt-3 text-sm font-medium text-slate-700">{realtime.statusMessage}</p>
         </div>
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={realtime.refreshDevices}
-          disabled={realtime.isCameraLoading}
-        >
-          장치 새로고침
-        </button>
       </div>
 
       {realtime.noticeMessage ? (
         <p className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
           {realtime.noticeMessage}
-        </p>
-      ) : null}
-      {snapshotMessage ? (
-        <p className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-          {snapshotMessage}
         </p>
       ) : null}
       {realtime.errorMessage ? (
@@ -50,35 +37,44 @@ export function InspectionPage() {
       ) : null}
 
       <RealtimeControlBar
-        isCameraReady={realtime.isCameraReady}
-        isPreparing={realtime.isCameraLoading}
-        isCapturing={realtime.isCapturing}
-        canCapture={Boolean(realtime.selectedDeviceId)}
+        isStarting={realtime.isStarting}
+        canStart={realtime.canStart}
         requestDurationMs={realtime.requestDurationMs}
-        onCapture={() => {
-          setSnapshotMessage('현재 화면을 캡처해 검사 요청을 전송합니다.')
-          void realtime.captureFrame()
+        onStart={() => {
+          void realtime.start()
         }}
       />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-5">
           <LiveStreamPanel
-            videoRef={realtime.videoRef}
-            devices={realtime.devices}
-            selectedDeviceId={realtime.selectedDeviceId}
-            isCameraReady={realtime.isCameraReady}
-            isCameraLoading={realtime.isCameraLoading}
-            onSelectDevice={realtime.setSelectedDeviceId}
+            targetOptions={realtime.targetOptions}
+            selectedTargetId={realtime.selectedTargetId}
+            cameraOptions={realtime.cameraOptions}
+            selectedCameraId={realtime.selectedCameraId}
+            modelOptions={realtime.modelOptions}
+            selectedDeploymentId={realtime.selectedDeploymentId}
+            thresholdOptions={realtime.thresholdOptions}
+            selectedThresholdId={realtime.selectedThresholdId}
+            loadingOptions={realtime.loadingOptions}
+            loadingCameras={realtime.loadingCameras}
+            loadingModels={realtime.loadingModels}
+            onTargetChange={realtime.setSelectedTargetId}
+            onCameraChange={realtime.setSelectedCameraId}
+            onModelChange={realtime.setSelectedDeploymentId}
+            onThresholdChange={realtime.setSelectedThresholdId}
           />
         </div>
         <aside className="space-y-5">
-          <CurrentDetectionResultCard uploadResult={realtime.uploadResult} />
+          <CurrentDetectionResultCard
+            uploadResult={realtime.uploadResult}
+            modelName={realtime.selectedModel?.displayName ?? null}
+            cameraName={realtime.selectedCamera?.displayName ?? null}
+          />
           <RecentDetectionEventsCard events={realtime.events} onRefresh={realtime.refreshEvents} />
           <EquipmentInfoCard
-            selectedDeviceLabel={
-              realtime.devices.find((device) => device.deviceId === realtime.selectedDeviceId)?.label ?? null
-            }
+            selectedCameraLabel={realtime.selectedCamera?.displayName ?? null}
+            selectedModelLabel={realtime.selectedModel?.displayName ?? null}
           />
         </aside>
       </div>

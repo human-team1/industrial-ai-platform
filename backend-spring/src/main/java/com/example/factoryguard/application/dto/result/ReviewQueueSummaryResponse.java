@@ -7,6 +7,7 @@ import lombok.Getter;
 @Builder
 public class ReviewQueueSummaryResponse {
 
+    private final Long reviewQueueId;
     private final Boolean reviewRequired;
     private final String queueStatus;
     private final String queuedReason;

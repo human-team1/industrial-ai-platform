@@ -1,5 +1,6 @@
 package com.example.factoryguard.application.service.inspection;
 
+import com.example.factoryguard.adapter.out.persistence.model.ModelVersionJpaEntity;
 import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
 import com.example.factoryguard.application.dto.inspection.AiInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.AiInspectionResult;
@@ -86,6 +87,7 @@ public class AiInferenceJobWorker {
     private final LoadFilePort loadFilePort;
     private final ModelManagementPort modelManagementPort;
     private final ActiveModelDeploymentResolver activeModelDeploymentResolver;
+    private final InferenceModelArtifactResolver inferenceModelArtifactResolver;
     private final CallAiInspectionPort callAiInspectionPort;
     private final SaveInspectionResultPort saveInspectionResultPort;
     private final SaveResultArtifactPort saveResultArtifactPort;
@@ -201,14 +203,29 @@ public class AiInferenceJobWorker {
         ModelUsagePurpose purpose = run.getRunType() == com.example.factoryguard.domain.inspection.model.RunType.REALTIME
                 ? ModelUsagePurpose.REALTIME_INSPECTION
                 : ModelUsagePurpose.UPLOAD_INSPECTION;
-        var resolvedDeployment = activeModelDeploymentResolver.resolve(run.getOrganizationId(), run.getTargetId(), purpose);
-        var version = resolvedDeployment.getVersion();
+        Long selectedDeploymentId = InspectionRunSourceMetadata.parseDeploymentId(run.getSourceId());
+        ModelVersionJpaEntity version;
+        StoredFile ckpt;
+        StoredFile config;
+        StoredFile memoryBank;
+        StoredFile labels;
 
-        Map<ModelArtifactType, StoredFile> artifactFiles = loadArtifactFiles(version.getModelVersionId());
-        StoredFile ckpt = requiredArtifact(artifactFiles, ModelArtifactType.CKPT);
-        StoredFile config = requiredArtifact(artifactFiles, ModelArtifactType.CONFIG);
-        StoredFile memoryBank = requiredArtifact(artifactFiles, ModelArtifactType.MEMORY_BANK);
-        StoredFile labels = artifactFiles.get(ModelArtifactType.LABELS);
+        if (selectedDeploymentId != null) {
+            var resolved = inferenceModelArtifactResolver.resolve(run.getOrganizationId(), run.getTargetId(), selectedDeploymentId);
+            version = resolved.getVersion();
+            ckpt = resolved.getCkpt();
+            config = resolved.getConfig();
+            memoryBank = resolved.getMemoryBank();
+            labels = resolved.getLabels();
+        } else {
+            var resolvedDeployment = activeModelDeploymentResolver.resolve(run.getOrganizationId(), run.getTargetId(), purpose);
+            version = resolvedDeployment.getVersion();
+            Map<ModelArtifactType, StoredFile> artifactFiles = loadArtifactFiles(version.getModelVersionId());
+            ckpt = requiredArtifact(artifactFiles, ModelArtifactType.CKPT);
+            config = requiredArtifact(artifactFiles, ModelArtifactType.CONFIG);
+            memoryBank = requiredArtifact(artifactFiles, ModelArtifactType.MEMORY_BANK);
+            labels = artifactFiles.get(ModelArtifactType.LABELS);
+        }
 
         RoiMode roiMode = input.getRoiMode() == null ? RoiMode.FULL_FRAME : input.getRoiMode();
         AiInspectionCommand.Roi.RoiBuilder roiBuilder = AiInspectionCommand.Roi.builder()

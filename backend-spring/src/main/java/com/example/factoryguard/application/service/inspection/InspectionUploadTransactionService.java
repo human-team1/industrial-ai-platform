@@ -78,6 +78,48 @@ public class InspectionUploadTransactionService {
         return storedFile;
     }
 
+    @Transactional
+    public void persistExistingInputAndMarkProcessing(
+            Long inspectionId,
+            InspectionInput input,
+            String sourceName
+    ) {
+        saveInspectionInputPort.save(InspectionInput.builder()
+                .inspectionId(input.getInspectionId())
+                .fileId(input.getFileId())
+                .cameraId(input.getCameraId())
+                .streamUrl(input.getStreamUrl())
+                .sourceType(input.getSourceType())
+                .sourceName(input.getSourceName())
+                .mimeType(input.getMimeType())
+                .durationSec(input.getDurationSec())
+                .frameCount(input.getFrameCount())
+                .roiMode(input.getRoiMode())
+                .roiCoordinateType(input.getRoiCoordinateType())
+                .roiX(input.getRoiX())
+                .roiY(input.getRoiY())
+                .roiWidth(input.getRoiWidth())
+                .roiHeight(input.getRoiHeight())
+                .qualityGateEnabled(input.getQualityGateEnabled())
+                .build());
+        saveInspectionEventLogPort.save(event(inspectionId, InspectionEventType.UPLOAD_RECEIVED, sourceName));
+        saveInspectionEventLogPort.save(event(inspectionId, InspectionEventType.INPUT_SAVED, "input persisted"));
+
+        InspectionRun existing = loadInspectionRunPort.findRunById(inspectionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INSPECTION_NOT_FOUND));
+        saveInspectionRunPort.save(existing.toBuilder()
+                .runStatus(RunStatus.PROCESSING)
+                .build());
+        saveAsyncJobPort.save(AsyncJob.builder()
+                .jobType(AsyncJobType.AI_IMAGE_INFERENCE)
+                .jobStatus(AsyncJobStatus.PENDING)
+                .targetType("INSPECTION")
+                .targetId(inspectionId)
+                .createdAt(LocalDateTime.now())
+                .build());
+        saveInspectionEventLogPort.save(event(inspectionId, InspectionEventType.PROCESS_STARTED, "processing queued"));
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markFailedRequiresNew(Long inspectionId, String errorCode, String message) {
         InspectionRun existing = loadInspectionRunPort.findRunById(inspectionId)

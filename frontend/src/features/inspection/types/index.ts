@@ -16,6 +16,7 @@ export type InspectionRoiMode = 'FULL_FRAME' | 'FIXED'
 
 export type UploadInspectionPayload = {
   file: File
+  deploymentId: number
   targetId?: number | null
   thresholdId?: number | null
   inputMode?: InspectionInputMode
@@ -52,6 +53,48 @@ export type SelectedInspectionFile = {
 export type BrowserCameraDevice = {
   deviceId: string
   label: string
+}
+
+export type AvailableInspectionModel = {
+  deploymentId: number
+  modelVersionId: number
+  modelId: number
+  modelName: string
+  versionName: string
+  displayName: string
+  modelCategory?: string | null
+  modelProfile?: string | null
+  deploymentScope?: string | null
+  organizationId: number
+  targetId?: number | null
+  thresholdDefault?: number | null
+}
+
+export type AvailableRealtimeCamera = {
+  cameraId: number
+  cameraName: string
+  organizationId: number
+  targetId?: number | null
+  targetName?: string | null
+  status?: string | null
+  displayName: string
+}
+
+export type AvailableInspectionModelsParams = {
+  targetId?: number | null
+  inspectionType?: 'UPLOAD' | 'REALTIME' | 'REVIEW'
+  modelCategory?: 'OBJECT' | 'TEXTURE'
+}
+
+export type AvailableRealtimeCamerasParams = {
+  targetId?: number | null
+}
+
+export type StartRealtimeInspectionPayload = {
+  targetId?: number | null
+  cameraId: number
+  deploymentId: number
+  thresholdId?: number | null
 }
 
 export type InspectionEvent = {

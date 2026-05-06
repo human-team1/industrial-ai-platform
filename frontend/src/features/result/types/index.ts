@@ -116,6 +116,7 @@ export type ResultImage = {
 }
 
 export type ReviewQueueSummary = {
+  reviewQueueId?: number | null
   reviewRequired?: boolean | null
   queueStatus?: string | null
   queuedReason?: string | null

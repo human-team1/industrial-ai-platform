@@ -66,6 +66,7 @@ class SubmitInspectionServiceTest {
     @Mock RecordOperationLogUseCase recordOperationLogUseCase;
     @Mock InspectionIdempotencyCachePort inspectionIdempotencyCachePort;
     @Mock SessionValidationService sessionValidationService;
+    @Mock InferenceModelArtifactResolver inferenceModelArtifactResolver;
 
     SubmitInspectionService service;
 
@@ -86,7 +87,8 @@ class SubmitInspectionServiceTest {
                 recordOperationLogUseCase,
                 inspectionIdempotencyCachePort,
                 sessionValidationService,
-                new RoiInputValidator()
+                new RoiInputValidator(),
+                inferenceModelArtifactResolver
         );
     }
 
@@ -95,6 +97,7 @@ class SubmitInspectionServiceTest {
         MockMultipartFile file = imageFile();
         givenActiveUser();
         when(resolveInspectionThresholdService.resolve(1L, null)).thenReturn(defaultThreshold());
+        when(inferenceModelArtifactResolver.resolve(1L, null, 700L)).thenReturn(null);
         when(minioProperties.getBucketInspectionArtifacts()).thenReturn("inspection-artifacts");
         when(inspectionUploadTransactionService.createPendingRun(any())).thenAnswer(invocation -> {
             InspectionRun run = invocation.getArgument(0);
@@ -104,7 +107,7 @@ class SubmitInspectionServiceTest {
                 .thenReturn(storedFile());
 
         SubmitInspectionResult result = service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, null
+                1L, "session-1", null, 700L, null, null, null, null, null, null, null, null, null, file, null
         ));
 
         assertThat(result.getInspectionId()).isEqualTo(1001L);
@@ -124,6 +127,7 @@ class SubmitInspectionServiceTest {
         MockMultipartFile file = imageFile();
         givenActiveUser();
         when(resolveInspectionThresholdService.resolve(1L, null)).thenReturn(defaultThreshold());
+        when(inferenceModelArtifactResolver.resolve(1L, null, 700L)).thenReturn(null);
         when(minioProperties.getBucketInspectionArtifacts()).thenReturn("inspection-artifacts");
         when(inspectionUploadTransactionService.createPendingRun(any())).thenReturn(pendingRun());
         doThrow(new IllegalStateException("minio down")).when(minioStorageAdapter)
@@ -131,7 +135,7 @@ class SubmitInspectionServiceTest {
                         eq("sample.png"), eq("image/png"), any());
 
         assertThatThrownBy(() -> service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, null
+                1L, "session-1", null, 700L, null, null, null, null, null, null, null, null, null, file, null
         ))).isInstanceOf(BusinessException.class);
 
         verify(inspectionUploadTransactionService)
@@ -144,6 +148,7 @@ class SubmitInspectionServiceTest {
         MockMultipartFile file = imageFile();
         givenActiveUser();
         when(resolveInspectionThresholdService.resolve(1L, null)).thenReturn(defaultThreshold());
+        when(inferenceModelArtifactResolver.resolve(1L, null, 700L)).thenReturn(null);
         when(minioProperties.getBucketInspectionArtifacts()).thenReturn("inspection-artifacts");
         when(inspectionUploadTransactionService.createPendingRun(any())).thenReturn(pendingRun());
         when(inspectionUploadTransactionService.persistFileInputAndMarkProcessing(eq(1001L), any(), any(), eq("sample.png")))
@@ -152,7 +157,7 @@ class SubmitInspectionServiceTest {
                 .thenReturn(true);
 
         assertThatThrownBy(() -> service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, null
+                1L, "session-1", null, 700L, null, null, null, null, null, null, null, null, null, file, null
         ))).isInstanceOf(BusinessException.class);
 
         verify(minioStorageAdapter).delete(eq("inspection-artifacts"), startsWith("inspections/1001/inputs/"));
@@ -165,6 +170,7 @@ class SubmitInspectionServiceTest {
         MockMultipartFile file = imageFile();
         givenActiveUser();
         when(resolveInspectionThresholdService.resolve(1L, null)).thenReturn(defaultThreshold());
+        when(inferenceModelArtifactResolver.resolve(1L, null, 700L)).thenReturn(null);
         when(minioProperties.getBucketInspectionArtifacts()).thenReturn("inspection-artifacts");
         when(inspectionUploadTransactionService.createPendingRun(any())).thenAnswer(invocation -> {
             InspectionRun run = invocation.getArgument(0);
@@ -178,7 +184,7 @@ class SubmitInspectionServiceTest {
                 .thenThrow(new RuntimeException("redis down"));
 
         SubmitInspectionResult result = service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, "key-1"
+                1L, "session-1", null, 700L, null, null, null, null, null, null, null, null, null, file, "key-1"
         ));
 
         assertThat(result.getInspectionId()).isEqualTo(1001L);
@@ -190,6 +196,7 @@ class SubmitInspectionServiceTest {
         MockMultipartFile file = imageFile();
         givenActiveUser();
         when(resolveInspectionThresholdService.resolve(1L, null)).thenReturn(defaultThreshold());
+        when(inferenceModelArtifactResolver.resolve(1L, null, 700L)).thenReturn(null);
         InspectionRun existing = pendingRun().toBuilder()
                 .idempotencyKey("key-1")
                 .payloadFingerprint(expectedFingerprint())
@@ -198,7 +205,7 @@ class SubmitInspectionServiceTest {
                 .thenReturn(Optional.of(existing));
 
         SubmitInspectionResult result = service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, "key-1"
+                1L, "session-1", null, 700L, null, null, null, null, null, null, null, null, null, file, "key-1"
         ));
 
         assertThat(result.getInspectionId()).isEqualTo(1001L);
@@ -214,7 +221,7 @@ class SubmitInspectionServiceTest {
                 .thenReturn(Optional.of("different"));
 
         assertThatThrownBy(() -> service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, null, null, null, null, file, "key-1"
+                1L, "session-1", null, 700L, null, null, null, null, null, null, null, null, null, file, "key-1"
         ))).isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.IDEMPOTENCY_CONFLICT.getDefaultMessage());
     }
@@ -225,7 +232,7 @@ class SubmitInspectionServiceTest {
         doThrow(new BusinessException(ErrorCode.INVALID_FILE_EMPTY)).when(fileValidator).validate(null);
 
         assertThatThrownBy(() -> service.execute(new SubmitInspectionCommand(
-                1L, "session-1", null, null, null, null, null, null, null, null, null, null, null, null
+                1L, "session-1", null, 700L, null, null, null, null, null, null, null, null, null, null, null
         ))).isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.INVALID_FILE_EMPTY.getDefaultMessage());
     }
@@ -235,6 +242,7 @@ class SubmitInspectionServiceTest {
         MockMultipartFile file = imageFile();
         givenActiveUser();
         when(resolveInspectionThresholdService.resolve(1L, null)).thenReturn(defaultThreshold());
+        when(inferenceModelArtifactResolver.resolve(1L, 99L, 700L)).thenReturn(null);
         when(loadAnalysisTargetPort.findById(99L)).thenReturn(Optional.of(AnalysisTarget.builder()
                 .targetId(99L)
                 .organizationId(2L)
@@ -242,7 +250,7 @@ class SubmitInspectionServiceTest {
                 .build()));
 
         assertThatThrownBy(() -> service.execute(new SubmitInspectionCommand(
-                1L, "session-1", 99L, null, null, null, null, null, null, null, null, null, file, null
+                1L, "session-1", 99L, 700L, null, null, null, null, null, null, null, null, null, file, null
         ))).isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.FORBIDDEN.getDefaultMessage());
     }
@@ -298,6 +306,6 @@ class SubmitInspectionServiceTest {
     }
 
     private String expectedFingerprint() {
-        return PayloadFingerprintCalculator.compute(1L, 1L, null, null, null, "sample.png", "image/png", 5L);
+        return PayloadFingerprintCalculator.compute(1L, 1L, null, 700L, null, null, "sample.png", "image/png", 5L);
     }
 }

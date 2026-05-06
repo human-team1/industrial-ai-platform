@@ -14,9 +14,13 @@ public class GenerateMemoryBankResponse {
     @Getter
     public static class MemoryBankData {
         private String memoryBankFileKey;
+        private String configFileKey;
+        private String ckptFileKey;
         private int normalImageCount;
         private String modelCategory;
         private String modelProfile;
+        private String inputSize;
+        private String framework;
         private LocalDateTime createdAt;
     }
 }

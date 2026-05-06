@@ -2,6 +2,7 @@ package com.example.factoryguard.config.security;
 
 import com.example.factoryguard.domain.user.model.UserRole;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -97,14 +98,22 @@ public class JwtTokenProvider {
     }
 
     public boolean validateToken(String token) {
+        return getValidationFailureReason(token) == null;
+    }
+
+    public String getValidationFailureReason(String token) {
         try {
             Jwts.parserBuilder()
                     .setSigningKey(signingKey())
                     .build()
                     .parseClaimsJws(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
+            return null;
+        } catch (ExpiredJwtException e) {
+            return "JWT_EXPIRED";
+        } catch (JwtException e) {
+            return "JWT_INVALID";
+        } catch (IllegalArgumentException e) {
+            return "JWT_MALFORMED";
         }
     }
 

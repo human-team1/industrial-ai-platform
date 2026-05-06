@@ -29,9 +29,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        boolean modelManagementRequest = isModelManagementRequest(request);
         String token = extractBearerToken(request);
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
+        if (token == null) {
+            if (modelManagementRequest) {
+                log.warn("Model management JWT missing or malformed, method={}, path={}, hasAuthorizationHeader={}",
+                        request.getMethod(), request.getRequestURI(), request.getHeader(HttpHeaders.AUTHORIZATION) != null);
+            }
+            SecurityContextHolder.clearContext();
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String validationFailure = jwtTokenProvider.getValidationFailureReason(token);
+        if (validationFailure == null) {
             Long userId = jwtTokenProvider.extractUserId(token);
             String role = jwtTokenProvider.extractRole(token);
             Long organizationId = jwtTokenProvider.extractOrganizationId(token);
@@ -39,7 +51,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             UserRole verifiedRole = parseRole(role);
             if (verifiedRole == null) {
-                log.warn("Reject JWT with unknown or missing role claim, userId={}, rawRole={}", userId, role);
+                log.warn("Reject JWT with unknown or missing role claim, method={}, path={}, userId={}, rawRole={}",
+                        request.getMethod(), request.getRequestURI(), userId, role);
                 SecurityContextHolder.clearContext();
                 filterChain.doFilter(request, response);
                 return;
@@ -51,7 +64,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             var auth = new UsernamePasswordAuthenticationToken(principal, null, authorities);
             auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(auth);
+
+            if (modelManagementRequest) {
+                log.info("Model management JWT authenticated, method={}, path={}, userId={}, organizationId={}, sessionId={}, role={}",
+                        request.getMethod(), request.getRequestURI(), userId, organizationId, sessionId, verifiedRole.name());
+            }
         } else {
+            if (modelManagementRequest) {
+                log.warn("Model management JWT rejected, method={}, path={}, reason={}",
+                        request.getMethod(), request.getRequestURI(), validationFailure);
+            }
             SecurityContextHolder.clearContext();
         }
 
@@ -75,5 +97,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return header.substring(7);
         }
         return null;
+    }
+
+    private boolean isModelManagementRequest(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.startsWith("/api/v1/models/")
+                || path.equals("/api/v1/models")
+                || path.startsWith("/api/v1/model-versions/")
+                || path.startsWith("/api/v1/model-deployments/");
     }
 }

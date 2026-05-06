@@ -12,8 +12,12 @@ import java.time.LocalDateTime;
 public class GenerateMemoryBankResult {
 
     private final String memoryBankFileKey;
+    private final String configFileKey;
+    private final String ckptFileKey;
     private final int normalImageCount;
     private final ModelCategory modelCategory;
     private final ModelProfile modelProfile;
+    private final String inputSize;
+    private final String framework;
     private final LocalDateTime createdAt;
 }

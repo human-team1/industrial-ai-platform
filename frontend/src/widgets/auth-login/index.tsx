@@ -3,7 +3,7 @@ import { AuthFooterLinks, AuthLoginCard, AuthLoginHeader } from '../../features/
 import { NoticeBanner } from '../../shared/ui/feedback/NoticeBanner'
 
 export function AuthLoginWidget() {
-  const { show: showInactive, dismiss } = useInactiveAccountNotice()
+  const { showInactive, showExpired, dismissInactive, dismissExpired } = useInactiveAccountNotice()
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -12,7 +12,15 @@ export function AuthLoginWidget() {
           message="비활성화된 계정입니다. 관리자에게 문의하세요."
           variant="warning"
           autoCloseMs={6000}
-          onClose={dismiss}
+          onClose={dismissInactive}
+        />
+      )}
+      {showExpired && (
+        <NoticeBanner
+          message="로그인 세션이 만료되었습니다. 다시 로그인해 주세요."
+          variant="warning"
+          autoCloseMs={6000}
+          onClose={dismissExpired}
         />
       )}
 

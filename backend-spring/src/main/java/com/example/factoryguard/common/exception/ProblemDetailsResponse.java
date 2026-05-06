@@ -1,11 +1,14 @@
 package com.example.factoryguard.common.exception;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.MDC;
 
 import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ProblemDetailsResponse {
@@ -20,6 +23,7 @@ public class ProblemDetailsResponse {
     private final String requestId;
     private final OffsetDateTime timestamp;
     private final List<ValidationFieldError> errors;
+    private final Map<String, Object> extensions;
 
     public ProblemDetailsResponse(String type, String title, int status, String detail, String instance, String code) {
         this(type, title, status, detail, instance, code, null);
@@ -27,6 +31,11 @@ public class ProblemDetailsResponse {
 
     public ProblemDetailsResponse(String type, String title, int status, String detail, String instance, String code,
                                   List<ValidationFieldError> errors) {
+        this(type, title, status, detail, instance, code, errors, null);
+    }
+
+    public ProblemDetailsResponse(String type, String title, int status, String detail, String instance, String code,
+                                  List<ValidationFieldError> errors, Map<String, Object> extensions) {
         this.type = type;
         this.title = title;
         this.status = status;
@@ -36,6 +45,7 @@ public class ProblemDetailsResponse {
         this.requestId = MDC.get("requestId");
         this.timestamp = OffsetDateTime.now();
         this.errors = errors;
+        this.extensions = extensions;
     }
 
     public String getType() {
@@ -72,5 +82,10 @@ public class ProblemDetailsResponse {
 
     public List<ValidationFieldError> getErrors() {
         return errors;
+    }
+
+    @JsonAnyGetter
+    public Map<String, Object> getExtensions() {
+        return extensions == null ? Collections.emptyMap() : extensions;
     }
 }

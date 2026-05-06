@@ -46,4 +46,5 @@ public class RestClientConfig {
                 ? properties.getReadTimeoutMs()
                 : properties.getReadTimeoutSec() * 1000L;
     }
+
 }

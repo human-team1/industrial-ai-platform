@@ -1,9 +1,14 @@
 import { AxiosError } from 'axios'
-import { apiClient } from '../../../shared/api/client'
+import { apiClient, normalizeApiError } from '../../../shared/api/client'
 import type {
   AnalysisTargetOption,
+  AvailableInspectionModel,
+  AvailableInspectionModelsParams,
+  AvailableRealtimeCamera,
+  AvailableRealtimeCamerasParams,
   InspectionDetail,
   InspectionEvent,
+  StartRealtimeInspectionPayload,
   ThresholdOption,
   UploadInspectionPayload,
   UploadInspectionResponse,
@@ -28,6 +33,7 @@ export async function uploadInspection(
   try {
     const formData = new FormData()
     formData.append('file', payload.file)
+    formData.append('deploymentId', String(payload.deploymentId))
     if (payload.targetId) formData.append('targetId', String(payload.targetId))
     if (payload.thresholdId) formData.append('thresholdId', String(payload.thresholdId))
     if (payload.inputMode) formData.append('inputMode', payload.inputMode)
@@ -52,6 +58,71 @@ export async function uploadInspection(
     return response.data.data
   } catch (error) {
     throw new Error(getInspectionErrorMessage(error))
+  }
+}
+
+export async function fetchAvailableInspectionModels(
+  params: AvailableInspectionModelsParams,
+  signal?: AbortSignal,
+): Promise<AvailableInspectionModel[]> {
+  try {
+    const response = await apiClient.get<ApiResponse<{ items: AvailableInspectionModel[] }>>(
+      '/inspection-models/available',
+      {
+        params: compactParams(params),
+        signal,
+      },
+    )
+    return response.data.data?.items ?? []
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
+export async function fetchAvailableRealtimeCameras(
+  params: AvailableRealtimeCamerasParams,
+  signal?: AbortSignal,
+): Promise<AvailableRealtimeCamera[]> {
+  try {
+    const response = await apiClient.get<ApiResponse<{ items: AvailableRealtimeCamera[] }>>(
+      '/realtime/cameras/available',
+      {
+        params: compactParams(params),
+        signal,
+      },
+    )
+    return response.data.data?.items ?? []
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
+export async function startRealtimeInspection(
+  payload: StartRealtimeInspectionPayload,
+): Promise<UploadInspectionResponse> {
+  try {
+    const response = await apiClient.post<ApiResponse<UploadInspectionResponse>>(
+      '/inspections/realtime',
+      payload,
+    )
+    return response.data.data
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
+export async function rerunReviewInspection(
+  reviewQueueId: number,
+  deploymentId: number,
+): Promise<UploadInspectionResponse> {
+  try {
+    const response = await apiClient.post<ApiResponse<UploadInspectionResponse>>(
+      `/reviews/${reviewQueueId}/rerun`,
+      { deploymentId },
+    )
+    return response.data.data
+  } catch (error) {
+    throw normalizeApiError(error)
   }
 }
 
@@ -183,6 +254,12 @@ function extractList(data: unknown): unknown[] {
   if (Array.isArray(data.content)) return data.content
   if (Array.isArray(data.data)) return data.data
   return []
+}
+
+function compactParams(params: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+  )
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

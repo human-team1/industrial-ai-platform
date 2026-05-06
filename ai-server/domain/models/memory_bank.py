@@ -23,6 +23,7 @@ class MemoryBankProfileSpec:
     image_size: tuple[int, int]
     target_memory_bank_size: int
     layers: tuple[str, ...]
+    framework: str = "PYTORCH"
 
 
 @dataclass(frozen=True)
@@ -39,17 +40,27 @@ class GenerateMemoryBankCommand:
 @dataclass(frozen=True)
 class GenerateMemoryBankResult:
     memory_bank_file_key: str
+    config_file_key: str
+    ckpt_file_key: str
     normal_image_count: int
     model_category: ModelCategory
     model_profile: ModelProfile
+    input_size: str
+    framework: str
     created_at: str
 
 
 class ModelStoragePort(Protocol):
     def download_model_object(self, object_key: str) -> bytes: ...
 
+    def download_config_object(self, object_key: str) -> bytes: ...
+
+    def download_ckpt_object(self, object_key: str) -> bytes: ...
+
+    def download_normal_image_object(self, object_key: str) -> bytes: ...
+
     def upload_model_object(self, object_key: str, content: bytes, content_type: str) -> None: ...
 
 
 class MemoryBankGenerator(Protocol):
-    def generate(self, *, image_bytes_list: list[bytes], config: dict, ckpt_bytes: bytes) -> bytes: ...
+    def generate(self, *, image_bytes_list: list[bytes], config: dict, ckpt_bytes: bytes, request_id: str) -> bytes: ...

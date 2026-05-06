@@ -13,6 +13,7 @@ public class SubmitInspectionCommand {
     private final Long userId;
     private final String sessionId;
     private final Long targetId;
+    private final Long deploymentId;
     private final Long thresholdId;
     private final String inputMode;
     private final String sourceType;

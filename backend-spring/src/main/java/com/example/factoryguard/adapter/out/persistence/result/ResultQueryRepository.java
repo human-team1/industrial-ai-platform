@@ -107,6 +107,7 @@ public class ResultQueryRepository {
                     r.model_version_id,
                     r.failure_reason,
                     r.created_at,
+                    rq.review_queue_id,
                     rq.queue_status,
                     rq.queued_reason,
                     ir.organization_id,
@@ -173,14 +174,15 @@ public class ResultQueryRepository {
                 .artifacts(findArtifacts(detailResultId))
                 .images(images)
                 .review(ReviewQueueSummaryResponse.builder()
-                        .reviewRequired(isReviewRequired(toStringObject(row[16]), toStringObject(row[22])))
-                        .queueStatus(toStringObject(row[22]))
-                        .queuedReason(toStringObject(row[23]))
+                        .reviewQueueId(toLongObject(row[22]))
+                        .reviewRequired(isReviewRequired(toStringObject(row[16]), toStringObject(row[23])))
+                        .queueStatus(toStringObject(row[23]))
+                        .queuedReason(toStringObject(row[24]))
                         .build())
                 .eventLogs(findEventLogs(toLongObject(row[1])))
                 .relatedResults(findRelatedResults(
                         detailResultId,
-                        toLongObject(row[24]),
+                        toLongObject(row[25]),
                         toLongObject(row[2])
                 ))
                 .build();

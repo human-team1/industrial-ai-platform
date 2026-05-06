@@ -1,5 +1,6 @@
 package com.example.factoryguard.adapter.out.persistence.model;
 
+import com.example.factoryguard.application.dto.inspection.AvailableInspectionModelItem;
 import com.example.factoryguard.application.dto.model.ListModelDeploymentsQuery;
 import com.example.factoryguard.application.dto.model.ListModelVersionsQuery;
 import com.example.factoryguard.application.dto.model.ListModelsQuery;
@@ -87,6 +88,80 @@ public class ModelManagementQueryRepository {
                         .objectKey(toStringValue(row[5]))
                         .checksum(toStringValue(row[6]))
                         .createdAt(toDateTime(row[7]))
+                        .build())
+                .toList();
+    }
+
+    public List<AvailableInspectionModelItem> findAvailableInspectionModels(Long organizationId, Long targetId, String modelCategory) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT
+                    md.deployment_id,
+                    mv.model_version_id,
+                    mv.model_id,
+                    m.model_name,
+                    mv.version_name,
+                    mv.model_category,
+                    mv.model_profile,
+                    md.deployment_scope,
+                    md.organization_id,
+                    md.target_id,
+                    mv.deploy_status,
+                    md.deploy_status,
+                    md.is_active,
+                    mv.threshold_default,
+                    md.deployed_at
+                FROM model_deployment md
+                JOIN model_version mv ON md.model_version_id = mv.model_version_id
+                JOIN model m ON mv.model_id = m.model_id
+                WHERE md.organization_id = :organizationId
+                  AND md.is_active = true
+                  AND mv.is_active = true
+                  AND md.deploy_status = 'DEPLOYED'
+                  AND mv.deploy_status = 'DEPLOYED'
+                """);
+
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("organizationId", organizationId);
+
+        if (targetId != null) {
+            sql.append(" AND (md.target_id = :targetId OR (md.target_id IS NULL AND md.deployment_scope = 'ORGANIZATION'))");
+            parameters.put("targetId", targetId);
+        } else {
+            sql.append(" AND md.deployment_scope = 'ORGANIZATION'");
+        }
+        if (hasText(modelCategory)) {
+            sql.append(" AND mv.model_category = :modelCategory");
+            parameters.put("modelCategory", modelCategory.trim());
+        }
+        sql.append("""
+                 ORDER BY
+                   CASE WHEN md.target_id IS NOT NULL THEN 0 ELSE 1 END,
+                   md.deployed_at DESC,
+                   mv.model_profile ASC,
+                   mv.version_name DESC
+                """);
+
+        Query query = entityManager.createNativeQuery(sql.toString());
+        bind(query, parameters);
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = query.getResultList();
+        return rows.stream()
+                .map(row -> AvailableInspectionModelItem.builder()
+                        .deploymentId(toLong(row[0]))
+                        .modelVersionId(toLong(row[1]))
+                        .modelId(toLong(row[2]))
+                        .modelName(toStringValue(row[3]))
+                        .versionName(toStringValue(row[4]))
+                        .modelCategory(toStringValue(row[5]))
+                        .modelProfile(toStringValue(row[6]))
+                        .deploymentScope(toStringValue(row[7]))
+                        .organizationId(toLong(row[8]))
+                        .targetId(toLong(row[9]))
+                        .modelVersionStatus(toStringValue(row[10]))
+                        .deploymentStatus(toStringValue(row[11]))
+                        .isActive(toBoolean(row[12]))
+                        .thresholdDefault(toDecimal(row[13]))
+                        .createdAt(toDateTime(row[14]))
                         .build())
                 .toList();
     }

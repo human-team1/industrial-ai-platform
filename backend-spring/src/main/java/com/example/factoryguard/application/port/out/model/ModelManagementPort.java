@@ -7,6 +7,7 @@ import com.example.factoryguard.adapter.out.persistence.model.ModelVersionJpaEnt
 import com.example.factoryguard.application.dto.model.ListModelDeploymentsQuery;
 import com.example.factoryguard.application.dto.model.ListModelVersionsQuery;
 import com.example.factoryguard.application.dto.model.ListModelsQuery;
+import com.example.factoryguard.application.dto.inspection.AvailableInspectionModelItem;
 import com.example.factoryguard.application.dto.model.ModelArtifactResponse;
 import com.example.factoryguard.application.dto.model.ModelDeploymentResponse;
 import com.example.factoryguard.application.dto.model.ModelPageResponse;
@@ -49,6 +50,8 @@ public interface ModelManagementPort {
     Optional<ModelDeploymentJpaEntity> findDeploymentById(Long deploymentId);
 
     ModelPageResponse<ModelDeploymentResponse> findDeployments(ListModelDeploymentsQuery query);
+
+    List<AvailableInspectionModelItem> findAvailableInspectionModels(Long organizationId, Long targetId, String modelCategory);
 
     List<ModelDeploymentJpaEntity> findActiveDeployments(Long organizationId, Long targetId, DeploymentScope scope);
 

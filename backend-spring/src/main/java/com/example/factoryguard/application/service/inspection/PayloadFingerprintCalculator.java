@@ -8,13 +8,14 @@ public final class PayloadFingerprintCalculator {
 
     private PayloadFingerprintCalculator() {}
 
-    public static String compute(Long organizationId, Long userId, Long targetId, Long thresholdId,
+    public static String compute(Long organizationId, Long userId, Long targetId, Long deploymentId, Long thresholdId,
                                  String fileChecksum, String originalFileName,
                                  String mimeType, Long fileSize) {
         StringBuilder sb = new StringBuilder();
         appendField(sb, "organizationId", organizationId);
         appendField(sb, "userId", userId);
         appendField(sb, "targetId", targetId);
+        appendField(sb, "deploymentId", deploymentId);
         appendField(sb, "thresholdId", thresholdId);
         if (fileChecksum != null && !fileChecksum.isBlank()) {
             appendField(sb, "fileChecksum", fileChecksum);

@@ -11,8 +11,8 @@ public class GenerateMemoryBankRequest {
 
     private final String modelCategory;
     private final String modelProfile;
-    private final List<String> normalImageFileKeys;
-    private final String configFileKey;
     private final String ckptFileKey;
+    private final String configFileKey;
+    private final List<String> normalImageFileKeys;
     private final String outputPrefix;
 }

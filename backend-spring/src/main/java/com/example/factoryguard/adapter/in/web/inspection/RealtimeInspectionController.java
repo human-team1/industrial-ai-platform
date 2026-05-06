@@ -34,6 +34,7 @@ public class RealtimeInspectionController {
                         principal.sessionId(),
                         request.targetId(),
                         request.cameraId(),
+                        request.deploymentId(),
                         request.thresholdId()
                 )
         );
