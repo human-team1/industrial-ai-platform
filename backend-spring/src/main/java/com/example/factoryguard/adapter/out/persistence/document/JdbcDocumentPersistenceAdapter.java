@@ -61,7 +61,7 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
-                    INSERT INTO DOCUMENT_INDEX_JOB (document_version_id, job_status, started_at)
+                    INSERT INTO document_index_job (document_version_id, job_status, started_at)
                     VALUES (?, ?, ?)
                     """, Statement.RETURN_GENERATED_KEYS);
             ps.setLong(1, documentVersionId);
@@ -89,10 +89,10 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
                     f.file_name,
                     f.mime_type,
                     GROUP_CONCAT(dt.tag_name ORDER BY dt.tag_name SEPARATOR ',') AS tags
-                FROM DOCUMENT_VERSION dv
-                JOIN DOCUMENT d ON d.document_id = dv.document_id
-                JOIN `FILE` f ON f.file_id = dv.file_id
-                LEFT JOIN DOCUMENT_TAG dt ON dt.document_id = d.document_id
+                FROM document_version dv
+                JOIN document d ON d.document_id = dv.document_id
+                JOIN `file` f ON f.file_id = dv.file_id
+                LEFT JOIN document_tag dt ON dt.document_id = d.document_id
                 WHERE dv.document_version_id = ?
                 GROUP BY d.document_id, d.organization_id, d.title, d.document_type, d.category, d.equipment_type,
                          dv.document_version_id, dv.file_id, dv.file_hash, f.object_key, f.file_name, f.mime_type
@@ -118,7 +118,7 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
     public Optional<DocumentIndexingTarget> findLatestIndexingTargetByDocumentId(Long documentId) {
         List<Long> versionIds = jdbcTemplate.queryForList("""
                 SELECT dv.document_version_id
-                FROM DOCUMENT_VERSION dv
+                FROM document_version dv
                 WHERE dv.document_id = ?
                 ORDER BY dv.version_no DESC
                 LIMIT 1
@@ -133,8 +133,8 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
     public List<DocumentIndexJobPollingTarget> findProcessingJobs(int limit) {
         return jdbcTemplate.query("""
                 SELECT dij.job_id, dij.ai_job_id, dv.document_id, dij.document_version_id
-                FROM DOCUMENT_INDEX_JOB dij
-                JOIN DOCUMENT_VERSION dv ON dv.document_version_id = dij.document_version_id
+                FROM document_index_job dij
+                JOIN document_version dv ON dv.document_version_id = dij.document_version_id
                 WHERE dij.job_status = ?
                   AND dij.ai_job_id IS NOT NULL
                 ORDER BY dij.started_at ASC, dij.job_id ASC
@@ -150,29 +150,29 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
     @Override
     public void markProcessing(Long documentId, Long documentVersionId) {
         jdbcTemplate.update("""
-                UPDATE DOCUMENT_VERSION
+                UPDATE document_version
                 SET indexing_status = ?, indexed_chunk_count = 0, index_error_message = NULL, indexed_at = NULL
                 WHERE document_version_id = ?
                 """, IndexingStatus.PROCESSING.name(), documentVersionId);
         jdbcTemplate.update("""
-                UPDATE DOCUMENT SET current_status = ? WHERE document_id = ?
+                UPDATE document SET current_status = ? WHERE document_id = ?
                 """, DocumentStatus.PROCESSING.name(), documentId);
     }
 
     @Override
     public void markEnqueued(Long documentId, Long documentVersionId, Long jobId, String aiJobId) {
         jdbcTemplate.update("""
-                UPDATE DOCUMENT_VERSION
+                UPDATE document_version
                 SET indexing_status = ?, indexed_chunk_count = 0, index_error_message = NULL, indexed_at = NULL
                 WHERE document_version_id = ?
                 """, IndexingStatus.PROCESSING.name(), documentVersionId);
         jdbcTemplate.update("""
-                UPDATE DOCUMENT_INDEX_JOB
+                UPDATE document_index_job
                 SET job_status = ?, ai_job_id = ?, started_at = COALESCE(started_at, ?), error_message = NULL
                 WHERE job_id = ?
                 """, DocumentIndexJobStatus.PROCESSING.name(), aiJobId, Timestamp.valueOf(LocalDateTime.now()), jobId);
         jdbcTemplate.update("""
-                UPDATE DOCUMENT SET current_status = ? WHERE document_id = ?
+                UPDATE document SET current_status = ? WHERE document_id = ?
                 """, DocumentStatus.PROCESSING.name(), documentId);
     }
 
@@ -183,11 +183,11 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
             List<DocumentIndexedChunkResponse> chunks
     ) {
         jdbcTemplate.update("""
-                DELETE vi FROM VECTOR_INDEX vi
-                JOIN CHUNK c ON c.chunk_id = vi.chunk_id
+                DELETE vi FROM vector_index vi
+                JOIN chunk c ON c.chunk_id = vi.chunk_id
                 WHERE c.document_version_id = ?
                 """, documentVersionId);
-        jdbcTemplate.update("DELETE FROM CHUNK WHERE document_version_id = ?", documentVersionId);
+        jdbcTemplate.update("DELETE FROM chunk WHERE document_version_id = ?", documentVersionId);
         if (chunks == null || chunks.isEmpty()) {
             return;
         }
@@ -206,17 +206,17 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
             LocalDateTime indexedAt
     ) {
         jdbcTemplate.update("""
-                UPDATE DOCUMENT_VERSION
+                UPDATE document_version
                 SET indexing_status = ?, indexed_chunk_count = ?, index_error_message = NULL, indexed_at = ?
                 WHERE document_version_id = ?
                 """, IndexingStatus.COMPLETED.name(), chunkCount, Timestamp.valueOf(indexedAt), documentVersionId);
         jdbcTemplate.update("""
-                UPDATE DOCUMENT_INDEX_JOB
+                UPDATE document_index_job
                 SET job_status = ?, completed_at = ?, error_message = NULL
                 WHERE job_id = ?
                 """, DocumentIndexJobStatus.COMPLETED.name(), Timestamp.valueOf(LocalDateTime.now()), jobId);
         jdbcTemplate.update("""
-                UPDATE DOCUMENT SET current_status = ? WHERE document_id = ?
+                UPDATE document SET current_status = ? WHERE document_id = ?
                 """, DocumentStatus.COMPLETED.name(), documentId);
     }
 
@@ -224,17 +224,17 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
     public void markFailed(Long documentId, Long documentVersionId, Long jobId, String errorMessage) {
         String summary = summarize(errorMessage);
         jdbcTemplate.update("""
-                UPDATE DOCUMENT_VERSION
+                UPDATE document_version
                 SET indexing_status = ?, index_error_message = ?
                 WHERE document_version_id = ?
                 """, IndexingStatus.FAILED.name(), summary, documentVersionId);
         jdbcTemplate.update("""
-                UPDATE DOCUMENT_INDEX_JOB
+                UPDATE document_index_job
                 SET job_status = ?, completed_at = ?, error_message = ?
                 WHERE job_id = ?
                 """, DocumentIndexJobStatus.FAILED.name(), Timestamp.valueOf(LocalDateTime.now()), summary, jobId);
         jdbcTemplate.update("""
-                UPDATE DOCUMENT SET current_status = ? WHERE document_id = ?
+                UPDATE document SET current_status = ? WHERE document_id = ?
                 """, DocumentStatus.FAILED.name(), documentId);
     }
 
@@ -242,7 +242,7 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
     public void recordDeindexFailure(Long documentVersionId, String errorMessage) {
         Long jobId = createIndexJob(documentVersionId, DocumentIndexJobStatus.FAILED, LocalDateTime.now());
         jdbcTemplate.update("""
-                UPDATE DOCUMENT_INDEX_JOB
+                UPDATE document_index_job
                 SET completed_at = ?, error_message = ?
                 WHERE job_id = ?
                 """, Timestamp.valueOf(LocalDateTime.now()), summarize(errorMessage), jobId);
@@ -252,7 +252,7 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
-                    INSERT INTO DOCUMENT (organization_id, owner_user_id, title, document_type, current_status)
+                    INSERT INTO document (organization_id, owner_user_id, title, document_type, current_status)
                     VALUES (?, ?, ?, ?, ?)
                     """, Statement.RETURN_GENERATED_KEYS);
             ps.setLong(1, organizationId);
@@ -274,7 +274,7 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
-                    INSERT INTO DOCUMENT_VERSION (
+                    INSERT INTO document_version (
                         document_id, version_no, file_id,
                         file_hash, indexing_status
                     )
@@ -293,7 +293,7 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement("""
-                    INSERT INTO CHUNK (document_version_id, sequence_no, content)
+                    INSERT INTO chunk (document_version_id, sequence_no, content)
                     VALUES (?, ?, ?)
                     """, Statement.RETURN_GENERATED_KEYS);
             ps.setLong(1, documentVersionId);
@@ -306,7 +306,7 @@ public class JdbcDocumentPersistenceAdapter implements SaveUploadedDocumentPort,
 
     private void insertVectorIndex(Long chunkId, String embeddingModel, String vectorRef) {
         jdbcTemplate.update("""
-                INSERT INTO VECTOR_INDEX (chunk_id, embedding_model, vector_ref)
+                INSERT INTO vector_index (chunk_id, embedding_model, vector_ref)
                 VALUES (?, ?, ?)
                 """, chunkId, embeddingModel, vectorRef);
     }

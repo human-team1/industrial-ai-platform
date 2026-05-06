@@ -4,6 +4,7 @@ import com.example.factoryguard.application.port.out.file.PersistUploadedFilePor
 import com.example.factoryguard.domain.file.model.StoredFile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
@@ -16,6 +17,7 @@ public class FileCommandPersistenceAdapter implements PersistUploadedFilePort {
 
     private final EntityManager entityManager;
 
+    @Transactional
     @Override
     public StoredFile save(StoredFile file) {
         Query query = entityManager.createNativeQuery("""
