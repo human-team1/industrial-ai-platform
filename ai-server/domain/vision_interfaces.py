@@ -23,7 +23,7 @@ class MemoryBankLoaderPort(Protocol):
 
 
 class ImagePreprocessorPort(Protocol):
-    def preprocess(self, image_bytes: bytes, roi: dict | None, input_size: str | None, config: dict) -> PreprocessedImage: ...
+    def preprocess(self, image_bytes: bytes, roi: dict | None, model_category: str, model_profile: str) -> PreprocessedImage: ...
 
 
 class QualityEvaluatorPort(Protocol):

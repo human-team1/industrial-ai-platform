@@ -23,6 +23,9 @@ class MemoryBankProfileSpec:
     image_size: tuple[int, int]
     target_memory_bank_size: int
     layers: tuple[str, ...]
+    shot_policy: str
+    image_threshold: float
+    pixel_threshold: float
     framework: str = "PYTORCH"
 
 

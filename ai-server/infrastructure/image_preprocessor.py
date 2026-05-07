@@ -6,11 +6,13 @@ import numpy as np
 from PIL import Image
 
 from application.exceptions import AppException
+from domain.vision_model_profile import get_vision_model_profile_spec
 from domain.vision_models import PreprocessedImage
+from infrastructure.vision.preprocessing import preprocess_pil_image
 
 
 class VisionImagePreprocessor:
-    def preprocess(self, image_bytes: bytes, roi: dict | None, input_size: str | None, config: dict) -> PreprocessedImage:
+    def preprocess(self, image_bytes: bytes, roi: dict | None, model_category: str, model_profile: str) -> PreprocessedImage:
         try:
             image = Image.open(BytesIO(image_bytes)).convert("RGB")
         except Exception as exc:
@@ -18,12 +20,16 @@ class VisionImagePreprocessor:
 
         original_width, original_height = image.size
         image = self._apply_roi(image, roi, original_width, original_height)
-        resize_to = self._resolve_input_size(input_size, config)
-        resized = image.resize(resize_to)
+        try:
+            spec = get_vision_model_profile_spec(model_category, model_profile)
+        except ValueError as exc:
+            raise AppException(422, "Invalid model profile", "지원하지 않는 모델 프로필 조합입니다.", "AI_MODEL_PROFILE_INVALID") from exc
+        preprocessed = preprocess_pil_image(image, spec)
         return PreprocessedImage(
-            image_array=np.asarray(resized, dtype=np.uint8),
+            image_array=np.asarray(preprocessed.resized_rgb_uint8, dtype=np.uint8),
+            original_image_array=np.asarray(image.convert("RGB"), dtype=np.uint8),
             original_size=(original_width, original_height),
-            resized_size=resize_to,
+            resized_size=(spec.input_size, spec.input_size),
         )
 
     def _apply_roi(self, image: Image.Image, roi: dict | None, width: int, height: int) -> Image.Image:
@@ -44,11 +50,3 @@ class VisionImagePreprocessor:
             raise AppException(422, "Invalid ROI", "ROI 영역이 이미지 범위를 벗어났습니다.", "AI_ROI_INVALID")
         return image.crop((left, top, right, bottom))
 
-    def _resolve_input_size(self, request_input_size: str | None, config: dict) -> tuple[int, int]:
-        size_value = request_input_size or config.get("inputSize") or config.get("input_size") or "256x256"
-        if isinstance(size_value, list) and len(size_value) == 2:
-            return int(size_value[0]), int(size_value[1])
-        if isinstance(size_value, str) and "x" in size_value.lower():
-            width, height = size_value.lower().split("x", 1)
-            return int(width), int(height)
-        raise AppException(500, "Invalid input size", "config 또는 요청의 input size 형식이 올바르지 않습니다.", "AI_CONFIG_PARSE_FAILED")

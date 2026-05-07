@@ -28,8 +28,8 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
 | version | INT | 임계값 변경 버전 |
-| old_anomaly_threshold | DECIMAL(5,4) | 이전 이상 임계값 |
-| new_anomaly_threshold | DECIMAL(5,4) | 변경 이상 임계값 |
+| old_anomaly_threshold | DECIMAL(8,4) | 이전 이상 임계값 |
+| new_anomaly_threshold | DECIMAL(8,4) | 변경 이상 임계값 |
 | change_reason | TEXT | 변경 사유 |
 
 ---
@@ -62,7 +62,7 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 
 | 컬럼/제약 | 타입/정책 | 설명 |
 | --- | --- | --- |
-| applied_threshold | DECIMAL(5,4) | 검사에 적용된 임계값 |
+| applied_threshold | DECIMAL(8,4) | 검사에 적용된 임계값 |
 | idempotency_key | VARCHAR(255) NOT NULL | 중복 요청 방지 키 |
 | payload_fingerprint | VARCHAR(64) | 동일 키의 다른 payload 충돌 검출 |
 | UNIQUE | organization_id, user_id, idempotency_key | 사용자/조직 단위 멱등성 보장 |
@@ -252,9 +252,9 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | --- | --- | --- |
 | FILE | file_id (PK), storage_type, bucket_name, object_key, file_path, file_name, file_ext, mime_type, file_size, checksum, created_at, created_by (FK) | 파일 저장 |
 | MODEL | model_id (PK), model_name, model_type, description, created_at | 모델 기본 정보 |
-| MODEL_VERSION | model_version_id (PK), model_id (FK), version_name, model_category, model_profile, framework, input_size, threshold_default, accuracy, precision_score, recall_score, f1_score, auroc_score, deploy_status, is_active, validated_at, validated_by (FK), created_at | 모델 버전 |
+| MODEL_VERSION | model_version_id (PK), model_id (FK), version_name, model_category, model_profile, framework, input_size, threshold_default, accuracy, precision_score, recall_score, f1_score, auroc_score, deploy_status, is_active, validated_at, validated_by (FK), created_at, deleted_at, deleted_by (FK), delete_reason | 모델 버전 |
 | MODEL_ARTIFACT | model_artifact_id (PK), model_version_id (FK), file_id (FK), artifact_type, checksum, created_at | 모델 산출물 파일 |
-| MODEL_DEPLOYMENT | deployment_id (PK), organization_id (FK), target_id (FK, NULL), model_version_id (FK), deployment_scope, deploy_status, is_active, deployed_at, deployed_by (FK), rollback_from_deployment_id (FK, NULL), reason, rollback_flag | 조직/검사대상별 모델 배포 |
+| MODEL_DEPLOYMENT | deployment_id (PK), organization_id (FK), target_id (FK, NULL), model_version_id (FK), deployment_scope, deploy_status, is_active, deployed_at, deployed_by (FK), rollback_from_deployment_id (FK, NULL), reason, rollback_flag, deleted_at, deleted_by (FK), delete_reason | 조직/검사대상별 모델 배포 |
 
 ---
 
@@ -277,7 +277,7 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | model_profile | VARCHAR(20) | SPEED / PERFORMANCE |
 | framework | VARCHAR(50) | PYTORCH 등 모델 실행 프레임워크 |
 | input_size | VARCHAR(50) | 모델 입력 크기. 예: 224x224 |
-| threshold_default | DECIMAL(5,4) | 기본 이상 점수 임계값 |
+| threshold_default | DECIMAL(8,4) | 기본 이상 점수 임계값 |
 | accuracy | DECIMAL 또는 FLOAT | 모델 정확도 |
 | precision_score | DECIMAL 또는 FLOAT | 정밀도 |
 | recall_score | DECIMAL 또는 FLOAT | 재현율 |
@@ -318,3 +318,10 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | rollback_from_deployment_id | BIGINT NULL | 롤백 기준이 된 배포 ID |
 | reason | VARCHAR(255) | 배포 또는 교체 사유 |
 | rollback_flag | BOOLEAN | 롤백으로 생성된 배포 여부 |
+| deleted_at | TIMESTAMP NULL | 삭제 처리 시각 (soft delete) |
+| deleted_by | BIGINT NULL | 삭제 처리 사용자 ID (`USERS.user_id`) |
+| delete_reason | TEXT NULL | 삭제 사유 |
+
+> MODEL_DEPLOYMENT의 활성 배포 단위(슬롯)는 `organizationId + targetId + deploymentScope + modelCategory + modelProfile` 조합이다.
+> `modelCategory`, `modelProfile`은 `MODEL_DEPLOYMENT`에 직접 저장되지 않으며 `MODEL_VERSION`을 통해 참조하여 판별한다.
+> 동일 조직/검사대상/배포범위라도 카테고리나 프로필이 다르면 서로 독립적으로 동시에 ACTIVE/DEPLOYED 상태를 유지할 수 있다.

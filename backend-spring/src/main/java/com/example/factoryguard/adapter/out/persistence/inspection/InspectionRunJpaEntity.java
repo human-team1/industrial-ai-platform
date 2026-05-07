@@ -54,7 +54,7 @@ public class InspectionRunJpaEntity {
     @Column(name = "run_status", nullable = false)
     private RunStatus runStatus;
 
-    @Column(name = "applied_threshold", nullable = false, precision = 5, scale = 4, columnDefinition = "DECIMAL(5,4)")
+    @Column(name = "applied_threshold", nullable = false, precision = 8, scale = 4, columnDefinition = "DECIMAL(8,4)")
     private BigDecimal appliedThreshold;
 
     @Column(name = "idempotency_key", nullable = false)

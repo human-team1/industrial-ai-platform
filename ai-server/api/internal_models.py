@@ -23,6 +23,11 @@ class MemoryBankGenerateRequest(BaseModel):
     config_file_key: str | None = Field(default=None, alias="configFileKey")
     ckpt_file_key: str | None = Field(default=None, alias="ckptFileKey")
     output_prefix: str | None = Field(default=None, alias="outputPrefix")
+    input_size: str | None = Field(default=None, alias="inputSize")
+    target_memory_bank_size: int | None = Field(default=None, alias="targetMemoryBankSize")
+    shot_policy: str | None = Field(default=None, alias="shotPolicy")
+    image_threshold: float | None = Field(default=None, alias="imageThreshold")
+    pixel_threshold: float | None = Field(default=None, alias="pixelThreshold")
 
     def to_command(self, request_id: str) -> GenerateMemoryBankCommand:
         if self.model_category is None:
@@ -64,7 +69,7 @@ async def generate_memory_bank(
 ) -> dict:
     request_id = getattr(request.state, "request_id", None) or request.headers.get("X-Request-Id") or ""
     log.info(
-        "memory_bank_request_received requestId=%s modelCategory=%s modelProfile=%s normalImageCount=%s ckptFileKey=%s configFileKey=%s outputPrefix=%s",
+        "memory_bank_request_received requestId=%s modelCategory=%s modelProfile=%s normalImageCount=%s ckptFileKey=%s configFileKey=%s outputPrefix=%s inputSize=%s targetMemoryBankSize=%s shotPolicy=%s imageThreshold=%s pixelThreshold=%s",
         request_id,
         request_body.model_category,
         request_body.model_profile,
@@ -72,6 +77,11 @@ async def generate_memory_bank(
         request_body.ckpt_file_key,
         request_body.config_file_key,
         request_body.output_prefix,
+        request_body.input_size,
+        request_body.target_memory_bank_size,
+        request_body.shot_policy,
+        request_body.image_threshold,
+        request_body.pixel_threshold,
     )
     command = request_body.to_command(request_id)
     result = usecase.execute(command)

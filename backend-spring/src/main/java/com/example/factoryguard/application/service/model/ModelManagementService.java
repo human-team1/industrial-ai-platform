@@ -10,6 +10,7 @@ import com.example.factoryguard.application.dto.ai.GenerateMemoryBankCommand;
 import com.example.factoryguard.application.dto.ai.GenerateMemoryBankResult;
 import com.example.factoryguard.application.dto.model.CreateModelCommand;
 import com.example.factoryguard.application.dto.model.CreatedModelVersionResponse;
+import com.example.factoryguard.application.dto.model.ActivateModelDeploymentCommand;
 import com.example.factoryguard.application.dto.model.DeactivateModelDeploymentCommand;
 import com.example.factoryguard.application.dto.model.DeployModelVersionCommand;
 import com.example.factoryguard.application.dto.model.GenerateModelVersionFromNormalImagesCommand;
@@ -32,7 +33,10 @@ import com.example.factoryguard.application.exception.ai.AiServerException;
 import com.example.factoryguard.application.port.in.model.ActivateModelVersionUseCase;
 import com.example.factoryguard.application.dto.operation.RecordAdminActionLogCommand;
 import com.example.factoryguard.application.port.in.model.CreateModelUseCase;
+import com.example.factoryguard.application.port.in.model.ActivateModelDeploymentUseCase;
 import com.example.factoryguard.application.port.in.model.DeactivateModelDeploymentUseCase;
+import com.example.factoryguard.application.port.in.model.DeleteModelDeploymentUseCase;
+import com.example.factoryguard.application.port.in.model.DeleteModelVersionUseCase;
 import com.example.factoryguard.application.port.in.model.DeprecateModelVersionUseCase;
 import com.example.factoryguard.application.port.in.model.DeployModelVersionUseCase;
 import com.example.factoryguard.application.port.in.model.GenerateModelVersionFromNormalImagesUseCase;
@@ -46,7 +50,6 @@ import com.example.factoryguard.application.port.in.model.RollbackModelDeploymen
 import com.example.factoryguard.application.port.in.model.UploadModelVersionUseCase;
 import com.example.factoryguard.application.port.in.operation.RecordAdminActionLogUseCase;
 import com.example.factoryguard.application.port.out.ai.GenerateMemoryBankPort;
-import com.example.factoryguard.application.port.out.file.LoadFilePort;
 import com.example.factoryguard.application.port.out.file.PersistUploadedFilePort;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
 import com.example.factoryguard.application.port.out.model.ModelManagementPort;
@@ -105,8 +108,11 @@ public class ModelManagementService implements
         DeprecateModelVersionUseCase,
         ListModelDeploymentsUseCase,
         DeployModelVersionUseCase,
+        ActivateModelDeploymentUseCase,
         DeactivateModelDeploymentUseCase,
+        DeleteModelDeploymentUseCase,
         RollbackModelDeploymentUseCase,
+        DeleteModelVersionUseCase,
         GenerateModelVersionFromNormalImagesUseCase {
 
     private static final Set<String> NORMAL_IMAGE_MIME_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
@@ -114,7 +120,6 @@ public class ModelManagementService implements
     private final ModelManagementPort modelManagementPort;
     private final GenerateMemoryBankPort generateMemoryBankPort;
     private final PersistUploadedFilePort persistUploadedFilePort;
-    private final LoadFilePort loadFilePort;
     private final MinioStorageAdapter minioStorageAdapter;
     private final MinioProperties minioProperties;
     private final ModelMemoryBankProperties modelMemoryBankProperties;
@@ -126,7 +131,9 @@ public class ModelManagementService implements
 
     @Override
     public GenerateModelVersionsFromNormalImagesResponse generateFromNormalImages(GenerateModelVersionFromNormalImagesCommand command) {
+        String failedStep = "CONTROLLER_ENTRY";
         ModelJpaEntity model = loadModel(command.getModelId());
+        failedStep = "REQUEST_VALIDATION";
         validateGenerateCommand(command);
 
         String requestId = blankToNull(command.getRequestId());
@@ -138,18 +145,29 @@ public class ModelManagementService implements
         }
 
         List<GeneratedMemoryBank> generatedMemoryBanks = new ArrayList<>();
+        failedStep = "NORMAL_IMAGES_RECEIVED";
         List<StoredFile> normalImageFiles = uploadNormalImages(command, requestId);
         List<ModelProfile> profiles = resolveProfiles(command.getModelProfile());
+        log.info("model_generation_started requestId={} modelId={} organizationId={} targetId={} category={} profiles={}",
+                requestId, command.getModelId(), command.getOrganizationId(), command.getTargetId(), command.getModelCategory(), profiles);
 
         try {
             for (ModelProfile profile : profiles) {
+                failedStep = "POLICY_RESOLUTION";
                 FixedProfile fixedProfile = resolveFixedProfile(command.getModelCategory(), profile);
+                VisionModelProfilePolicy.Spec policy = resolvePolicy(command.getModelCategory(), profile);
+                log.info("model_generation_policy_resolved requestId={} profile={} inputSize={} imageThreshold={} pixelThreshold={} targetMemoryBankSize={} shotPolicy={}",
+                        requestId, profile, policy.inputSize(), policy.imageThreshold(), policy.pixelThreshold(), policy.targetMemoryBankSize(), policy.shotPolicy());
                 String outputPrefix = buildOutputPrefix(command.getOrganizationId(), command.getTargetId(), command.getDeploymentScope(), profile, command.getModelCategory());
+                failedStep = "MEMORY_BANK_GENERATION";
                 GenerateMemoryBankResult memoryBankResult = callMemoryBank(command, normalImageFiles, outputPrefix, profile, fixedProfile, requestId);
+                log.info("memory_bank_response_received requestId={} profile={} memoryBankFileKey={} configFileKey={}",
+                        requestId, profile, memoryBankResult.getMemoryBankFileKey(), memoryBankResult.getConfigFileKey());
                 generatedMemoryBanks.add(new GeneratedMemoryBank(profile, fixedProfile, memoryBankResult));
             }
 
             final String finalRequestId = requestId;
+            failedStep = "PERSIST_MODEL_ENTITIES";
             List<CreatedModelVersionResponse> createdVersions = transactionTemplate.execute(status -> {
                 List<CreatedModelVersionResponse> responses = new ArrayList<>();
                 for (GeneratedMemoryBank generated : generatedMemoryBanks) {
@@ -158,15 +176,35 @@ public class ModelManagementService implements
                 return responses;
             });
 
+            log.info("model_generation_completed requestId={} modelId={} createdVersionCount={}",
+                    requestId, model.getModelId(), createdVersions == null ? 0 : createdVersions.size());
+
             return GenerateModelVersionsFromNormalImagesResponse.builder()
                     .modelId(model.getModelId())
                     .modelCategory(command.getModelCategory().name())
                     .normalImageCount(normalImageFiles.size())
                     .createdVersions(createdVersions == null ? List.of() : createdVersions)
                     .build();
-        } catch (RuntimeException exception) {
+        } catch (Exception exception) {
             cleanupGeneratedObjects(normalImageFiles, generatedMemoryBanks, requestId);
-            throw exception;
+            log.error("model_generation_failed requestId={} modelId={} failedStep={} error={}",
+                    requestId, command.getModelId(), failedStep, exception.getMessage(), exception);
+            if (exception instanceof BusinessException businessException) {
+                if (businessException.getErrorCode() == ErrorCode.MODEL_GENERATION_FAILED) {
+                    throw businessException;
+                }
+                Map<String, Object> details = new LinkedHashMap<>();
+                if (businessException.getDetails() != null) {
+                    details.putAll(businessException.getDetails());
+                }
+                details.put("failedStep", failedStep);
+                details.put("requestId", requestId);
+                throw new BusinessException(ErrorCode.MODEL_GENERATION_FAILED, businessException.getMessage(), details);
+            }
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("failedStep", failedStep);
+            details.put("requestId", requestId);
+            throw new BusinessException(ErrorCode.MODEL_GENERATION_FAILED, "모델 생성 중 실패했습니다: " + failedStep, details);
         }
     }
 
@@ -224,8 +262,8 @@ public class ModelManagementService implements
                         .modelCategory(command.getModelCategory())
                         .modelProfile(command.getModelProfile())
                         .framework(blankToNull(command.getFramework()))
-                        .inputSize(blankToNull(command.getInputSize()))
-                        .thresholdDefault(command.getThresholdDefault())
+                        .inputSize(resolveInputSize(command))
+                        .thresholdDefault(resolveThresholdDefault(command.getModelCategory(), command.getModelProfile(), command.getThresholdDefault()))
                         .accuracy(command.getAccuracy())
                         .precisionScore(command.getPrecisionScore())
                         .recallScore(command.getRecallScore())
@@ -299,6 +337,29 @@ public class ModelManagementService implements
     }
 
     @Override
+    @Transactional
+    public ModelVersionDetailResponse deleteModelVersion(ModelVersionStatusCommand command) {
+        ModelVersionJpaEntity version = loadVersion(command.getVersionId());
+        boolean hasHistory = modelManagementPort.existsInspectionResultByModelVersionId(version.getModelVersionId());
+        List<ModelDeploymentJpaEntity> deployments = modelManagementPort.findDeploymentsByVersionId(version.getModelVersionId());
+        String deleteReason = blankToNull(command.getReason());
+        Long actorUserId = securityUtils.getCurrentUserId();
+        for (ModelDeploymentJpaEntity deployment : deployments) {
+            deployment.softDelete(actorUserId, deleteReason);
+            modelManagementPort.saveDeployment(deployment);
+        }
+        version.softDelete(actorUserId, deleteReason);
+        ModelVersionJpaEntity saved = modelManagementPort.saveModelVersion(version);
+        recordAction(
+                hasHistory ? "MODEL_VERSION_SOFT_DELETED_WITH_HISTORY" : "MODEL_VERSION_SOFT_DELETED",
+                saved.getModelVersionId(),
+                "MODEL_VERSION",
+                deleteReason
+        );
+        return buildVersionDetail(saved, loadModel(saved.getModelId()).getModelName());
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public ModelPageResponse<ModelDeploymentResponse> listModelDeployments(ListModelDeploymentsQuery query) {
         return modelManagementPort.findDeployments(query);
@@ -312,26 +373,27 @@ public class ModelManagementService implements
             throw new BusinessException(ErrorCode.MODEL_DEPLOYMENT_CONFLICT, "?쒖꽦?붾릺吏 ?딆븯嫄곕굹 ?ъ슜 以묐떒??紐⑤뜽 踰꾩쟾? 諛고룷?????놁뒿?덈떎.");
         }
         validateDeployment(command.getOrganizationId(), command.getTargetId(), command.getDeploymentScope());
-        List<ModelDeploymentJpaEntity> activeDeployments =
-                modelManagementPort.findActiveDeployments(command.getOrganizationId(), command.getTargetId(), command.getDeploymentScope());
-        for (ModelDeploymentJpaEntity activeDeployment : activeDeployments) {
-            activeDeployment.deactivate("?좉퇋 諛고룷濡??명븳 ?먮룞 鍮꾪솢?깊솕");
-            modelManagementPort.saveDeployment(activeDeployment);
-        }
         ModelDeploymentJpaEntity deployment = modelManagementPort.saveDeployment(
                 ModelDeploymentJpaEntity.builder()
                         .organizationId(command.getOrganizationId())
                         .targetId(command.getDeploymentScope() == DeploymentScope.TARGET ? command.getTargetId() : null)
                         .modelVersionId(version.getModelVersionId())
                         .deploymentScope(command.getDeploymentScope())
-                        .deployStatus(DeploymentStatus.DEPLOYED)
-                        .isActive(true)
+                        .deployStatus(DeploymentStatus.DEACTIVATED)
+                        .isActive(false)
                         .deployedAt(LocalDateTime.now())
                         .deployedBy(securityUtils.getCurrentUserId())
                         .reason(blankToNull(command.getReason()))
                         .rollbackFlag(false)
                         .build()
         );
+        deactivateActiveDeploymentsInSameSlotExcluding(
+                deployment,
+                version.getModelCategory(),
+                version.getModelProfile()
+        );
+        deployment.activate(securityUtils.getCurrentUserId(), blankToNull(command.getReason()));
+        deployment = modelManagementPort.saveDeployment(deployment);
         version.markDeployed();
         modelManagementPort.saveModelVersion(version);
         recordAction("MODEL_DEPLOYED", deployment.getDeploymentId(), "MODEL_DEPLOYMENT", blankToNull(command.getReason()));
@@ -352,6 +414,42 @@ public class ModelManagementService implements
 
     @Override
     @Transactional
+    public ModelDeploymentResponse activateModelDeployment(ActivateModelDeploymentCommand command) {
+        ModelDeploymentJpaEntity deployment = loadDeployment(command.getDeploymentId());
+        if (deployment.getDeletedAt() != null) {
+            throw new BusinessException(
+                    ErrorCode.MODEL_DEPLOYMENT_DELETED,
+                    "삭제 처리된 모델 배포는 다시 활성화할 수 없습니다.",
+                    Map.of("failedStep", "ACTIVATE_DELETED_DEPLOYMENT")
+            );
+        }
+        ModelVersionJpaEntity version = loadVersion(deployment.getModelVersionId());
+        if (version.getDeployStatus() == ModelDeployStatus.DEPRECATED || version.getDeletedAt() != null) {
+            throw new BusinessException(ErrorCode.MODEL_DEPLOYMENT_CONFLICT, "사용 중단된 모델 버전 배포는 활성화할 수 없습니다.");
+        }
+        deactivateActiveDeploymentsInSameSlotExcluding(
+                deployment,
+                version.getModelCategory(),
+                version.getModelProfile()
+        );
+        deployment.activate(securityUtils.getCurrentUserId(), blankToNull(command.getReason()));
+        ModelDeploymentJpaEntity saved = modelManagementPort.saveDeployment(deployment);
+        recordAction("MODEL_DEPLOYMENT_ACTIVATED", saved.getDeploymentId(), "MODEL_DEPLOYMENT", blankToNull(command.getReason()));
+        return toDeploymentResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public ModelDeploymentResponse deleteModelDeployment(DeactivateModelDeploymentCommand command) {
+        ModelDeploymentJpaEntity deployment = loadDeployment(command.getDeploymentId());
+        deployment.softDelete(securityUtils.getCurrentUserId(), blankToNull(command.getReason()));
+        ModelDeploymentJpaEntity saved = modelManagementPort.saveDeployment(deployment);
+        recordAction("MODEL_DEPLOYMENT_DELETED", saved.getDeploymentId(), "MODEL_DEPLOYMENT", blankToNull(command.getReason()));
+        return toDeploymentResponse(saved);
+    }
+
+    @Override
+    @Transactional
     public ModelDeploymentResponse rollbackModelDeployment(RollbackModelDeploymentCommand command) {
         ModelDeploymentJpaEntity current = loadDeployment(command.getDeploymentId());
         ModelDeploymentJpaEntity rollbackTarget = loadDeployment(command.getRollbackToDeploymentId());
@@ -362,16 +460,14 @@ public class ModelManagementService implements
         if (rollbackVersion.getDeployStatus() == ModelDeployStatus.DEPRECATED) {
             throw new BusinessException(ErrorCode.MODEL_DEPLOYMENT_CONFLICT, "?ъ슜 以묐떒??踰꾩쟾?쇰줈??濡ㅻ갚?????놁뒿?덈떎.");
         }
-        current.deactivate(blankToNull(command.getReason()));
-        modelManagementPort.saveDeployment(current);
         ModelDeploymentJpaEntity restored = modelManagementPort.saveDeployment(
                 ModelDeploymentJpaEntity.builder()
                         .organizationId(current.getOrganizationId())
                         .targetId(current.getTargetId())
                         .modelVersionId(rollbackTarget.getModelVersionId())
                         .deploymentScope(current.getDeploymentScope())
-                        .deployStatus(DeploymentStatus.DEPLOYED)
-                        .isActive(true)
+                        .deployStatus(DeploymentStatus.DEACTIVATED)
+                        .isActive(false)
                         .deployedAt(LocalDateTime.now())
                         .deployedBy(securityUtils.getCurrentUserId())
                         .rollbackFromDeploymentId(current.getDeploymentId())
@@ -379,6 +475,13 @@ public class ModelManagementService implements
                         .rollbackFlag(true)
                         .build()
         );
+        deactivateActiveDeploymentsInSameSlotExcluding(
+                restored,
+                rollbackVersion.getModelCategory(),
+                rollbackVersion.getModelProfile()
+        );
+        restored.activate(securityUtils.getCurrentUserId(), blankToNull(command.getReason()));
+        restored = modelManagementPort.saveDeployment(restored);
         recordAction("MODEL_ROLLED_BACK", restored.getDeploymentId(), "MODEL_DEPLOYMENT", blankToNull(command.getReason()));
         return toDeploymentResponse(restored);
     }
@@ -501,6 +604,7 @@ public class ModelManagementService implements
                                                     ModelProfile profile,
                                                     FixedProfile fixedProfile,
                                                     String requestId) {
+        VisionModelProfilePolicy.Spec policy = resolvePolicy(command.getModelCategory(), profile);
         try {
             log.info("Requesting memory_bank generation, requestId={}, modelId={}, organizationId={}, targetId={}, modelCategory={}, modelProfile={}, normalImageCount={}, ckptFileKey={}, configFileKey={}, outputPrefix={}",
                     requestId, command.getModelId(), command.getOrganizationId(), command.getTargetId(),
@@ -517,6 +621,11 @@ public class ModelManagementService implements
                     .configFileKey(fixedProfile.configFileKey())
                     .normalImageFileKeys(normalImageFiles.stream().map(StoredFile::getObjectKey).toList())
                     .outputPrefix(outputPrefix)
+                    .inputSize(policy.inputSize())
+                    .targetMemoryBankSize(policy.targetMemoryBankSize())
+                    .shotPolicy(policy.shotPolicy())
+                    .imageThreshold(policy.imageThreshold())
+                    .pixelThreshold(policy.pixelThreshold())
                     .build());
         } catch (TimeoutException exception) {
             log.error("memory_bank generation timed out, requestId={}, modelId={}, modelProfile={}",
@@ -599,6 +708,7 @@ public class ModelManagementService implements
                 .build());
 
         LocalDateTime now = LocalDateTime.now();
+        VisionModelProfilePolicy.Spec policy = resolvePolicy(command.getModelCategory(), generated.profile());
         ModelVersionJpaEntity version = modelManagementPort.saveModelVersion(ModelVersionJpaEntity.builder()
                 .modelId(model.getModelId())
                 .fileId(memoryBankFile.getFileId())
@@ -606,8 +716,8 @@ public class ModelManagementService implements
                 .modelCategory(command.getModelCategory())
                 .modelProfile(generated.profile())
                 .framework(blankToNull(generated.result().getFramework()))
-                .inputSize(blankToNull(generated.result().getInputSize()))
-                .thresholdDefault(command.getThresholdDefault())
+                .inputSize(policy.inputSize())
+                .thresholdDefault(policy.imageThreshold())
                 .deployStatus(ModelDeployStatus.DEPLOYED)
                 .isActive(true)
                 .validatedAt(now)
@@ -620,24 +730,25 @@ public class ModelManagementService implements
                 artifact(version.getModelVersionId(), memoryBankFile, ModelArtifactType.MEMORY_BANK)
         ));
 
-        for (ModelDeploymentJpaEntity activeDeployment : modelManagementPort.findActiveDeployments(
-                command.getOrganizationId(), command.getTargetId(), command.getDeploymentScope())) {
-            activeDeployment.deactivate("?뺤긽 ?대?吏??湲곕컲 ?좉퇋 紐⑤뜽 諛고룷濡??먮룞 鍮꾪솢?깊솕");
-            modelManagementPort.saveDeployment(activeDeployment);
-        }
-
         ModelDeploymentJpaEntity deployment = modelManagementPort.saveDeployment(ModelDeploymentJpaEntity.builder()
                 .organizationId(command.getOrganizationId())
                 .targetId(command.getDeploymentScope() == DeploymentScope.TARGET ? command.getTargetId() : null)
                 .modelVersionId(version.getModelVersionId())
                 .deploymentScope(command.getDeploymentScope())
-                .deployStatus(DeploymentStatus.DEPLOYED)
-                .isActive(true)
+                .deployStatus(DeploymentStatus.DEACTIVATED)
+                .isActive(false)
                 .deployedAt(now)
                 .deployedBy(securityUtils.getCurrentUserId())
                 .reason(blankToNull(command.getReason()))
                 .rollbackFlag(false)
                 .build());
+        deactivateActiveDeploymentsInSameSlotExcluding(
+                deployment,
+                version.getModelCategory(),
+                version.getModelProfile()
+        );
+        deployment.activate(securityUtils.getCurrentUserId(), blankToNull(command.getReason()));
+        deployment = modelManagementPort.saveDeployment(deployment);
 
         recordAction("MODEL_MEMORY_BANK_GENERATE", version.getModelVersionId(), "MODEL_VERSION", blankToNull(command.getReason()));
         recordAction("MODEL_DEPLOY", deployment.getDeploymentId(), "MODEL_DEPLOYMENT", blankToNull(command.getReason()));
@@ -709,9 +820,31 @@ public class ModelManagementService implements
         if (thresholdDefault == null) {
             return;
         }
-        if (thresholdDefault.compareTo(BigDecimal.ZERO) < 0 || thresholdDefault.compareTo(BigDecimal.ONE) > 0) {
-            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "thresholdDefault??0~1 踰붿쐞?ъ빞 ?⑸땲??");
+        if (thresholdDefault.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "thresholdDefault는 0 이상이어야 합니다.");
         }
+    }
+
+    private VisionModelProfilePolicy.Spec resolvePolicy(ModelCategory category, ModelProfile profile) {
+        try {
+            return VisionModelProfilePolicy.resolve(category, profile);
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException(ErrorCode.MODEL_VALIDATION_FAILED, "지원하지 않는 modelCategory/modelProfile 조합입니다.");
+        }
+    }
+
+    private BigDecimal resolveThresholdDefault(ModelCategory category, ModelProfile profile, BigDecimal requestedThreshold) {
+        if (requestedThreshold != null) {
+            return requestedThreshold;
+        }
+        return resolvePolicy(category, profile).imageThreshold();
+    }
+
+    private String resolveInputSize(UploadModelVersionCommand command) {
+        if (command.getInputSize() != null && !command.getInputSize().isBlank()) {
+            return command.getInputSize().trim();
+        }
+        return resolvePolicy(command.getModelCategory(), command.getModelProfile()).inputSize();
     }
 
     private void validateDeployment(Long organizationId, Long targetId, DeploymentScope scope) {
@@ -848,6 +981,9 @@ public class ModelManagementService implements
                 .deployedBy(deployment.getDeployedBy())
                 .rollbackFromDeploymentId(deployment.getRollbackFromDeploymentId())
                 .reason(deployment.getReason())
+                .deletedAt(deployment.getDeletedAt())
+                .deletedBy(deployment.getDeletedBy())
+                .deleteReason(deployment.getDeleteReason())
                 .build();
     }
 
@@ -859,6 +995,21 @@ public class ModelManagementService implements
 
     private boolean equalsNullable(Long left, Long right) {
         return left == null ? right == null : left.equals(right);
+    }
+
+    private void deactivateActiveDeploymentsInSameSlotExcluding(
+            ModelDeploymentJpaEntity deployment,
+            ModelCategory modelCategory,
+            ModelProfile modelProfile
+    ) {
+        modelManagementPort.deactivateActiveDeploymentsInSameSlotExcludingDeployment(
+                deployment.getOrganizationId(),
+                deployment.getDeploymentScope() == DeploymentScope.TARGET ? deployment.getTargetId() : null,
+                deployment.getDeploymentScope(),
+                modelCategory,
+                modelProfile,
+                deployment.getDeploymentId()
+        );
     }
 
     private ModelJpaEntity loadModel(Long modelId) {

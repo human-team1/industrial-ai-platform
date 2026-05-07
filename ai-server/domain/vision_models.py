@@ -14,6 +14,8 @@ class LoadedVisionModel:
     ckpt_bytes: bytes
     config: dict[str, Any]
     loaded_at: datetime
+    runtime_model: Any = None
+    runtime_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -27,6 +29,7 @@ class LoadedMemoryBank:
 @dataclass(slots=True)
 class PreprocessedImage:
     image_array: np.ndarray
+    original_image_array: np.ndarray
     original_size: tuple[int, int]
     resized_size: tuple[int, int]
 
@@ -47,3 +50,7 @@ class InferenceOutput:
     confidence: float
     decision_code: str
     anomaly_map: np.ndarray | None
+    score_type: str = "ANOMALIB_PRED_SCORE"
+    score_source: str = "anomalib.pred_score"
+    image_threshold: float | None = None
+    pixel_threshold: float | None = None

@@ -51,6 +51,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -108,7 +109,7 @@ class ModelManagementServiceTest {
     }
 
     @Test
-    @DisplayName("No.39 모델 버전 업로드 - thresholdDefault 범위 외 차단(MODEL_VALIDATION_FAILED)")
+    @DisplayName("No.39 모델 버전 업로드 - thresholdDefault 음수 차단(MODEL_VALIDATION_FAILED)")
     void uploadVersionRejectsOutOfRangeThreshold() {
         when(modelManagementPort.findModelById(1L)).thenReturn(Optional.of(modelEntity()));
         UploadModelVersionCommand command = UploadModelVersionCommand.builder()
@@ -119,7 +120,7 @@ class ModelManagementServiceTest {
                 .ckptFile(file("model.ckpt", "application/octet-stream"))
                 .configFile(file("config.json", "application/json"))
                 .memoryBankFile(file("memory_bank.npy", "application/octet-stream"))
-                .thresholdDefault(new BigDecimal("1.5"))
+                .thresholdDefault(new BigDecimal("-0.1"))
                 .build();
 
         assertThatThrownBy(() -> service.uploadModelVersion(command))
@@ -218,6 +219,8 @@ class ModelManagementServiceTest {
         service.generateFromNormalImages(generateCommand(null, 10));
 
         verify(generateMemoryBankPort, times(2)).generateMemoryBank(any());
+        verify(modelManagementPort, times(2)).deactivateActiveDeploymentsInSameSlotExcludingDeployment(
+                eq(1001L), isNull(), eq(DeploymentScope.ORGANIZATION), eq(ModelCategory.OBJECT), any(), any());
     }
 
     @Test
@@ -277,8 +280,11 @@ class ModelManagementServiceTest {
 
         assertThatThrownBy(() -> service.generateFromNormalImages(generateCommand(ModelProfile.SPEED, 10)))
                 .isInstanceOf(BusinessException.class)
-                .extracting(ex -> ((BusinessException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.BASE_MODEL_PROFILE_NOT_FOUND);
+                .satisfies(ex -> {
+                    BusinessException business = (BusinessException) ex;
+                    org.assertj.core.api.Assertions.assertThat(business.getErrorCode()).isEqualTo(ErrorCode.MODEL_GENERATION_FAILED);
+                    org.assertj.core.api.Assertions.assertThat(business.getDetails()).containsEntry("failedStep", "POLICY_RESOLUTION");
+                });
 
         verify(generateMemoryBankPort, never()).generateMemoryBank(any());
     }
@@ -300,7 +306,8 @@ class ModelManagementServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .satisfies(ex -> {
                     BusinessException business = (BusinessException) ex;
-                    org.assertj.core.api.Assertions.assertThat(business.getErrorCode()).isEqualTo(ErrorCode.AI_SERVER_ERROR);
+                    org.assertj.core.api.Assertions.assertThat(business.getErrorCode()).isEqualTo(ErrorCode.MODEL_GENERATION_FAILED);
+                    org.assertj.core.api.Assertions.assertThat(business.getDetails()).containsEntry("failedStep", "MEMORY_BANK_GENERATION");
                     org.assertj.core.api.Assertions.assertThat(business.getDetails()).containsEntry("upstreamErrorCode", "MODEL_CONFIG_NOT_FOUND");
                     org.assertj.core.api.Assertions.assertThat(business.getDetails()).containsEntry("upstreamStatus", 404);
                 });

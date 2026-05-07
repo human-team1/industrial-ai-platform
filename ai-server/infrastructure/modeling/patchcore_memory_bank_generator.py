@@ -14,6 +14,7 @@ from PIL import Image, UnidentifiedImageError
 
 from application.exceptions import AppException
 from domain.models.memory_bank import MemoryBankGenerator, MemoryBankProfileSpec
+from infrastructure.vision.preprocessing import preprocess_pil_image
 
 try:
     import torch
@@ -153,13 +154,13 @@ class PatchCoreMemoryBankGenerator(MemoryBankGenerator):
 
     def _extract_features(self, torch, model, image_bytes_list: list[bytes], device, request_id: str) -> np.ndarray:
         tensors = []
+        selected_images = self._select_images_by_shot_policy(image_bytes_list, request_id)
         with self._stage(request_id, "preprocess_start", "preprocess_end", normalImageCount=len(image_bytes_list)):
             try:
-                for image_index, image_bytes in enumerate(image_bytes_list):
+                for image_index, image_bytes in enumerate(selected_images):
                     with Image.open(BytesIO(image_bytes)) as image:
-                        image = image.convert("RGB").resize(self._spec.image_size)
-                        array = np.asarray(image, dtype=np.float32) / 255.0
-                    tensor = torch.from_numpy(array).permute(2, 0, 1)
+                        processed = preprocess_pil_image(image, self._to_vision_spec())
+                    tensor = torch.from_numpy(processed.normalized_chw)
                     tensors.append(tensor)
                     if image_index == 0:
                         self._log_stage(request_id, "preprocess_first_image", 0, imageIndex=image_index)
@@ -167,9 +168,6 @@ class PatchCoreMemoryBankGenerator(MemoryBankGenerator):
                 raise AppException(422, "Invalid normal image", "Invalid normal image.", "NORMAL_IMAGE_INVALID") from exc
 
             batch = torch.stack(tensors, dim=0).to(device)
-            mean = torch.tensor([0.485, 0.456, 0.406], device=device).view(1, 3, 1, 1)
-            std = torch.tensor([0.229, 0.224, 0.225], device=device).view(1, 3, 1, 1)
-            batch = (batch - mean) / std
             self._log_stage(
                 request_id,
                 "tensor_device_ready",
@@ -249,7 +247,45 @@ class PatchCoreMemoryBankGenerator(MemoryBankGenerator):
         indices = np.linspace(0, memory_bank.shape[0] - 1, target_size, dtype=np.int64)
         return memory_bank[indices]
 
+    def _select_images_by_shot_policy(self, image_bytes_list: list[bytes], request_id: str) -> list[bytes]:
+        if self._spec.shot_policy != "50-shot":
+            return image_bytes_list
+        if len(image_bytes_list) <= 50:
+            if len(image_bytes_list) < 50:
+                self._log_stage(
+                    request_id,
+                    "memory_bank_shot_policy_warning",
+                    0,
+                    shotPolicy=self._spec.shot_policy,
+                    requestedShotCount=50,
+                    actualShotCount=len(image_bytes_list),
+                )
+            return image_bytes_list
+        return image_bytes_list[:50]
+
+    def _to_vision_spec(self):
+        from domain.vision_model_profile import VisionModelProfileSpec
+
+        return VisionModelProfileSpec(
+            model_category=self._spec.category.value,
+            model_profile=self._spec.profile.value,
+            backbone="unknown",
+            patchcore_layers=self._spec.layers,
+            input_size=self._spec.image_size[0],
+            shot_policy=self._spec.shot_policy,
+            target_memory_bank_size=self._spec.target_memory_bank_size,
+            image_threshold=self._spec.image_threshold,
+            pixel_threshold=self._spec.pixel_threshold,
+        )
+
     def _serialize(self, torch, memory_bank: np.ndarray, config: dict) -> bytes:
+        config["memoryBankMetadata"] = {
+            "targetMemoryBankSize": self._spec.target_memory_bank_size,
+            "actualMemoryBankSize": int(memory_bank.shape[0]),
+            "shotPolicy": self._spec.shot_policy,
+            "imageThreshold": self._spec.image_threshold,
+            "pixelThreshold": self._spec.pixel_threshold,
+        }
         metadata = {
             "model_category": self._spec.category.value,
             "model_profile": self._spec.profile.value,
@@ -258,6 +294,9 @@ class PatchCoreMemoryBankGenerator(MemoryBankGenerator):
             "layers": list(self._spec.layers),
             "target_memory_bank_size": self._spec.target_memory_bank_size,
             "actual_memory_bank_size": int(memory_bank.shape[0]),
+            "shot_policy": self._spec.shot_policy,
+            "image_threshold": self._spec.image_threshold,
+            "pixel_threshold": self._spec.pixel_threshold,
             "config": config,
         }
         try:

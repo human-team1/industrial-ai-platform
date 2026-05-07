@@ -30,6 +30,9 @@
   ],
   "shot": 50,
   "targetMemoryBankSize": 2000,
+  "imageThreshold": 22.2103,
+  "pixelThreshold": 25.827,
+  "normalize": "imagenet",
   "normalSamplePolicy": "50-shot",
   "createdAt": "2026-05-04T07:18:48.398695",
   "serviceUsage": {

@@ -3,6 +3,7 @@ package com.example.factoryguard.adapter.out.fastapi.request;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Getter
@@ -15,4 +16,9 @@ public class GenerateMemoryBankRequest {
     private final String configFileKey;
     private final List<String> normalImageFileKeys;
     private final String outputPrefix;
+    private final String inputSize;
+    private final Integer targetMemoryBankSize;
+    private final String shotPolicy;
+    private final BigDecimal imageThreshold;
+    private final BigDecimal pixelThreshold;
 }

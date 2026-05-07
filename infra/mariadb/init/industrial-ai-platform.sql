@@ -96,10 +96,10 @@
   CREATE TABLE user_threshold (
     threshold_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
-    anomaly_threshold DOUBLE,
+    anomaly_threshold DECIMAL(8,4),
     low_confidence_threshold DOUBLE,
-    min_allowed DOUBLE,
-    max_allowed DOUBLE,
+    min_allowed DECIMAL(8,4),
+    max_allowed DECIMAL(8,4),
     apply_scope VARCHAR(50),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -111,8 +111,8 @@
     threshold_history_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     threshold_id BIGINT NOT NULL,
     version INT,
-    old_anomaly_threshold DECIMAL(5,4),
-    new_anomaly_threshold DECIMAL(5,4),
+    old_anomaly_threshold DECIMAL(8,4),
+    new_anomaly_threshold DECIMAL(8,4),
     change_reason TEXT,
     changed_by BIGINT,
     changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -167,7 +167,7 @@
     model_profile VARCHAR(20) NOT NULL,
     framework VARCHAR(50),
     input_size VARCHAR(50),
-    threshold_default DECIMAL(5,4),
+    threshold_default DECIMAL(8,4),
     accuracy DECIMAL(6,4),
     precision_score DECIMAL(6,4),
     recall_score DECIMAL(6,4),
@@ -178,9 +178,13 @@
     validated_at TIMESTAMP NULL,
     validated_by BIGINT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP NULL,
+    deleted_by BIGINT NULL,
+    delete_reason TEXT NULL,
     CONSTRAINT fk_model_version_model FOREIGN KEY (model_id) REFERENCES model(model_id),
     CONSTRAINT fk_model_version_file FOREIGN KEY (file_id) REFERENCES file(file_id),
     CONSTRAINT fk_model_version_validated_by FOREIGN KEY (validated_by) REFERENCES users(user_id),
+    CONSTRAINT fk_model_version_deleted_by FOREIGN KEY (deleted_by) REFERENCES users(user_id),
     CONSTRAINT uk_model_version_name UNIQUE (model_id, version_name)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -208,10 +212,14 @@
     rollback_from_deployment_id BIGINT NULL,
     reason VARCHAR(255) NULL,
     rollback_flag BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at TIMESTAMP NULL,
+    deleted_by BIGINT NULL,
+    delete_reason TEXT NULL,
     CONSTRAINT fk_model_deployment_version FOREIGN KEY (model_version_id) REFERENCES model_version(model_version_id),
     CONSTRAINT fk_model_deployment_organization FOREIGN KEY (organization_id) REFERENCES organization(organization_id),
     CONSTRAINT fk_model_deployment_target FOREIGN KEY (target_id) REFERENCES analysis_target(target_id),
     CONSTRAINT fk_model_deployment_user FOREIGN KEY (deployed_by) REFERENCES users(user_id),
+    CONSTRAINT fk_model_deployment_deleted_by FOREIGN KEY (deleted_by) REFERENCES users(user_id),
     CONSTRAINT fk_model_deployment_rollback FOREIGN KEY (rollback_from_deployment_id) REFERENCES model_deployment(deployment_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -225,7 +233,7 @@
     source_type VARCHAR(20),
     source_id VARCHAR(255),
     run_status VARCHAR(20) NOT NULL DEFAULT 'REQUESTED',
-    applied_threshold DECIMAL(5,4),
+    applied_threshold DECIMAL(8,4),
     idempotency_key VARCHAR(255) NOT NULL,
     payload_fingerprint VARCHAR(64),
     error_code VARCHAR(50),
@@ -618,6 +626,8 @@
   CREATE INDEX idx_model_deployment_scope ON model_deployment(organization_id, target_id, deployment_scope, is_active);
   CREATE INDEX idx_model_deployment_available ON model_deployment(organization_id, target_id, deployment_scope, deploy_status, is_active, deployed_at);
   CREATE INDEX idx_model_deployment_version_active ON model_deployment(model_version_id, is_active, deploy_status);
+  CREATE INDEX idx_model_deployment_deleted_at ON model_deployment(deleted_at);
+  CREATE INDEX idx_model_version_deleted_at ON model_version(deleted_at);
   CREATE INDEX idx_analysis_target_org_status ON analysis_target(organization_id, target_status);
   CREATE INDEX idx_notification_user_created ON notification(user_id, created_at);
   CREATE INDEX idx_operation_log_created ON operation_log(created_at);

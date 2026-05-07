@@ -47,7 +47,7 @@ public class ModelVersionJpaEntity {
     @Column(name = "input_size")
     private String inputSize;
 
-    @Column(name = "threshold_default", precision = 5, scale = 4)
+    @Column(name = "threshold_default", precision = 8, scale = 4)
     private BigDecimal thresholdDefault;
 
     @Column(name = "accuracy", precision = 6, scale = 4)
@@ -82,12 +82,21 @@ public class ModelVersionJpaEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    @Column(name = "delete_reason", columnDefinition = "TEXT")
+    private String deleteReason;
+
     @Builder
     public ModelVersionJpaEntity(Long modelVersionId, Long modelId, Long fileId, String versionName, ModelCategory modelCategory,
                                  ModelProfile modelProfile, String framework, String inputSize, BigDecimal thresholdDefault,
                                  BigDecimal accuracy, BigDecimal precisionScore, BigDecimal recallScore, BigDecimal f1Score,
                                  BigDecimal aurocScore, ModelDeployStatus deployStatus, Boolean isActive,
-                                 LocalDateTime validatedAt, Long validatedBy) {
+                                 LocalDateTime validatedAt, Long validatedBy, LocalDateTime deletedAt, Long deletedBy, String deleteReason) {
         this.modelVersionId = modelVersionId;
         this.modelId = modelId;
         this.fileId = fileId;
@@ -106,6 +115,9 @@ public class ModelVersionJpaEntity {
         this.isActive = isActive;
         this.validatedAt = validatedAt;
         this.validatedBy = validatedBy;
+        this.deletedAt = deletedAt;
+        this.deletedBy = deletedBy;
+        this.deleteReason = deleteReason;
     }
 
     public void activate(LocalDateTime validatedAt, Long validatedBy) {
@@ -122,5 +134,13 @@ public class ModelVersionJpaEntity {
 
     public void markDeployed() {
         this.deployStatus = ModelDeployStatus.DEPLOYED;
+    }
+
+    public void softDelete(Long actorUserId, String reason) {
+        this.deployStatus = ModelDeployStatus.DEPRECATED;
+        this.isActive = false;
+        this.deletedAt = LocalDateTime.now();
+        this.deletedBy = actorUserId;
+        this.deleteReason = reason;
     }
 }

@@ -14,7 +14,7 @@ class ApiSuccessResponse(BaseModel):
 
 
 class ThresholdRequest(BaseModel):
-    anomalyThreshold: float = Field(..., ge=0, le=1)
+    anomalyThreshold: float = Field(..., ge=0)
     lowConfidenceThreshold: float = Field(..., ge=0, le=1)
 
 
@@ -125,6 +125,10 @@ class InferImageResponseData(BaseModel):
     inspectionId: int
     modelVersionId: int
     score: float | None = None
+    scoreType: str | None = None
+    scoreSource: str | None = None
+    imageThreshold: float | None = None
+    pixelThreshold: float | None = None
     confidence: float
     # Deprecated: Spring DecisionCalculator is the source of truth.
     # FastAPI returns its internal hint here for diagnostics/back-compat only;
@@ -133,6 +137,7 @@ class InferImageResponseData(BaseModel):
     quality: QualityResponse
     artifacts: list[ArtifactResponse] = Field(default_factory=list)
     regions: list[Any] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     processedAt: datetime
 
 

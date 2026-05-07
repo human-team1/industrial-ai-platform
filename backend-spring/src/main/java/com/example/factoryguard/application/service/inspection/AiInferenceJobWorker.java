@@ -260,7 +260,7 @@ public class AiInferenceJobWorker {
                 .roi(roiBuilder.build())
                 .qualityGateEnabled(qualityGateEnabled)
                 .threshold(AiInspectionCommand.Threshold.builder()
-                        .anomalyThreshold(threshold.getAnomalyThreshold())
+                        .anomalyThreshold(resolveAnomalyThreshold(version, threshold))
                         .lowConfidenceThreshold(threshold.getLowConfidenceThreshold())
                         .build())
                 .build();
@@ -268,6 +268,16 @@ public class AiInferenceJobWorker {
 
     private Double toDouble(BigDecimal value) {
         return value == null ? null : value.doubleValue();
+    }
+
+    private double resolveAnomalyThreshold(ModelVersionJpaEntity version, ResolvedThreshold threshold) {
+        if (threshold != null && threshold.getThresholdId() != null) {
+            return threshold.getAnomalyThreshold();
+        }
+        if (version != null && version.getThresholdDefault() != null) {
+            return version.getThresholdDefault().doubleValue();
+        }
+        return threshold.getAnomalyThreshold();
     }
 
     private Notification buildInspectionNotification(InspectionRun run, Long resultId, DecisionCode decisionCode) {
@@ -303,7 +313,16 @@ public class AiInferenceJobWorker {
 
     private void persistSuccessfulResult(InspectionRun run, AsyncJob job, AiInspectionResult result,
                                          InspectionInput input, ResolvedThreshold threshold) {
-        InspectionDecisionEvaluator.Outcome outcome = inspectionDecisionEvaluator.evaluate(result, input, threshold);
+        ResolvedThreshold effectiveThreshold = new ResolvedThreshold(
+                run.getAppliedThreshold() == null
+                        ? (threshold == null ? 0.75 : threshold.getAnomalyThreshold())
+                        : run.getAppliedThreshold().doubleValue(),
+                threshold == null ? 0.55 : threshold.getLowConfidenceThreshold(),
+                threshold == null ? null : threshold.getSource(),
+                threshold == null ? null : threshold.getThresholdId(),
+                threshold == null ? null : threshold.getThresholdVersion()
+        );
+        InspectionDecisionEvaluator.Outcome outcome = inspectionDecisionEvaluator.evaluate(result, input, effectiveThreshold);
         DecisionCode decisionCode = outcome.decisionCode();
         ReviewQueuedReason queuedReason = outcome.queuedReason();
         String resultStatus = decisionCode == DecisionCode.RECHECK ? RESULT_STATUS_REVIEW_REQUIRED : RESULT_STATUS_SUCCESS;
@@ -314,9 +333,9 @@ public class AiInferenceJobWorker {
                 .decisionCode(decisionCode)
                 .finalDecisionCode(decisionCode)
                 .resultStatus(resultStatus)
-                .thresholdSource(threshold.getSource() == null ? "SYSTEM_DEFAULT" : threshold.getSource().name())
-                .thresholdId(threshold.getThresholdId())
-                .thresholdVersion(threshold.getThresholdVersion())
+                .thresholdSource(effectiveThreshold.getSource() == null ? "SYSTEM_DEFAULT" : effectiveThreshold.getSource().name())
+                .thresholdId(effectiveThreshold.getThresholdId())
+                .thresholdVersion(effectiveThreshold.getThresholdVersion())
                 .modelVersionId(result.getModelVersionId())
                 .failureReason(null)
                 .build());

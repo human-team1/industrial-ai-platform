@@ -18,7 +18,6 @@ from infrastructure.concurrency.inference_limiter import InferenceLimiter
 from infrastructure.document_parser import DocumentParser
 from infrastructure.document_job_store import RedisDocumentIndexJobStore
 from infrastructure.embedding_client import EmbeddingClient
-from infrastructure.fallback_inferencer import StatisticalFallbackInferencer
 from infrastructure.heatmap_generator import HeatmapGenerator
 from infrastructure.image_preprocessor import VisionImagePreprocessor
 from infrastructure.llm.ollama_llm_client import OllamaLLMClient
@@ -29,6 +28,7 @@ from infrastructure.redis_status import RedisStatusStore
 from infrastructure.retriever.chroma_retriever import ChromaRetriever
 from infrastructure.vision_config_loader import VisionConfigLoader
 from infrastructure.vision_model_loader import VisionModelLoader
+from infrastructure.vision.anomalib_patchcore_inferencer import AnomalibPatchcoreInferencer
 
 
 @lru_cache
@@ -147,8 +147,8 @@ def get_vision_preprocessor() -> VisionImagePreprocessor:
 
 
 @lru_cache
-def get_fallback_inferencer() -> StatisticalFallbackInferencer:
-    return StatisticalFallbackInferencer()
+def get_anomalib_inferencer() -> AnomalibPatchcoreInferencer:
+    return AnomalibPatchcoreInferencer()
 
 
 @lru_cache
@@ -175,7 +175,7 @@ def get_vision_inference_service() -> VisionInferenceService:
         memory_bank_loader=get_memory_bank_loader(),
         preprocessor=get_vision_preprocessor(),
         quality_evaluator=get_quality_evaluator(),
-        inferencer=get_fallback_inferencer(),
+        inferencer=get_anomalib_inferencer(),
         heatmap_generator=get_heatmap_generator(),
         inference_limiter=get_inference_limiter(),
         inspection_artifact_bucket_name=settings.minio_bucket_inspection_artifacts,

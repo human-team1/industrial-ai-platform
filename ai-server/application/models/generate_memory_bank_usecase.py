@@ -4,6 +4,7 @@ import json
 import logging
 from contextlib import contextmanager
 from datetime import datetime
+from io import BytesIO
 from time import perf_counter
 
 from application.exceptions import AppException
@@ -11,6 +12,10 @@ from domain.models.memory_bank import GenerateMemoryBankCommand, GenerateMemoryB
 from infrastructure.modeling.memory_bank_generator_factory import MemoryBankGeneratorFactory
 
 log = logging.getLogger(__name__)
+try:
+    import torch
+except ImportError:  # pragma: no cover
+    torch = None
 
 
 class GenerateMemoryBankUseCase:
@@ -84,18 +89,52 @@ class GenerateMemoryBankUseCase:
                         raise
 
             generator = self._generator_factory.create_from_spec(spec)
+            log.info(
+                "memory_bank_build_started category=%s profile=%s inputSize=%sx%s targetMemoryBankSize=%s normalImageCount=%s shotPolicy=%s",
+                command.model_category.value,
+                command.model_profile.value,
+                spec.image_size[0],
+                spec.image_size[1],
+                spec.target_memory_bank_size,
+                len(command.normal_image_file_keys),
+                spec.shot_policy,
+            )
+            config["modelCategory"] = command.model_category.value
+            config["modelProfile"] = command.model_profile.value
+            config["inputSize"] = f"{spec.image_size[0]}x{spec.image_size[1]}"
+            config["imageThreshold"] = spec.image_threshold
+            config["pixelThreshold"] = spec.pixel_threshold
+            config["targetMemoryBankSize"] = spec.target_memory_bank_size
+            config["shotPolicy"] = spec.shot_policy
+            config["preprocess"] = {
+                "resize": f"{spec.image_size[0]}x{spec.image_size[1]}",
+                "colorMode": "RGB",
+                "mean": [0.485, 0.456, 0.406],
+                "std": [0.229, 0.224, 0.225],
+            }
             memory_bank_bytes = generator.generate(
                 image_bytes_list=image_bytes_list,
                 config=config,
                 ckpt_bytes=ckpt_bytes,
                 request_id=command.request_id,
             )
+            metadata = config.get("memoryBankMetadata") or {}
+            log.info(
+                "memory_bank_build_completed category=%s profile=%s actualMemoryBankSize=%s",
+                command.model_category.value,
+                command.model_profile.value,
+                metadata.get("actualMemoryBankSize"),
+            )
 
             output_prefix = command.output_prefix.rstrip("/")
             memory_bank_file_key = output_prefix + "/memory_bank.pt"
             config_file_key = output_prefix + "/config.json"
+            ckpt_file_key = output_prefix + "/model.ckpt"
             with self._stage(command, "memory_bank_upload_start", "memory_bank_upload_end", objectKey=memory_bank_file_key, fileSizeBytes=len(memory_bank_bytes)):
                 self._storage.upload_model_object(memory_bank_file_key, memory_bank_bytes, "application/octet-stream")
+            rebuilt_ckpt = self._rebuild_ckpt_with_memory_bank(ckpt_bytes, memory_bank_bytes)
+            with self._stage(command, "ckpt_upload_start", "ckpt_upload_end", objectKey=ckpt_file_key, fileSizeBytes=len(rebuilt_ckpt)):
+                self._storage.upload_model_object(ckpt_file_key, rebuilt_ckpt, "application/octet-stream")
             config_snapshot_bytes = json.dumps(config, ensure_ascii=False, indent=2).encode("utf-8")
             with self._stage(command, "config_snapshot_upload_start", "config_snapshot_upload_end", objectKey=config_file_key, fileSizeBytes=len(config_snapshot_bytes)):
                 self._storage.upload_model_object(config_file_key, config_snapshot_bytes, "application/json")
@@ -104,7 +143,7 @@ class GenerateMemoryBankUseCase:
             return GenerateMemoryBankResult(
                 memory_bank_file_key=memory_bank_file_key,
                 config_file_key=config_file_key,
-                ckpt_file_key=command.ckpt_file_key,
+                ckpt_file_key=ckpt_file_key,
                 normal_image_count=len(command.normal_image_file_keys),
                 model_category=command.model_category,
                 model_profile=command.model_profile,
@@ -115,6 +154,26 @@ class GenerateMemoryBankUseCase:
         except Exception:
             self._log_stage(command, "response_failed", 0)
             raise
+
+    def _rebuild_ckpt_with_memory_bank(self, ckpt_bytes: bytes, memory_bank_bytes: bytes) -> bytes:
+        if torch is None:
+            raise AppException(500, "Torch runtime unavailable", "checkpoint 재구성에 필요한 torch가 없습니다.", "MODEL_RUNTIME_NOT_AVAILABLE")
+        ckpt = torch.load(BytesIO(ckpt_bytes), map_location="cpu", weights_only=False)
+        memory_payload = torch.load(BytesIO(memory_bank_bytes), map_location="cpu", weights_only=False)
+        memory_bank = memory_payload.get("memory_bank") if isinstance(memory_payload, dict) else memory_payload
+        if memory_bank is None:
+            raise AppException(500, "Memory bank payload invalid", "생성된 memory bank를 확인할 수 없습니다.", "MEMORY_BANK_GENERATION_FAILED")
+        if not isinstance(memory_bank, torch.Tensor):
+            memory_bank = torch.tensor(memory_bank, dtype=torch.float32)
+        if not isinstance(ckpt, dict):
+            raise AppException(500, "Checkpoint format invalid", "checkpoint 형식이 올바르지 않습니다.", "MODEL_CKPT_INVALID")
+        state_dict = ckpt.get("state_dict")
+        if not isinstance(state_dict, dict):
+            raise AppException(500, "Checkpoint state invalid", "checkpoint state_dict가 없습니다.", "MODEL_CKPT_INVALID")
+        state_dict["model.memory_bank"] = memory_bank
+        output = BytesIO()
+        torch.save(ckpt, output)
+        return output.getvalue()
 
     def _validate_command(self, command: GenerateMemoryBankCommand) -> None:
         if not command.config_file_key.strip():

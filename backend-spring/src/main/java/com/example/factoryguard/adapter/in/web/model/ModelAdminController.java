@@ -41,7 +41,10 @@ public class ModelAdminController {
     private final ListModelDeploymentsUseCase listModelDeploymentsUseCase;
     private final DeployModelVersionUseCase deployModelVersionUseCase;
     private final DeactivateModelDeploymentUseCase deactivateModelDeploymentUseCase;
+    private final ActivateModelDeploymentUseCase activateModelDeploymentUseCase;
+    private final DeleteModelDeploymentUseCase deleteModelDeploymentUseCase;
     private final RollbackModelDeploymentUseCase rollbackModelDeploymentUseCase;
+    private final DeleteModelVersionUseCase deleteModelVersionUseCase;
     private final GenerateModelVersionFromNormalImagesUseCase generateModelVersionFromNormalImagesUseCase;
     private final SecurityUtils securityUtils;
 
@@ -218,6 +221,17 @@ public class ModelAdminController {
         ));
     }
 
+    @DeleteMapping("/api/v1/model-versions/{versionId}")
+    public ResponseEntity<ApiResponse<ModelVersionDetailResponse>> deleteVersion(@PathVariable Long versionId, @RequestBody(required = false) ReasonRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                deleteModelVersionUseCase.deleteModelVersion(ModelVersionStatusCommand.builder()
+                        .versionId(versionId)
+                        .reason(request == null ? null : request.getReason())
+                        .build()),
+                "모델 버전이 삭제 처리되었습니다."
+        ));
+    }
+
     @GetMapping("/api/v1/model-deployments")
     public ResponseEntity<ApiResponse<ModelPageResponse<ModelDeploymentResponse>>> listDeployments(
             @RequestParam(required = false) Long organizationId,
@@ -225,6 +239,7 @@ public class ModelAdminController {
             @RequestParam(required = false) Long modelVersionId,
             @RequestParam(required = false) String deploymentScope,
             @RequestParam(required = false) Boolean isActive,
+            @RequestParam(defaultValue = "false") Boolean includeDeleted,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String sort
@@ -236,6 +251,7 @@ public class ModelAdminController {
                         .modelVersionId(modelVersionId)
                         .deploymentScope(deploymentScope)
                         .isActive(isActive)
+                        .includeDeleted(includeDeleted)
                         .page(page)
                         .size(size)
                         .sort(sort)
@@ -266,6 +282,28 @@ public class ModelAdminController {
                         .reason(request == null ? null : request.getReason())
                         .build()),
                 "모델 배포를 비활성화했습니다."
+        ));
+    }
+
+    @PatchMapping("/api/v1/model-deployments/{deploymentId}/activate")
+    public ResponseEntity<ApiResponse<ModelDeploymentResponse>> activateDeployment(@PathVariable Long deploymentId, @RequestBody(required = false) ReasonRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                activateModelDeploymentUseCase.activateModelDeployment(ActivateModelDeploymentCommand.builder()
+                        .deploymentId(deploymentId)
+                        .reason(request == null ? null : request.getReason())
+                        .build()),
+                "모델 배포가 활성화되었습니다."
+        ));
+    }
+
+    @DeleteMapping("/api/v1/model-deployments/{deploymentId}")
+    public ResponseEntity<ApiResponse<ModelDeploymentResponse>> deleteDeployment(@PathVariable Long deploymentId, @RequestBody(required = false) ReasonRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                deleteModelDeploymentUseCase.deleteModelDeployment(DeactivateModelDeploymentCommand.builder()
+                        .deploymentId(deploymentId)
+                        .reason(request == null ? null : request.getReason())
+                        .build()),
+                "모델 배포가 삭제 처리되었습니다."
         ));
     }
 

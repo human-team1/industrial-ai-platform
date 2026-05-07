@@ -12,6 +12,8 @@ import com.example.factoryguard.application.dto.model.ModelVersionSummaryRespons
 import com.example.factoryguard.application.port.out.model.ModelManagementPort;
 import com.example.factoryguard.domain.model.vo.DeploymentScope;
 import com.example.factoryguard.domain.model.vo.ModelArtifactType;
+import com.example.factoryguard.domain.model.vo.ModelCategory;
+import com.example.factoryguard.domain.model.vo.ModelProfile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -119,5 +121,51 @@ public class ModelPersistenceAdapter implements ModelManagementPort {
     @Override
     public List<ModelDeploymentJpaEntity> findActiveDeploymentsByVersionId(Long versionId) {
         return modelDeploymentJpaRepository.findByModelVersionIdAndIsActiveTrue(versionId);
+    }
+
+    @Override
+    public List<ModelDeploymentJpaEntity> findDeploymentsByVersionId(Long versionId) {
+        return modelDeploymentJpaRepository.findByModelVersionId(versionId);
+    }
+
+    @Override
+    public boolean existsInspectionResultByModelVersionId(Long versionId) {
+        return queryRepository.existsInspectionResultByModelVersionId(versionId);
+    }
+
+    @Override
+    public int deactivateActiveDeploymentsInSameSlot(
+            Long organizationId,
+            Long targetId,
+            DeploymentScope scope,
+            ModelCategory modelCategory,
+            ModelProfile modelProfile
+    ) {
+        return modelDeploymentJpaRepository.deactivateActiveDeploymentsInSameSlot(
+                organizationId,
+                targetId,
+                scope.name(),
+                modelCategory.name(),
+                modelProfile.name()
+        );
+    }
+
+    @Override
+    public int deactivateActiveDeploymentsInSameSlotExcludingDeployment(
+            Long organizationId,
+            Long targetId,
+            DeploymentScope scope,
+            ModelCategory modelCategory,
+            ModelProfile modelProfile,
+            Long excludeDeploymentId
+    ) {
+        return modelDeploymentJpaRepository.deactivateActiveDeploymentsInSameSlotExcludingDeployment(
+                organizationId,
+                targetId,
+                scope.name(),
+                modelCategory.name(),
+                modelProfile.name(),
+                excludeDeploymentId
+        );
     }
 }

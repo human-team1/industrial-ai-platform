@@ -110,7 +110,7 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
                 .sourceType("CAMERA")
                 .sourceId(InspectionRunSourceMetadata.forRealtime(camera.getCameraId(), resolvedModel.getDeployment().getDeploymentId()))
                 .runStatus(RunStatus.PROCESSING)
-                .appliedThreshold(BigDecimal.valueOf(resolved.getAnomalyThreshold()))
+                .appliedThreshold(BigDecimal.valueOf(resolveAppliedThreshold(resolved, resolvedModel)))
                 .idempotencyKey(UUID.randomUUID().toString())
                 .startedAt(LocalDateTime.now())
                 .build());
@@ -187,6 +187,19 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
         if (msg == null) return t.getClass().getSimpleName();
         return msg.length() > 1000 ? msg.substring(0, 1000) : msg;
     }
+
+    private double resolveAppliedThreshold(ResolvedThreshold resolved, ResolvedInspectionModelArtifacts resolvedModel) {
+        if (resolved.getThresholdId() != null) {
+            return resolved.getAnomalyThreshold();
+        }
+        if (resolvedModel != null
+                && resolvedModel.getVersion() != null
+                && resolvedModel.getVersion().getThresholdDefault() != null) {
+            return resolvedModel.getVersion().getThresholdDefault().doubleValue();
+        }
+        return resolved.getAnomalyThreshold();
+    }
+
     private User validateUserStatus(Long userId) {
         User user = findUserByIdPort.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));

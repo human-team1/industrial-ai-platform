@@ -56,11 +56,20 @@ public class ModelDeploymentJpaEntity {
     @Column(name = "rollback_flag", nullable = false)
     private Boolean rollbackFlag;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    @Column(name = "delete_reason", columnDefinition = "TEXT")
+    private String deleteReason;
+
     @Builder
     public ModelDeploymentJpaEntity(Long deploymentId, Long organizationId, Long targetId, Long modelVersionId,
                                     DeploymentScope deploymentScope, DeploymentStatus deployStatus, Boolean isActive,
                                     LocalDateTime deployedAt, Long deployedBy, Long rollbackFromDeploymentId,
-                                    String reason, Boolean rollbackFlag) {
+                                    String reason, Boolean rollbackFlag, LocalDateTime deletedAt, Long deletedBy, String deleteReason) {
         this.deploymentId = deploymentId;
         this.organizationId = organizationId;
         this.targetId = targetId;
@@ -73,11 +82,38 @@ public class ModelDeploymentJpaEntity {
         this.rollbackFromDeploymentId = rollbackFromDeploymentId;
         this.reason = reason;
         this.rollbackFlag = rollbackFlag;
+        this.deletedAt = deletedAt;
+        this.deletedBy = deletedBy;
+        this.deleteReason = deleteReason;
     }
 
     public void deactivate(String reason) {
         this.isActive = false;
         this.deployStatus = DeploymentStatus.DEACTIVATED;
+        if (reason != null && !reason.isBlank()) {
+            this.reason = reason;
+        }
+    }
+
+    public void activate(Long actorUserId, String reason) {
+        if (this.deletedAt != null) {
+            return;
+        }
+        this.isActive = true;
+        this.deployStatus = DeploymentStatus.DEPLOYED;
+        this.deployedAt = LocalDateTime.now();
+        this.deployedBy = actorUserId;
+        if (reason != null && !reason.isBlank()) {
+            this.reason = reason;
+        }
+    }
+
+    public void softDelete(Long actorUserId, String reason) {
+        this.isActive = false;
+        this.deployStatus = DeploymentStatus.DEACTIVATED;
+        this.deletedAt = LocalDateTime.now();
+        this.deletedBy = actorUserId;
+        this.deleteReason = reason;
         if (reason != null && !reason.isBlank()) {
             this.reason = reason;
         }

@@ -28,6 +28,9 @@
   ],
   "shot": "full-shot",
   "targetMemoryBankSize": 10000,
+  "imageThreshold": 36.8688,
+  "pixelThreshold": 28.4368,
+  "normalize": "imagenet",
   "normalSamplePolicy": "full-shot",
   "createdAt": "2026-05-04T06:00:57.045463",
   "serviceUsage": {
