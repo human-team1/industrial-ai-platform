@@ -119,11 +119,13 @@ class GenerateMemoryBankUseCase:
                 request_id=command.request_id,
             )
             metadata = config.get("memoryBankMetadata") or {}
+            calibrated_threshold: float | None = metadata.get("calibratedThreshold")
             log.info(
-                "memory_bank_build_completed category=%s profile=%s actualMemoryBankSize=%s",
+                "memory_bank_build_completed category=%s profile=%s actualMemoryBankSize=%s calibratedThreshold=%s",
                 command.model_category.value,
                 command.model_profile.value,
                 metadata.get("actualMemoryBankSize"),
+                calibrated_threshold,
             )
 
             output_prefix = command.output_prefix.rstrip("/")
@@ -150,6 +152,7 @@ class GenerateMemoryBankUseCase:
                 input_size=f"{spec.image_size[0]}x{spec.image_size[1]}",
                 framework=spec.framework,
                 created_at=datetime.now().isoformat(timespec="seconds"),
+                calibrated_threshold=calibrated_threshold,
             )
         except Exception:
             self._log_stage(command, "response_failed", 0)

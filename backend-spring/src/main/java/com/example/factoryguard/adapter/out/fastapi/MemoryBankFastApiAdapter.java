@@ -167,6 +167,7 @@ public class MemoryBankFastApiAdapter implements GenerateMemoryBankPort {
                 .inputSize(data.getInputSize())
                 .framework(data.getFramework())
                 .createdAt(data.getCreatedAt())
+                .calibratedThreshold(data.getCalibratedThreshold())
                 .build();
     }
 

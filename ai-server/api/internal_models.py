@@ -86,13 +86,14 @@ async def generate_memory_bank(
     command = request_body.to_command(request_id)
     result = usecase.execute(command)
     log.info(
-        "memory_bank generation completed requestId=%s modelCategory=%s modelProfile=%s normalImageCount=%s memoryBankFileKey=%s configFileKey=%s",
+        "memory_bank generation completed requestId=%s modelCategory=%s modelProfile=%s normalImageCount=%s memoryBankFileKey=%s configFileKey=%s calibratedThreshold=%s",
         request_id,
         result.model_category.value,
         result.model_profile.value,
         result.normal_image_count,
         result.memory_bank_file_key,
         result.config_file_key,
+        result.calibrated_threshold,
     )
     return {
         "success": True,
@@ -106,6 +107,7 @@ async def generate_memory_bank(
             "inputSize": result.input_size,
             "framework": result.framework,
             "createdAt": result.created_at,
+            "calibratedThreshold": result.calibrated_threshold,
         },
         "message": "memory_bank generated.",
     }

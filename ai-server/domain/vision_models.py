@@ -32,6 +32,7 @@ class PreprocessedImage:
     original_image_array: np.ndarray
     original_size: tuple[int, int]
     resized_size: tuple[int, int]
+    inference_array: np.ndarray | None = None  # CHW float32 ImageNet-normalized, C-contiguous
 
 
 @dataclass(slots=True)

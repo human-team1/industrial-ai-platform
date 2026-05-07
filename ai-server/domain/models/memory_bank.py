@@ -51,6 +51,7 @@ class GenerateMemoryBankResult:
     input_size: str
     framework: str
     created_at: str
+    calibrated_threshold: float | None = None
 
 
 class ModelStoragePort(Protocol):

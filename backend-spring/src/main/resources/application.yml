@@ -56,7 +56,7 @@ inspection:
 
 app:
   session:
-    max-active-users: ${MAX_ACTIVE_USERS:3}
+    max-active-users: ${MAX_ACTIVE_USERS:10}
     active-session-ttl-seconds: ${ACTIVE_SESSION_TTL_SECONDS:1800}
   document:
     upload:

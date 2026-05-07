@@ -59,10 +59,16 @@ class MemoryBankLoader:
                 "AI_MEMORY_BANK_LOAD_FAILED",
             )
 
-        loaded = torch.load(BytesIO(memory_bank_bytes), map_location="cpu")
+        loaded = torch.load(BytesIO(memory_bank_bytes), map_location="cpu", weights_only=False)
         payload = self._extract_payload(loaded)
         shape = tuple(payload.shape) if hasattr(payload, "shape") else None
-        return LoadedMemoryBank(source_type="torch", payload=payload, shape=shape)
+        # {"memory_bank": ..., "metadata": {...}} 형식인 경우 metadata도 함께 보존
+        metadata: dict = {}
+        if isinstance(loaded, dict) and "metadata" in loaded:
+            raw_meta = loaded["metadata"]
+            if isinstance(raw_meta, dict):
+                metadata = raw_meta
+        return LoadedMemoryBank(source_type="torch", payload=payload, shape=shape, metadata=metadata)
 
     def _extract_payload(self, loaded: Any) -> Any:
         if isinstance(loaded, dict):

@@ -25,11 +25,13 @@ class VisionImagePreprocessor:
         except ValueError as exc:
             raise AppException(422, "Invalid model profile", "지원하지 않는 모델 프로필 조합입니다.", "AI_MODEL_PROFILE_INVALID") from exc
         preprocessed = preprocess_pil_image(image, spec)
+        # inference_array: CHW float32 normalized, C-contiguous (모델 직접 입력용)
         return PreprocessedImage(
-            image_array=np.asarray(preprocessed.resized_rgb_uint8, dtype=np.uint8),
-            original_image_array=np.asarray(image.convert("RGB"), dtype=np.uint8),
+            image_array=np.ascontiguousarray(preprocessed.resized_rgb_uint8, dtype=np.uint8),
+            original_image_array=np.ascontiguousarray(image.convert("RGB"), dtype=np.uint8),
             original_size=(original_width, original_height),
             resized_size=(spec.input_size, spec.input_size),
+            inference_array=np.ascontiguousarray(preprocessed.normalized_chw, dtype=np.float32),
         )
 
     def _apply_roi(self, image: Image.Image, roi: dict | None, width: int, height: int) -> Image.Image:

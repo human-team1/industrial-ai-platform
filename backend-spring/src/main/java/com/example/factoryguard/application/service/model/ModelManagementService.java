@@ -693,13 +693,17 @@ public class ModelManagementService implements
                 .createdAt(LocalDateTime.now())
                 .createdBy(securityUtils.getCurrentUserId())
                 .build());
+        // CKPT artifact는 반드시 base Anomalib ckpt를 가리켜야 한다.
+        // FastAPI가 반환하는 ckptFileKey(generated model.ckpt)를 사용하면 안 된다.
+        // generated model.ckpt는 {"memory_bank": ...} 커스텀 포맷이므로 Anomalib 표준 ckpt가 아니다.
+        String baseCkptKey = generated.fixedProfile().ckptFileKey();
         StoredFile ckptFile = persistUploadedFilePort.save(StoredFile.builder()
                 .storageType(StorageType.MINIO)
                 .bucketName(minioProperties.getBucketModels())
-                .objectKey(generated.result().getCkptFileKey() != null ? generated.result().getCkptFileKey() : generated.fixedProfile().ckptFileKey())
+                .objectKey(baseCkptKey)
                 .filePath(null)
-                .fileName(fileNameFromObjectKey(generated.result().getCkptFileKey() != null ? generated.result().getCkptFileKey() : generated.fixedProfile().ckptFileKey()))
-                .fileExt(extension(generated.result().getCkptFileKey() != null ? generated.result().getCkptFileKey() : generated.fixedProfile().ckptFileKey()))
+                .fileName(fileNameFromObjectKey(baseCkptKey))
+                .fileExt(extension(baseCkptKey))
                 .mimeType("application/octet-stream")
                 .fileSize(0L)
                 .checksum(null)
@@ -709,6 +713,11 @@ public class ModelManagementService implements
 
         LocalDateTime now = LocalDateTime.now();
         VisionModelProfilePolicy.Spec policy = resolvePolicy(command.getModelCategory(), generated.profile());
+        BigDecimal thresholdDefault = generated.result().getCalibratedThreshold() != null
+                ? generated.result().getCalibratedThreshold()
+                : policy.imageThreshold();
+        log.info("model_version_threshold_resolved requestId={} profile={} calibratedThreshold={} policyThreshold={} usedThreshold={}",
+                requestId, generated.profile(), generated.result().getCalibratedThreshold(), policy.imageThreshold(), thresholdDefault);
         ModelVersionJpaEntity version = modelManagementPort.saveModelVersion(ModelVersionJpaEntity.builder()
                 .modelId(model.getModelId())
                 .fileId(memoryBankFile.getFileId())
@@ -717,7 +726,7 @@ public class ModelManagementService implements
                 .modelProfile(generated.profile())
                 .framework(blankToNull(generated.result().getFramework()))
                 .inputSize(policy.inputSize())
-                .thresholdDefault(policy.imageThreshold())
+                .thresholdDefault(thresholdDefault)
                 .deployStatus(ModelDeployStatus.DEPLOYED)
                 .isActive(true)
                 .validatedAt(now)

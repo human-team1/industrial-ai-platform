@@ -103,7 +103,7 @@ class VisionInferenceService:
             raise AppException(
                 500,
                 "Inference failed",
-                "이미지 추론 중 오류가 발생했습니다.",
+                f"이미지 추론 중 오류가 발생했습니다. modelVersionId={model_request.modelVersionId} category={model_request.modelCategory} profile={model_request.modelProfile}",
                 "AI_INFERENCE_FAILED",
             ) from exc
 
@@ -142,15 +142,17 @@ class VisionInferenceService:
             model_request.memoryBankFileKey,
             ckpt_bytes,
             config,
+            memory_bank_bytes=memory_bank_bytes,
         )
         logger.info(
-            "anomalib_model_loaded requestId=%s modelVersionId=%s category=%s profile=%s inputSize=%s ckpt=%s",
+            "anomalib_model_loaded requestId=%s modelVersionId=%s category=%s profile=%s inputSize=%s ckpt=%s memoryBank=%s",
             request_id,
             model_request.modelVersionId,
             model_request.modelCategory,
             model_request.modelProfile,
             model_request.inputSize,
             model_request.ckptFileKey,
+            model_request.memoryBankFileKey,
         )
         memory_bank = self._memory_bank_loader.load(
             model_request.memoryBankFileKey,
@@ -164,6 +166,16 @@ class VisionInferenceService:
             model_request.modelCategory,
             model_request.modelProfile,
         )
+        spec = get_vision_model_profile_spec(model_request.modelCategory, model_request.modelProfile)
+        logger.info(
+            "preprocessing_info requestId=%s originalImageSize=%sx%s modelInputSize=%sx%s modelCategory=%s modelProfile=%s ckptFileKey=%s scoreType=ANOMALIB_PRED_SCORE scoreSource=anomalib.pred_score",
+            request_id,
+            image.original_size[0], image.original_size[1],
+            spec.input_size, spec.input_size,
+            model_request.modelCategory,
+            model_request.modelProfile,
+            model_request.ckptFileKey,
+        )
         quality = self._quality_evaluator.evaluate(image.image_array)
 
         artifacts = []
@@ -171,12 +183,11 @@ class VisionInferenceService:
         confidence = 0.35
         decision_code = "RECHECK"
         anomaly_map = None
+        threshold = request.threshold.anomalyThreshold
+        low_confidence_threshold = request.threshold.lowConfidenceThreshold
 
         if not request.qualityGateEnabled or quality.status != "FAILED":
             inference = self._inferencer.infer(image, model, config, memory_bank)
-            spec = get_vision_model_profile_spec(model_request.modelCategory, model_request.modelProfile)
-            threshold = request.threshold.anomalyThreshold
-            low_confidence_threshold = request.threshold.lowConfidenceThreshold
             score = inference.score
             confidence = inference.confidence
             anomaly_map = inference.anomaly_map
@@ -189,12 +200,14 @@ class VisionInferenceService:
             else:
                 decision_code = "NORMAL"
             logger.info(
-                "anomalib_prediction_completed requestId=%s modelVersionId=%s predScore=%s imageThreshold=%s decision=%s",
+                "anomalib_prediction_completed requestId=%s modelVersionId=%s "
+                "predScore=%.4f imageThreshold=%.4f decision=%s confidence=%.4f",
                 request_id,
                 model_request.modelVersionId,
-                score,
+                score if score is not None else float("nan"),
                 threshold,
                 decision_code,
+                confidence,
             )
 
             if anomaly_map is not None:
@@ -230,7 +243,7 @@ class VisionInferenceService:
                 "scoreType": "ANOMALIB_PRED_SCORE",
                 "scoreSource": "anomalib.pred_score",
                 "imageThreshold": threshold,
-                "pixelThreshold": spec.pixel_threshold if 'spec' in locals() else None,
+                "pixelThreshold": spec.pixel_threshold,
                 "confidence": confidence,
                 "decisionCode": decision_code,
                 "quality": {
@@ -248,7 +261,14 @@ class VisionInferenceService:
                     "anomalibVersion": "2.4.0",
                     "modelCategory": model_request.modelCategory,
                     "modelProfile": model_request.modelProfile,
-                    "inputSize": model_request.inputSize or (f"{spec.input_size}x{spec.input_size}" if 'spec' in locals() else None),
+                    "inputSize": model_request.inputSize or f"{spec.input_size}x{spec.input_size}",
+                    "originalImageSize": f"{image.original_size[0]}x{image.original_size[1]}",
+                    "modelInputSize": f"{spec.input_size}x{spec.input_size}",
+                    "anomalyMapShape": f"{anomaly_map.shape[0]}x{anomaly_map.shape[1]}" if anomaly_map is not None else None,
+                    "overlayOutputSize": f"{image.original_size[0]}x{image.original_size[1]}",
+                    "ckptFileKey": model_request.ckptFileKey,
+                    "scoreType": "ANOMALIB_PRED_SCORE",
+                    "scoreSource": "anomalib.pred_score",
                     "scoreAggregationMethod": "anomalib_default_pred_score",
                     "anomalyMapMin": float(anomaly_map.min()) if anomaly_map is not None else None,
                     "anomalyMapMax": float(anomaly_map.max()) if anomaly_map is not None else None,
