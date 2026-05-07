@@ -21,6 +21,10 @@ import com.example.factoryguard.domain.inspection.model.InspectionInput;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import com.example.factoryguard.domain.inspection.model.RunStatus;
 import com.example.factoryguard.domain.inspection.model.RunType;
+import com.example.factoryguard.adapter.out.persistence.model.ModelDeploymentJpaEntity;
+import com.example.factoryguard.application.dto.inspection.ResolvedInspectionModelArtifacts;
+import com.example.factoryguard.domain.model.vo.DeploymentScope;
+import com.example.factoryguard.domain.model.vo.DeploymentStatus;
 import com.example.factoryguard.domain.user.model.ThresholdSource;
 import com.example.factoryguard.domain.user.model.User;
 import com.example.factoryguard.domain.user.model.UserRole;
@@ -56,6 +60,7 @@ class SubmitRealtimeInspectionServiceTest {
     @Mock DecisionProperties decisionProperties;
     @Mock CreateNotificationUseCase createNotificationUseCase;
     @Mock SessionValidationService sessionValidationService;
+    @Mock InferenceModelArtifactResolver inferenceModelArtifactResolver;
 
     SubmitRealtimeInspectionService service;
 
@@ -74,7 +79,8 @@ class SubmitRealtimeInspectionServiceTest {
                 eventLogger,
                 decisionProperties,
                 createNotificationUseCase,
-                sessionValidationService
+                sessionValidationService,
+                inferenceModelArtifactResolver
         );
     }
 
@@ -83,13 +89,22 @@ class SubmitRealtimeInspectionServiceTest {
         givenActiveUser();
         when(resolveInspectionThresholdService.resolve(1L, null)).thenReturn(defaultThreshold());
         when(loadCameraSourcePort.findById(3L)).thenReturn(Optional.of(camera(3L, 10L)));
+        when(inferenceModelArtifactResolver.resolve(10L, null, 700L)).thenReturn(ResolvedInspectionModelArtifacts.builder()
+                .deployment(ModelDeploymentJpaEntity.builder()
+                        .deploymentId(700L)
+                        .organizationId(10L)
+                        .deploymentScope(DeploymentScope.ORGANIZATION)
+                        .deployStatus(DeploymentStatus.DEPLOYED)
+                        .isActive(true)
+                        .build())
+                .build());
         when(runRecorder.create(any())).thenAnswer(invocation -> {
             InspectionRun run = invocation.getArgument(0);
             return run.toBuilder().inspectionId(1001L).build();
         });
 
         SubmitInspectionResult result = service.execute(new SubmitRealtimeInspectionCommand(
-                1L, "session-1", null, 3L, null
+                1L, "session-1", null, 3L, 700L, null
         ));
 
         assertThat(result.getInspectionId()).isEqualTo(1001L);
@@ -99,7 +114,7 @@ class SubmitRealtimeInspectionServiceTest {
         verify(runRecorder).create(runCaptor.capture());
         assertThat(runCaptor.getValue().getRunType()).isEqualTo(RunType.REALTIME);
         assertThat(runCaptor.getValue().getRunStatus()).isEqualTo(RunStatus.PROCESSING);
-        assertThat(runCaptor.getValue().getSourceId()).isEqualTo("3");
+        assertThat(runCaptor.getValue().getSourceId()).contains("deployment=700").contains("camera=3");
 
         ArgumentCaptor<InspectionInput> inputCaptor = ArgumentCaptor.forClass(InspectionInput.class);
         verify(inputRecorder).record(inputCaptor.capture());
@@ -117,7 +132,7 @@ class SubmitRealtimeInspectionServiceTest {
         when(loadCameraSourcePort.findById(404L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.execute(new SubmitRealtimeInspectionCommand(
-                1L, "session-1", null, 404L, null
+                1L, "session-1", null, 404L, 700L, null
         ))).isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.CAMERA_NOT_FOUND.getDefaultMessage());
     }
@@ -129,7 +144,7 @@ class SubmitRealtimeInspectionServiceTest {
         when(loadCameraSourcePort.findById(3L)).thenReturn(Optional.of(camera(3L, 99L)));
 
         assertThatThrownBy(() -> service.execute(new SubmitRealtimeInspectionCommand(
-                1L, "session-1", null, 3L, null
+                1L, "session-1", null, 3L, 700L, null
         ))).isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.FORBIDDEN.getDefaultMessage());
     }
@@ -145,7 +160,7 @@ class SubmitRealtimeInspectionServiceTest {
                 .build()));
 
         assertThatThrownBy(() -> service.execute(new SubmitRealtimeInspectionCommand(
-                1L, "session-1", 7L, 3L, null
+                1L, "session-1", 7L, 3L, 700L, null
         ))).isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.FORBIDDEN.getDefaultMessage());
     }

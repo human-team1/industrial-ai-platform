@@ -1,5 +1,6 @@
 package com.example.factoryguard.adapter.out.persistence.model;
 
+import com.example.factoryguard.application.dto.inspection.AvailableInspectionModelItem;
 import com.example.factoryguard.application.dto.model.ListModelDeploymentsQuery;
 import com.example.factoryguard.application.dto.model.ListModelVersionsQuery;
 import com.example.factoryguard.application.dto.model.ListModelsQuery;
@@ -100,6 +101,11 @@ public class ModelPersistenceAdapter implements ModelManagementPort {
     @Override
     public ModelPageResponse<ModelDeploymentResponse> findDeployments(ListModelDeploymentsQuery query) {
         return queryRepository.findDeployments(query);
+    }
+
+    @Override
+    public List<AvailableInspectionModelItem> findAvailableInspectionModels(Long organizationId, Long targetId, String modelCategory) {
+        return queryRepository.findAvailableInspectionModels(organizationId, targetId, modelCategory);
     }
 
     @Override

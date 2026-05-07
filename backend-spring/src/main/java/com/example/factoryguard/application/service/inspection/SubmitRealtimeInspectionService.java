@@ -2,6 +2,7 @@ package com.example.factoryguard.application.service.inspection;
 
 import com.example.factoryguard.application.dto.inspection.AiInspectionResult;
 import com.example.factoryguard.application.dto.inspection.AiRealtimeInspectionCommand;
+import com.example.factoryguard.application.dto.inspection.ResolvedInspectionModelArtifacts;
 import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.dto.inspection.SubmitRealtimeInspectionCommand;
@@ -68,6 +69,7 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
     private final DecisionProperties decisionProperties;
     private final CreateNotificationUseCase createNotificationUseCase;
     private final SessionValidationService sessionValidationService;
+    private final InferenceModelArtifactResolver inferenceModelArtifactResolver;
 
     @Override
     public SubmitInspectionResult execute(SubmitRealtimeInspectionCommand command) {
@@ -75,6 +77,9 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
         User user = validateUserStatus(command.getUserId());
         if (command.getCameraId() == null) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        if (command.getDeploymentId() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "deploymentId는 필수입니다.");
         }
         ResolvedThreshold resolved = resolveInspectionThresholdService.resolve(
                 command.getUserId(), command.getThresholdId());
@@ -90,6 +95,11 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
         if (!camera.getOrganizationId().equals(user.getOrganizationId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
+        ResolvedInspectionModelArtifacts resolvedModel = inferenceModelArtifactResolver.resolve(
+                user.getOrganizationId(),
+                command.getTargetId(),
+                command.getDeploymentId()
+        );
 
         InspectionRun run = runRecorder.create(InspectionRun.builder()
                 .organizationId(user.getOrganizationId())
@@ -98,7 +108,7 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
                 .runType(RunType.REALTIME)
                 .inputType("CAMERA")
                 .sourceType("CAMERA")
-                .sourceId(String.valueOf(camera.getCameraId()))
+                .sourceId(InspectionRunSourceMetadata.forRealtime(camera.getCameraId(), resolvedModel.getDeployment().getDeploymentId()))
                 .runStatus(RunStatus.PROCESSING)
                 .appliedThreshold(BigDecimal.valueOf(resolved.getAnomalyThreshold()))
                 .idempotencyKey(UUID.randomUUID().toString())

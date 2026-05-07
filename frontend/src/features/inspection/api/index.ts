@@ -1,9 +1,14 @@
 import { AxiosError } from 'axios'
-import { apiClient } from '../../../shared/api/client'
+import { apiClient, normalizeApiError } from '../../../shared/api/client'
 import type {
   AnalysisTargetOption,
+  AvailableInspectionModel,
+  AvailableInspectionModelsParams,
+  AvailableRealtimeCamera,
+  AvailableRealtimeCamerasParams,
   InspectionDetail,
   InspectionEvent,
+  StartRealtimeInspectionPayload,
   ThresholdOption,
   UploadInspectionPayload,
   UploadInspectionResponse,
@@ -28,11 +33,17 @@ export async function uploadInspection(
   try {
     const formData = new FormData()
     formData.append('file', payload.file)
+    formData.append('deploymentId', String(payload.deploymentId))
     if (payload.targetId) formData.append('targetId', String(payload.targetId))
     if (payload.thresholdId) formData.append('thresholdId', String(payload.thresholdId))
     if (payload.inputMode) formData.append('inputMode', payload.inputMode)
     if (payload.sourceType) formData.append('sourceType', payload.sourceType)
     if (payload.roiMode) formData.append('roiMode', payload.roiMode)
+    if (payload.roiCoordinateType) formData.append('roiCoordinateType', payload.roiCoordinateType)
+    if (payload.roiX != null) formData.append('roiX', String(payload.roiX))
+    if (payload.roiY != null) formData.append('roiY', String(payload.roiY))
+    if (payload.roiWidth != null) formData.append('roiWidth', String(payload.roiWidth))
+    if (payload.roiHeight != null) formData.append('roiHeight', String(payload.roiHeight))
     if (payload.qualityGateEnabled !== undefined) {
       formData.append('qualityGateEnabled', String(payload.qualityGateEnabled))
     }
@@ -52,6 +63,72 @@ export async function uploadInspection(
     return response.data.data
   } catch (error) {
     throw new Error(getInspectionErrorMessage(error))
+  }
+}
+
+export async function fetchAvailableInspectionModels(
+  params: AvailableInspectionModelsParams,
+  signal?: AbortSignal,
+): Promise<AvailableInspectionModel[]> {
+  try {
+    const response = await apiClient.get<ApiResponse<{ items: unknown[] }>>(
+      '/inspection-models/available',
+      {
+        params: compactParams(params),
+        signal,
+      },
+    )
+    const raw = response.data.data?.items ?? []
+    return raw.map(toAvailableInspectionModel).filter((m): m is AvailableInspectionModel => m !== null)
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
+export async function fetchAvailableRealtimeCameras(
+  params: AvailableRealtimeCamerasParams,
+  signal?: AbortSignal,
+): Promise<AvailableRealtimeCamera[]> {
+  try {
+    const response = await apiClient.get<ApiResponse<{ items: AvailableRealtimeCamera[] }>>(
+      '/realtime/cameras/available',
+      {
+        params: compactParams(params),
+        signal,
+      },
+    )
+    return response.data.data?.items ?? []
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
+export async function startRealtimeInspection(
+  payload: StartRealtimeInspectionPayload,
+): Promise<UploadInspectionResponse> {
+  try {
+    const response = await apiClient.post<ApiResponse<UploadInspectionResponse>>(
+      '/inspections/realtime',
+      payload,
+    )
+    return response.data.data
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
+export async function rerunReviewInspection(
+  reviewQueueId: number,
+  deploymentId: number,
+): Promise<UploadInspectionResponse> {
+  try {
+    const response = await apiClient.post<ApiResponse<UploadInspectionResponse>>(
+      `/reviews/${reviewQueueId}/rerun`,
+      { deploymentId },
+    )
+    return response.data.data
+  } catch (error) {
+    throw normalizeApiError(error)
   }
 }
 
@@ -185,8 +262,66 @@ function extractList(data: unknown): unknown[] {
   return []
 }
 
+function compactParams(params: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+  )
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function coercePositiveIntId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const n = Math.trunc(value)
+    return n > 0 ? n : null
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Math.trunc(Number(value))
+    return Number.isFinite(n) && n > 0 ? n : null
+  }
+  return null
+}
+
+function toAvailableInspectionModel(raw: unknown): AvailableInspectionModel | null {
+  if (!isRecord(raw)) return null
+  const deploymentId = coercePositiveIntId(raw.deploymentId)
+  const modelVersionId = coercePositiveIntId(raw.modelVersionId)
+  const modelId = coercePositiveIntId(raw.modelId)
+  const organizationId = coercePositiveIntId(raw.organizationId)
+  const modelName = raw.modelName != null ? String(raw.modelName) : ''
+  const versionName = raw.versionName != null ? String(raw.versionName) : ''
+  const displayNameRaw = raw.displayName != null ? String(raw.displayName).trim() : ''
+  if (!deploymentId || !modelVersionId || !modelId || !organizationId) {
+    return null
+  }
+  const displayName =
+    displayNameRaw || [modelName, versionName].filter(Boolean).join(' / ').trim() || `배포 #${deploymentId}`
+  const targetId = raw.targetId == null ? undefined : coercePositiveIntId(raw.targetId)
+  const thresholdRaw = raw.thresholdDefault
+  let thresholdDefault: number | undefined
+  if (typeof thresholdRaw === 'number' && Number.isFinite(thresholdRaw)) {
+    thresholdDefault = thresholdRaw
+  } else if (typeof thresholdRaw === 'string' && thresholdRaw.trim() !== '') {
+    const t = Number(thresholdRaw)
+    if (Number.isFinite(t)) thresholdDefault = t
+  }
+
+  return {
+    deploymentId,
+    modelVersionId,
+    modelId,
+    modelName,
+    versionName,
+    displayName,
+    modelCategory: raw.modelCategory != null ? String(raw.modelCategory) : undefined,
+    modelProfile: raw.modelProfile != null ? String(raw.modelProfile) : undefined,
+    deploymentScope: raw.deploymentScope != null ? String(raw.deploymentScope) : undefined,
+    organizationId,
+    targetId: targetId ?? undefined,
+    thresholdDefault,
+  }
 }
 
 function toOptionalNumber(value: unknown) {

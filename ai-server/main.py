@@ -1,16 +1,55 @@
 import uuid
+import logging
+import sys
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api.router import router
 from application.exceptions import AppException
 from config.settings import get_settings
 
 settings = get_settings()
+log = logging.getLogger("uvicorn.error")
 
-app = FastAPI(title=settings.app_name)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    log_runtime_cuda_status()
+    if log.isEnabledFor(logging.DEBUG):
+        for route in app.routes:
+            methods = ",".join(sorted(getattr(route, "methods", []) or []))
+            log.debug("runtime route registered: methods=%s path=%s", methods, getattr(route, "path", ""))
+    yield
+
+
+def log_runtime_cuda_status() -> None:
+    try:
+        import torch
+
+        cuda_available = torch.cuda.is_available()
+        device_name = torch.cuda.get_device_name(0) if cuda_available else "no cuda"
+        torch_cuda = torch.version.cuda
+    except Exception as exc:
+        log.warning(
+            "ai_server_runtime_cuda_status pythonExecutable=%s cudaAvailable=false torchCuda=unavailable deviceName=unavailable error=%s",
+            sys.executable,
+            exc.__class__.__name__,
+        )
+        return
+    log.info(
+        "ai_server_runtime_cuda_status pythonExecutable=%s cudaAvailable=%s torchCuda=%s deviceName=%s",
+        sys.executable,
+        cuda_available,
+        torch_cuda,
+        device_name,
+    )
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 app.include_router(router, prefix="/ai/v1")
 
 
@@ -60,6 +99,26 @@ async def handle_app_exception(request: Request, exc: AppException) -> JSONRespo
             "detail": exc.detail,
             "instance": str(request.url.path),
             "errorCode": exc.code,
+            "requestId": getattr(request.state, "request_id", None),
+        },
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    status_code = exc.status_code
+    error_code = "ROUTE_NOT_FOUND" if status_code == 404 else "HTTP_ERROR"
+    title = "Route not found" if status_code == 404 else "HTTP error"
+    detail = f"No route for {request.method} {request.url.path}" if status_code == 404 else str(exc.detail)
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "type": "about:blank",
+            "title": title,
+            "status": status_code,
+            "detail": detail,
+            "instance": str(request.url.path),
+            "errorCode": error_code,
             "requestId": getattr(request.state, "request_id", None),
         },
     )

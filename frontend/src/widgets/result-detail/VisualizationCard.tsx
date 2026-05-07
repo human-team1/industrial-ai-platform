@@ -8,11 +8,10 @@ type Props = {
   regions: AnomalyRegion[]
 }
 
+const VISUALIZATION_PRIORITY = ['HEATMAP', 'ANOMALY_MAP', 'BOUNDING_BOX_IMAGE', 'VISUALIZATION'] as const
+
 export function VisualizationCard({ artifacts, regions }: Props) {
-  const artifact =
-    artifacts.find((item) =>
-      ['HEATMAP', 'VISUALIZATION', 'ANOMALY_MAP'].includes(String(item.artifactType)),
-    ) ?? artifacts[0]
+  const artifact = pickVisualizationArtifact(artifacts)
   const preview = useResultFilePreview(artifact?.fileId)
 
   return (
@@ -38,6 +37,14 @@ export function VisualizationCard({ artifacts, regions }: Props) {
       ) : null}
     </InfoCard>
   )
+}
+
+function pickVisualizationArtifact(artifacts: ResultArtifact[]) {
+  for (const t of VISUALIZATION_PRIORITY) {
+    const hit = artifacts.find((item) => String(item.artifactType).toUpperCase() === t)
+    if (hit?.fileId) return hit
+  }
+  return undefined
 }
 
 function display(value: string | null | undefined) {

@@ -12,6 +12,7 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -60,10 +61,11 @@ public class OperationAdminService implements
     public List<SystemComponentStatusResult> executeComponents() {
         requireSiteAdmin();
         List<SystemComponentStatusResult> cached = operationStatusCachePort.findComponentStatuses(COMPONENT_TYPES);
+        List<SystemComponentStatusResult> persisted = operationAdminPort.findSystemComponents();
         if (!cached.isEmpty()) {
-            return mergeComponents(cached, operationAdminPort.findSystemComponents());
+            return mergeComponents(cached, persisted);
         }
-        return operationAdminPort.findSystemComponents();
+        return mergeComponents(List.of(), persisted);
     }
 
     @Override
@@ -211,8 +213,33 @@ public class OperationAdminService implements
             byType.put(item.getComponentType(), item);
         }
         return COMPONENT_TYPES.stream()
-                .map(byType::get)
-                .filter(java.util.Objects::nonNull)
+                .map(type -> byType.getOrDefault(type, unknownComponent(type)))
                 .toList();
+    }
+
+    private SystemComponentStatusResult unknownComponent(String type) {
+        LocalDateTime now = LocalDateTime.now();
+        return SystemComponentStatusResult.builder()
+                .componentType(type)
+                .componentName(componentName(type))
+                .status("UNKNOWN")
+                .message("상태 정보 없음")
+                .checkedAt(now)
+                .createdAt(now)
+                .build();
+    }
+
+    private String componentName(String type) {
+        return switch (type) {
+            case "SPRING_API" -> "Spring API";
+            case "AI_SERVER" -> "AI Server";
+            case "MARIADB" -> "MariaDB";
+            case "REDIS" -> "Redis";
+            case "MINIO" -> "MinIO";
+            case "CHROMA" -> "ChromaDB";
+            case "STREAM_SERVER" -> "Stream Server";
+            case "STORAGE" -> "Storage";
+            default -> type;
+        };
     }
 }

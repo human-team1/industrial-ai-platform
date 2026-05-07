@@ -67,6 +67,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
     private final InspectionIdempotencyCachePort inspectionIdempotencyCachePort;
     private final SessionValidationService sessionValidationService;
     private final RoiInputValidator roiInputValidator;
+    private final InferenceModelArtifactResolver inferenceModelArtifactResolver;
 
     @Override
     public SubmitInspectionResult execute(SubmitInspectionCommand command) {
@@ -83,6 +84,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         ResolvedThreshold resolved = resolveInspectionThresholdService.resolve(
                 command.getUserId(), command.getThresholdId());
         validateTargetAccess(command.getTargetId(), user.getOrganizationId());
+        validateDeployment(command.getDeploymentId(), user.getOrganizationId(), command.getTargetId());
 
         Long orgId = user.getOrganizationId();
         Long userId = command.getUserId();
@@ -90,7 +92,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         String inputMode = resolveInputMode(command, file);
         String sourceType = resolveSourceType(command);
         String fingerprint = PayloadFingerprintCalculator.compute(
-                orgId, userId, command.getTargetId(), command.getThresholdId(),
+                orgId, userId, command.getTargetId(), command.getDeploymentId(), command.getThresholdId(),
                 null, file.getOriginalFilename(), file.getContentType(), file.getSize()
         );
 
@@ -173,7 +175,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                 .runType(RunType.UPLOAD)
                 .inputType(inputMode)
                 .sourceType(sourceType)
-                .sourceId(file.getOriginalFilename())
+                .sourceId(InspectionRunSourceMetadata.forUpload(file.getOriginalFilename(), command.getDeploymentId()))
                 .runStatus(RunStatus.PENDING)
                 .appliedThreshold(BigDecimal.valueOf(resolved.getAnomalyThreshold()))
                 .idempotencyKey(idempotencyKey)
@@ -252,6 +254,13 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         if (!target.getOrganizationId().equals(organizationId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
+    }
+
+    private void validateDeployment(Long deploymentId, Long organizationId, Long targetId) {
+        if (deploymentId == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "deploymentId는 필수입니다.");
+        }
+        inferenceModelArtifactResolver.resolve(organizationId, targetId, deploymentId);
     }
 
     private String resolveIdempotencyKey(String rawKey) {

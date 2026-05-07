@@ -19,7 +19,11 @@ export function UploadInspectionPage() {
     <section className="space-y-5">
       <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Upload Inspection</p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">이미지 업로드</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-slate-900">이미지 업로드 검사</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          업로드한 이미지 1장을 기준으로 배포된 모델을 선택해 검사를 실행합니다. 생성과 배포가 끝난 모델은 이
+          화면에서 바로 선택할 수 있습니다.
+        </p>
         <p className="mt-3 text-sm font-medium text-slate-700">{inspection.statusMessage}</p>
         {settingMessage ? (
           <p className="mt-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
@@ -41,18 +45,20 @@ export function UploadInspectionPage() {
             selectedFile={inspection.selectedFile}
             targetOptions={inspection.targetOptions}
             thresholdOptions={inspection.thresholdOptions}
+            modelOptions={inspection.modelOptions}
             selectedTargetId={inspection.selectedTargetId}
             selectedThresholdId={inspection.selectedThresholdId}
-            selectedModel={inspection.selectedModel}
+            selectedDeploymentId={inspection.selectedDeploymentId}
             loadingOptions={inspection.loadingOptions}
+            loadingModels={inspection.loadingModels}
             uploading={inspection.uploading}
             onTargetChange={inspection.setSelectedTargetId}
             onThresholdChange={inspection.setSelectedThresholdId}
-            onModelChange={inspection.setSelectedModel}
+            onDeploymentChange={inspection.setSelectedDeploymentId}
             onSubmit={inspection.submit}
             onSettingClick={() =>
               setSettingMessage(
-                '설정 기능은 준비 중입니다. 현재는 기본 ROI와 품질 게이트 설정으로 검사합니다.',
+                '설정 기능은 준비 중입니다. 현재는 배포 모델 선택과 기본 ROI/FULL_FRAME 정책으로 검사합니다.',
               )
             }
           />
@@ -73,10 +79,7 @@ export function UploadInspectionPage() {
           onGoResults={() => navigate('/results')}
           onReset={inspection.reset}
         />
-        <AnalysisInsightCard
-          uploadResult={inspection.uploadResult}
-          onGoResults={() => navigate('/results')}
-        />
+        <AnalysisInsightCard uploadResult={inspection.uploadResult} onGoResults={() => navigate('/results')} />
       </div>
     </section>
   )

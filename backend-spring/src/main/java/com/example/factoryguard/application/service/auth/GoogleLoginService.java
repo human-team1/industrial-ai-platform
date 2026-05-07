@@ -81,10 +81,14 @@ public class GoogleLoginService implements GoogleLoginUseCase {
                     tokenStorePort.saveSessionId(user.getUserId(), sessionId, ttl);
                     activeSessionService.registerSession(user.getUserId(), sessionId);
                 } catch (RuntimeException exception) {
-                    tokenStorePort.deleteRefreshToken(user.getUserId(), sessionId);
-                    tokenStorePort.deleteSessionId(user.getUserId(), sessionId);
-                    activeSessionService.removeSession(sessionId);
-                    throw exception;
+                    try {
+                        tokenStorePort.deleteRefreshToken(user.getUserId(), sessionId);
+                        tokenStorePort.deleteSessionId(user.getUserId(), sessionId);
+                        activeSessionService.removeSession(sessionId);
+                    } catch (RuntimeException cleanupException) {
+                        exception.addSuppressed(cleanupException);
+                    }
+                    throw new BusinessException(ErrorCode.SESSION_STORE_UNAVAILABLE);
                 }
                 recordOperationLogUseCase.recordOperationLog(RecordOperationLogCommand.builder()
                         .eventType("LOGIN_SUCCESS")

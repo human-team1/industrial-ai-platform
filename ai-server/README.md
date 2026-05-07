@@ -166,3 +166,14 @@ black --check .
 ## 커밋 제외
 
 `.env`, `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`는 커밋하지 않습니다.
+
+
+## 기본 설치
+pip install -r requirements.txt
+
+## NVIDIA GPU/CUDA 환경
+pip uninstall -y torch torchvision torchaudio
+pip install -r requirements-cuda.txt
+
+## CUDA 확인
+python -c "import torch; print(torch.cuda.is_available()); print(torch.version.cuda); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU only')"

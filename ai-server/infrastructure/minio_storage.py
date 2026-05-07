@@ -1,13 +1,18 @@
 from io import BytesIO
 from config.settings import Settings
 from urllib.parse import urlparse
+import urllib3
 
 from application.exceptions import AppException
 
 
 class MinioStorage:
+    CONNECT_TIMEOUT_SECONDS = 3.0
+    READ_TIMEOUT_SECONDS = 10.0
+
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
+        self._client = None
 
     def put_object(self, bucket_name: str, object_name: str, content: bytes, content_type: str = "application/octet-stream") -> None:
         payload = BytesIO(content)
@@ -48,13 +53,20 @@ class MinioStorage:
     def client(self):
         from minio import Minio
 
+        if self._client is not None:
+            return self._client
         endpoint = self._normalize_endpoint(self._settings.minio_endpoint)
-        return Minio(
+        self._client = Minio(
             endpoint,
             access_key=self._settings.minio_access_key,
             secret_key=self._settings.minio_secret_key,
             secure=self._settings.minio_secure,
+            http_client=urllib3.PoolManager(
+                timeout=urllib3.Timeout(connect=self.CONNECT_TIMEOUT_SECONDS, read=self.READ_TIMEOUT_SECONDS),
+                retries=False,
+            ),
         )
+        return self._client
 
     def _normalize_endpoint(self, endpoint: str) -> str:
         parsed = urlparse(endpoint)

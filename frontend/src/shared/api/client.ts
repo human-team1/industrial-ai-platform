@@ -99,7 +99,7 @@ apiClient.interceptors.response.use(
       processQueue(refreshError, null)
       setMemoryToken(null)
       localStorage.removeItem('authUser')
-      window.location.href = '/auth'
+      window.location.href = '/auth?expired=1'
       return Promise.reject(refreshError)
     } finally {
       isRefreshing = false
@@ -115,8 +115,22 @@ export type ApiResult<T> = {
 
 export function normalizeApiError(error: unknown): Error {
   if (error instanceof AxiosError) {
-    const detail = error.response?.data?.detail ?? error.message
-    return new Error(String(detail))
+    const data = error.response?.data as Record<string, unknown> | undefined
+    const errorCode = data?.errorCode
+    const detail = errorCode === 'AUTH-401'
+      ? '로그인 세션이 만료되었습니다. 다시 로그인해 주세요.'
+      : data?.detail ?? error.message
+    const requestId = data?.requestId
+    const upstreamErrorCode = data?.upstreamErrorCode
+    const upstreamDetail = data?.upstreamDetail
+    const parts = [
+      errorCode ? `[${String(errorCode)}]` : null,
+      String(detail),
+      upstreamErrorCode ? `upstream=${String(upstreamErrorCode)}` : null,
+      upstreamDetail ? `upstreamDetail=${String(upstreamDetail)}` : null,
+      requestId ? `requestId=${String(requestId)}` : null,
+    ].filter(Boolean)
+    return new Error(parts.join(' | '))
   }
 
   if (error instanceof Error) {

@@ -11,5 +11,6 @@ public class SubmitRealtimeInspectionCommand {
     private final String sessionId;
     private final Long targetId;
     private final Long cameraId;
+    private final Long deploymentId;
     private final Long thresholdId;
 }

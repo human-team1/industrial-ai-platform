@@ -1,0 +1,2 @@
+ai-server/config/model/*.ckpt filter=lfs diff=lfs merge=lfs -text
+ai-server/config/model/*.pth filter=lfs diff=lfs merge=lfs -text

@@ -6,6 +6,7 @@ import type {
   Model,
   ModelCategory,
   ModelDeployment,
+  ModelProfile,
 } from '../../../entities/model'
 import { useModelManagement } from '../model/useModelManagement'
 
@@ -15,6 +16,11 @@ const CATEGORY_OPTIONS: { value: ModelCategory; label: string }[] = [
 ]
 
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const PROFILE_OPTIONS: { value: 'ALL' | ModelProfile; label: string }[] = [
+  { value: 'ALL', label: '전체 생성' },
+  { value: 'SPEED', label: 'SPEED만 생성' },
+  { value: 'PERFORMANCE', label: 'PERFORMANCE만 생성' },
+]
 
 export function ModelManagementPanel() {
   const {
@@ -40,6 +46,7 @@ export function ModelManagementPanel() {
   const [modelType, setModelType] = useState('PATCHCORE')
   const [description, setDescription] = useState('')
   const [modelCategory, setModelCategory] = useState<ModelCategory>('TEXTURE')
+  const [modelProfile, setModelProfile] = useState<'ALL' | ModelProfile>('ALL')
   const [normalImages, setNormalImages] = useState<File[]>([])
   const [organizationId, setOrganizationId] = useState('')
   const [targetId, setTargetId] = useState('')
@@ -79,8 +86,8 @@ export function ModelManagementPanel() {
       window.alert('모델을 먼저 선택하세요.')
       return
     }
-    if (normalImages.length === 0) {
-      window.alert('정상 이미지셋을 1개 이상 업로드하세요.')
+    if (normalImages.length < 10) {
+      window.alert('정상 이미지는 최소 10장 이상 업로드해야 합니다.')
       return
     }
     const invalidFile = normalImages.find((file) => !IMAGE_MIME_TYPES.has(file.type))
@@ -107,6 +114,7 @@ export function ModelManagementPanel() {
     const payload: GenerateModelVersionsForm = {
       normalImages,
       modelCategory,
+      modelProfile: modelProfile === 'ALL' ? undefined : modelProfile,
       organizationId: organizationId.trim(),
       targetId: deploymentScope === 'TARGET' ? targetId.trim() : undefined,
       deploymentScope,
@@ -213,6 +221,7 @@ export function ModelManagementPanel() {
           </p>
           <div className="grid gap-3 md:grid-cols-2">
             <Select label="모델 유형" value={modelCategory} onChange={(value) => setModelCategory(value as ModelCategory)} options={CATEGORY_OPTIONS} />
+            <Select label="생성 프로필" value={modelProfile} onChange={(value) => setModelProfile(value as 'ALL' | ModelProfile)} options={PROFILE_OPTIONS} />
             <Select
               label="배포 범위"
               value={deploymentScope}

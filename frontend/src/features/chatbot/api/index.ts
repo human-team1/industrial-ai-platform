@@ -34,6 +34,7 @@ export async function askChat(conversationId: number, body: AskChatRequest): Pro
     const response = await apiClient.post<ApiResponse<AskChatResponse>>(
       `/chat-conversations/${conversationId}/messages`,
       body,
+      { timeout: 180_000 },
     )
     return response.data.data
   } catch (error) {

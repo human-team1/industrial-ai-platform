@@ -106,6 +106,13 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 
 ---
 
+### RESULT_ARTIFACT / IMAGE 역할 구분 (중요)
+
+| 구분 | 값 | 설명 |
+| --- | --- | --- |
+| image.image_role | `ORIGINAL / VISUALIZED / THUMBNAIL` | 결과 상세 화면에서 원본/시각화/썸네일 구분 |
+| result_artifact.artifact_type | `HEATMAP / ANOMALY_MAP / BOUNDING_BOX_IMAGE / THUMBNAIL / REPORT` | AI 산출물 유형(시각화/리포트 등). MVP 시각화는 주로 HEATMAP 사용 |
+
 # ✅ 3. REVIEW DOMAIN
 
 | Table | Columns | Description |
@@ -154,7 +161,7 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
 | message_status | VARCHAR(20) | SUCCESS / FAILED |
-| answer_status | VARCHAR(50) | ANSWERED / NO_RELEVANT_SOURCE / LLM_FAILED / VECTOR_STORE_FAILED / DOCUMENT_SCOPE_FORBIDDEN / VALIDATION_FAILED |
+| answer_status | VARCHAR(50) | ANSWERED / NO_RELEVANT_SOURCE / OUT_OF_SCOPE / LLM_FAILED / VECTOR_STORE_FAILED / DOCUMENT_SCOPE_FORBIDDEN / VALIDATION_FAILED |
 | error_code | VARCHAR(50) | 답변 생성 실패 코드 |
 | model_name | VARCHAR(100) | 사용 모델명 |
 
@@ -247,7 +254,7 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | MODEL | model_id (PK), model_name, model_type, description, created_at | 모델 기본 정보 |
 | MODEL_VERSION | model_version_id (PK), model_id (FK), version_name, model_category, model_profile, framework, input_size, threshold_default, accuracy, precision_score, recall_score, f1_score, auroc_score, deploy_status, is_active, validated_at, validated_by (FK), created_at | 모델 버전 |
 | MODEL_ARTIFACT | model_artifact_id (PK), model_version_id (FK), file_id (FK), artifact_type, checksum, created_at | 모델 산출물 파일 |
-| MODEL_DEPLOYMENT | deployment_id (PK), organization_id (FK), target_id (FK, NULL), model_version_id (FK), deployment_scope, deploy_status, is_active, deployed_at, deployed_by (FK), rollback_from_deployment_id (FK, NULL), reason | 조직/검사대상별 모델 배포 |
+| MODEL_DEPLOYMENT | deployment_id (PK), organization_id (FK), target_id (FK, NULL), model_version_id (FK), deployment_scope, deploy_status, is_active, deployed_at, deployed_by (FK), rollback_from_deployment_id (FK, NULL), reason, rollback_flag | 조직/검사대상별 모델 배포 |
 
 ---
 
@@ -280,6 +287,8 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | is_active | BOOLEAN | 활성 모델 버전 여부 |
 
 > PatchCore 계열 모델 버전은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 모두 존재해야 배포 가능 상태로 활성화할 수 있다.
+> `CKPT`와 `CONFIG`는 base profile별 고정 산출물을 참조할 수 있고, `MEMORY_BANK`는 고객사/검사대상 정상 이미지셋 기준으로 생성된 별도 산출물이다.
+> 같은 `CKPT`/`CONFIG`를 사용하더라도 `MEMORY_BANK`가 다르면 다른 `MODEL_VERSION`으로 관리한다.
 
 ---
 
@@ -307,4 +316,5 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | deployed_at | TIMESTAMP | 배포 시각 |
 | deployed_by | BIGINT | 배포한 관리자 ID |
 | rollback_from_deployment_id | BIGINT NULL | 롤백 기준이 된 배포 ID |
-| reason | TEXT | 배포 또는 교체 사유 |
+| reason | VARCHAR(255) | 배포 또는 교체 사유 |
+| rollback_flag | BOOLEAN | 롤백으로 생성된 배포 여부 |

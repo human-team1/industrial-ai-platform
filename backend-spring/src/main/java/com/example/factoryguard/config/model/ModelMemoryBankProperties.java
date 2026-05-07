@@ -18,7 +18,7 @@ public class ModelMemoryBankProperties {
     @Getter
     @Setter
     public static class MemoryBank {
-        private int minNormalImageCount = 1;
+        private int minNormalImageCount = 10;
     }
 
     @Getter

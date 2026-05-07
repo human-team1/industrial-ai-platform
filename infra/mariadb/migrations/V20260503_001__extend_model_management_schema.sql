@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS model_artifact (
   model_artifact_id BIGINT PRIMARY KEY AUTO_INCREMENT,
   model_version_id BIGINT NOT NULL,
   file_id BIGINT NOT NULL,
-  artifact_type VARCHAR(20) NOT NULL,
+  artifact_type VARCHAR(30) NOT NULL,
   checksum VARCHAR(128) NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_model_artifact_version FOREIGN KEY (model_version_id) REFERENCES model_version(model_version_id),
@@ -56,9 +56,19 @@ ALTER TABLE model_deployment
   ADD COLUMN IF NOT EXISTS rollback_from_deployment_id BIGINT NULL AFTER deployed_by,
   ADD COLUMN IF NOT EXISTS reason VARCHAR(255) NULL AFTER rollback_from_deployment_id;
 
-UPDATE model_deployment
-SET organization_id = 1
-WHERE organization_id IS NULL;
+UPDATE model_deployment md
+JOIN (SELECT MIN(organization_id) AS organization_id FROM organization) seed
+SET md.organization_id = seed.organization_id
+WHERE md.organization_id IS NULL
+  AND seed.organization_id IS NOT NULL;
+
+UPDATE model_deployment md
+LEFT JOIN organization org ON org.organization_id = md.organization_id
+JOIN (SELECT MIN(organization_id) AS organization_id FROM organization) seed
+SET md.organization_id = seed.organization_id
+WHERE md.organization_id IS NOT NULL
+  AND org.organization_id IS NULL
+  AND seed.organization_id IS NOT NULL;
 
 ALTER TABLE model_deployment
   MODIFY COLUMN organization_id BIGINT NOT NULL;

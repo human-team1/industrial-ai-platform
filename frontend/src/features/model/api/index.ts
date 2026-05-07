@@ -1,4 +1,4 @@
-import { apiClient, normalizeApiError } from '../../../shared/api/client'
+import { apiClient, getMemoryToken, normalizeApiError } from '../../../shared/api/client'
 import type {
   CreateModelRequest,
   DeployModelVersionRequest,
@@ -85,9 +85,14 @@ export async function generateModelVersionsFromNormalImages(
   form: GenerateModelVersionsForm,
 ): Promise<GenerateModelVersionsResponse> {
   try {
+    if (!getMemoryToken()) {
+      throw new Error('[AUTH-401] 로그인 세션이 만료되었습니다. 다시 로그인해 주세요.')
+    }
+
     const formData = new FormData()
     form.normalImages.forEach((file) => formData.append('normalImages', file))
     formData.append('modelCategory', form.modelCategory)
+    if (form.modelProfile) formData.append('modelProfile', form.modelProfile)
     formData.append('organizationId', form.organizationId)
     formData.append('deploymentScope', form.deploymentScope)
     if (form.deploymentScope === 'TARGET' && form.targetId) formData.append('targetId', form.targetId)
@@ -96,6 +101,7 @@ export async function generateModelVersionsFromNormalImages(
     const response = await apiClient.post<ApiResponse<GenerateModelVersionsResponse>>(
       `/models/${modelId}/versions/from-normal-images`,
       formData,
+      { timeout: 300_000 },
     )
     return response.data.data
   } catch (error) {

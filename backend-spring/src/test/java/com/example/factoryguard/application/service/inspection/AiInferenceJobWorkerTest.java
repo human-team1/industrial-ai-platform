@@ -42,6 +42,8 @@ import com.example.factoryguard.domain.model.vo.ModelProfile;
 import com.example.factoryguard.domain.operation.model.AsyncJob;
 import com.example.factoryguard.domain.operation.vo.AsyncJobStatus;
 import com.example.factoryguard.domain.operation.vo.AsyncJobType;
+import com.example.factoryguard.domain.result.model.Image;
+import com.example.factoryguard.domain.result.vo.ImageRole;
 import com.example.factoryguard.domain.review.model.ReviewQueue;
 import com.example.factoryguard.domain.review.vo.ReviewQueuedReason;
 import com.example.factoryguard.domain.user.model.ThresholdSource;
@@ -55,11 +57,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.lang.reflect.Field;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -88,6 +92,7 @@ class AiInferenceJobWorkerTest {
     @Mock MinioProperties minioProperties;
     @Mock ResolveInspectionThresholdService resolveInspectionThresholdService;
     @Mock ActiveModelDeploymentResolver activeModelDeploymentResolver;
+    @Mock InferenceModelArtifactResolver inferenceModelArtifactResolver;
 
     private AiInferenceJobWorker worker;
 
@@ -103,6 +108,7 @@ class AiInferenceJobWorkerTest {
                 loadInspectionRunPort, saveInspectionRunPort,
                 loadInspectionInputPort, loadFilePort, modelManagementPort,
                 activeModelDeploymentResolver,
+                inferenceModelArtifactResolver,
                 callAiInspectionPort, saveInspectionResultPort,
                 saveResultArtifactPort, saveResultImagePort, saveReviewQueuePort,
                 saveNotificationPort,
@@ -153,6 +159,9 @@ class AiInferenceJobWorkerTest {
         worker.poll();
 
         verify(saveReviewQueuePort, never()).save(any());
+        verify(saveResultImagePort).save(argThat((Image img) -> img.getImageRole() == ImageRole.ORIGINAL
+                && Objects.equals(img.getFileId(), 7L)
+                && Objects.equals(img.getResultId(), 3001L)));
     }
 
     @Test

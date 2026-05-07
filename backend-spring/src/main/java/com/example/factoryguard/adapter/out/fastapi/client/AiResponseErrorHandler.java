@@ -25,29 +25,54 @@ public class AiResponseErrorHandler implements ResponseErrorHandler {
     public void handleError(ClientHttpResponse response) throws IOException {
         HttpStatus status = HttpStatus.valueOf(response.getRawStatusCode());
         String body = StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8);
-        String summary = summarize(status, body);
+        FastApiProblemDetails problem = parseProblem(body);
+        String summary = summarize(status, body, problem);
         if (status.is4xxClientError()) {
-            throw new AiInvalidRequestException(status.value(), summary);
+            throw new AiInvalidRequestException(
+                    status.value(),
+                    summary,
+                    problem == null ? null : problem.getErrorCode(),
+                    problem == null ? summary : problem.getDetail(),
+                    problem == null ? null : problem.getRequestId()
+            );
         }
         if (status.is5xxServerError()) {
-            throw new AiServerException(status.value(), summary);
+            throw new AiServerException(
+                    status.value(),
+                    summary,
+                    problem == null ? null : problem.getErrorCode(),
+                    problem == null ? summary : problem.getDetail(),
+                    problem == null ? null : problem.getRequestId()
+            );
         }
         throw new AiServerException(status.value(), summary);
     }
 
-    private String summarize(HttpStatus status, String body) {
+    private FastApiProblemDetails parseProblem(String body) {
         if (body != null && !body.isBlank()) {
             try {
-                FastApiProblemDetails problem = objectMapper.readValue(body, FastApiProblemDetails.class);
-                if (hasText(problem.getDetail())) {
-                    return truncate(problem.getDetail());
-                }
-                if (hasText(problem.getTitle())) {
-                    return truncate(problem.getTitle());
-                }
+                return objectMapper.readValue(body, FastApiProblemDetails.class);
             } catch (IOException ignored) {
-                return truncate(body);
+                return null;
             }
+        }
+        return null;
+    }
+
+    private String summarize(HttpStatus status, String body, FastApiProblemDetails problem) {
+        if (problem != null) {
+            if (hasText(problem.getErrorCode()) && hasText(problem.getDetail())) {
+                return truncate(problem.getErrorCode() + ": " + problem.getDetail());
+            }
+            if (hasText(problem.getDetail())) {
+                return truncate(problem.getDetail());
+            }
+            if (hasText(problem.getTitle())) {
+                return truncate(problem.getTitle());
+            }
+        }
+        if (body != null && !body.isBlank()) {
+            return truncate(body);
         }
         return "AI server responded " + status.value() + " " + status.getReasonPhrase();
     }

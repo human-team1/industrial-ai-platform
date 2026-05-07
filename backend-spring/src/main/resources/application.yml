@@ -90,6 +90,7 @@ app:
     host: ${CHROMA_HOST:localhost}
     port: ${CHROMA_PORT:8000}
     collection-documents: ${CHROMA_COLLECTION_DOCUMENTS:industrial_document_chunks}
+    health-timeout-ms: ${CHROMA_HEALTH_TIMEOUT_MS:3000}
   minio:
     endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
     access-key: ${MINIO_ACCESS_KEY:minioadmin}
@@ -111,7 +112,7 @@ app:
 factoryguard:
   model:
     memory-bank:
-      min-normal-image-count: ${MODEL_MEMORY_BANK_MIN_NORMAL_IMAGE_COUNT:1}
+      min-normal-image-count: ${MODEL_MEMORY_BANK_MIN_NORMAL_IMAGE_COUNT:10}
     fixed-profiles:
       speed-object:
         ckpt-file-key: ${MODEL_SPEED_OBJECT_CKPT_KEY:models/base/speed-object/model.ckpt}
@@ -122,14 +123,14 @@ factoryguard:
         ckpt-file-key: ${MODEL_SPEED_TEXTURE_CKPT_KEY:models/base/speed-texture/model.ckpt}
         config-file-key: ${MODEL_SPEED_TEXTURE_CONFIG_KEY:models/base/speed-texture/config.json}
         framework: ${MODEL_SPEED_TEXTURE_FRAMEWORK:PYTORCH}
-        input-size: ${MODEL_SPEED_TEXTURE_INPUT_SIZE:224x224}
+        input-size: ${MODEL_SPEED_TEXTURE_INPUT_SIZE:256x256}
       performance-object:
         ckpt-file-key: ${MODEL_PERFORMANCE_OBJECT_CKPT_KEY:models/base/performance-object/model.ckpt}
         config-file-key: ${MODEL_PERFORMANCE_OBJECT_CONFIG_KEY:models/base/performance-object/config.json}
         framework: ${MODEL_PERFORMANCE_OBJECT_FRAMEWORK:PYTORCH}
-        input-size: ${MODEL_PERFORMANCE_OBJECT_INPUT_SIZE:224x224}
+        input-size: ${MODEL_PERFORMANCE_OBJECT_INPUT_SIZE:336x336}
       performance-texture:
         ckpt-file-key: ${MODEL_PERFORMANCE_TEXTURE_CKPT_KEY:models/base/performance-texture/model.ckpt}
         config-file-key: ${MODEL_PERFORMANCE_TEXTURE_CONFIG_KEY:models/base/performance-texture/config.json}
         framework: ${MODEL_PERFORMANCE_TEXTURE_FRAMEWORK:PYTORCH}
-        input-size: ${MODEL_PERFORMANCE_TEXTURE_INPUT_SIZE:224x224}
+        input-size: ${MODEL_PERFORMANCE_TEXTURE_INPUT_SIZE:448x448}

@@ -108,6 +108,7 @@ export type UploadModelVersionForm = {
 export type GenerateModelVersionsForm = {
   normalImages: File[]
   modelCategory: ModelCategory
+  modelProfile?: ModelProfile
   organizationId: string
   targetId?: string
   deploymentScope: DeploymentScope

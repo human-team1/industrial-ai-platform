@@ -51,13 +51,16 @@ class GetMyThresholdsServiceTest {
     }
 
     @Test
-    void activeMissingThrowsUserThresholdNotFound() {
+    void activeMissingReturnsSystemDefaultThreshold() {
         when(findActiveThresholdByUserIdPort.findActiveByUserId(USER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.execute(USER_ID, SESSION_ID))
-                .isInstanceOf(BusinessException.class)
-                .extracting(ex -> ((BusinessException) ex).getErrorCode())
-                .isEqualTo(ErrorCode.USER_THRESHOLD_NOT_FOUND);
+        UserThresholdResult result = service.execute(USER_ID, SESSION_ID);
+
+        assertThat(result.getThresholdId()).isNull();
+        assertThat(result.getAnomalyThreshold()).isEqualByComparingTo(BigDecimal.valueOf(0.75));
+        assertThat(result.getLowConfidenceThreshold()).isEqualByComparingTo(BigDecimal.valueOf(0.55));
+        assertThat(result.getApplyScope()).isEqualTo("SYSTEM_DEFAULT");
+        assertThat(result.getIsActive()).isTrue();
     }
 
     @Test

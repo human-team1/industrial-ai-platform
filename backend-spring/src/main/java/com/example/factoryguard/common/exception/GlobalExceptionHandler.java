@@ -31,7 +31,7 @@ public class GlobalExceptionHandler {
     ) {
         ErrorCode errorCode = exception.getErrorCode();
         return ResponseEntity.status(errorCode.getStatus())
-                .body(toProblem(errorCode, exception.getMessage(), request.getDescription(false), null));
+                .body(toProblem(errorCode, exception.getMessage(), request.getDescription(false), null, exception.getDetails()));
     }
 
     /**
@@ -153,7 +153,22 @@ public class GlobalExceptionHandler {
                 detail,
                 instance,
                 errorCode.getCode(),
-                errors
+                errors,
+                null
+        );
+    }
+
+    private ProblemDetailsResponse toProblem(ErrorCode errorCode, String detail, String instance,
+                                             List<ValidationFieldError> errors, java.util.Map<String, Object> extensions) {
+        return new ProblemDetailsResponse(
+                "about:blank",
+                errorCode.getDefaultMessage(),
+                errorCode.getStatus().value(),
+                detail,
+                instance,
+                errorCode.getCode(),
+                errors,
+                extensions
         );
     }
 }

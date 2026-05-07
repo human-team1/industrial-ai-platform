@@ -31,7 +31,11 @@ public class GetMyThresholdsService implements GetMyThresholdsUseCase {
         validateUserStatus(userId);
 
         UserThreshold threshold = findActiveThresholdByUserIdPort.findActiveByUserId(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_THRESHOLD_NOT_FOUND));
+                .orElse(null);
+
+        if (threshold == null) {
+            return UserThresholdResult.systemDefault();
+        }
 
         Integer latestVersion = loadUserThresholdHistoryPort
                 .findLatestByThresholdId(threshold.getThresholdId())

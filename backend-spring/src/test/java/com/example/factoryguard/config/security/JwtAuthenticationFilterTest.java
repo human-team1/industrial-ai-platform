@@ -85,6 +85,30 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    @DisplayName("만료된 JWT는 실패 사유를 JWT_EXPIRED로 구분한다")
+    void expiredTokenHasValidationFailureReason() {
+        JwtProperties properties = new JwtProperties();
+        properties.setSecret("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        JwtTokenProvider provider = new JwtTokenProvider(properties);
+
+        java.util.Date now = new java.util.Date();
+        String expired = io.jsonwebtoken.Jwts.builder()
+                .setSubject("3")
+                .claim("role", UserRole.ROLE_SITE_ADMIN.name())
+                .claim("orgId", 10L)
+                .claim("sid", "sess-expired")
+                .setIssuedAt(new java.util.Date(now.getTime() - 120_000L))
+                .setExpiration(new java.util.Date(now.getTime() - 60_000L))
+                .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                                properties.getSecret().getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                        io.jsonwebtoken.SignatureAlgorithm.HS256)
+                .compact();
+
+        assertThat(provider.validateToken(expired)).isFalse();
+        assertThat(provider.getValidationFailureReason(expired)).isEqualTo("JWT_EXPIRED");
+    }
+
+    @Test
     @DisplayName("No.4-4 위조 role(예: ROLE_HACKER) - SecurityContext 비움")
     void rejectsForgedRoleClaim() throws Exception {
         JwtProperties properties = new JwtProperties();
