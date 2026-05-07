@@ -247,7 +247,7 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | MODEL | model_id (PK), model_name, model_type, description, created_at | 모델 기본 정보 |
 | MODEL_VERSION | model_version_id (PK), model_id (FK), version_name, model_category, model_profile, framework, input_size, threshold_default, accuracy, precision_score, recall_score, f1_score, auroc_score, deploy_status, is_active, validated_at, validated_by (FK), created_at | 모델 버전 |
 | MODEL_ARTIFACT | model_artifact_id (PK), model_version_id (FK), file_id (FK), artifact_type, checksum, created_at | 모델 산출물 파일 |
-| MODEL_DEPLOYMENT | deployment_id (PK), organization_id (FK), target_id (FK, NULL), model_version_id (FK), deployment_scope, deploy_status, is_active, deployed_at, deployed_by (FK), rollback_from_deployment_id (FK, NULL), reason | 조직/검사대상별 모델 배포 |
+| MODEL_DEPLOYMENT | deployment_id (PK), organization_id (FK), target_id (FK, NULL), model_version_id (FK), deployment_scope, deploy_status, is_active, deployed_at, deployed_by (FK), rollback_from_deployment_id (FK, NULL), reason, rollback_flag | 조직/검사대상별 모델 배포 |
 
 ---
 
@@ -309,4 +309,5 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | deployed_at | TIMESTAMP | 배포 시각 |
 | deployed_by | BIGINT | 배포한 관리자 ID |
 | rollback_from_deployment_id | BIGINT NULL | 롤백 기준이 된 배포 ID |
-| reason | TEXT | 배포 또는 교체 사유 |
+| reason | VARCHAR(255) | 배포 또는 교체 사유 |
+| rollback_flag | BOOLEAN | 롤백으로 생성된 배포 여부 |

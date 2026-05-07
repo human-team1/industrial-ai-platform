@@ -164,6 +164,8 @@
 
 | Method | Endpoint | 설명 | 권한 |
 | --- | --- | --- | --- |
+| GET | `/inspection-models/available` | 검사 화면 모델 선택 목록 조회 | Authenticated |
+| GET | `/realtime/cameras/available` | 실시간 검사 카메라 선택 목록 조회 | Authenticated |
 | POST | `/inspections/upload` | 이미지 업로드 검사 요청 | Authenticated |
 | POST | `/inspections/realtime` | 실시간 검사 세션 시작. 확장 계약 | Authenticated |
 | POST | `/inspections/{inspectionId}/frames` | 실시간 프레임 검사. 확장 계약 | Authenticated |
@@ -432,6 +434,91 @@ idempotencyKey=upload-20260503-0001
 | `eventType` | String | N | 이벤트 타입 |
 | `page` | Int | N | 페이지 |
 | `size` | Int | N | 크기 |
+
+---
+
+## 6.10 GET `/inspection-models/available`
+
+- 구현 상태: 구현 완료
+- 설명: 업로드/실시간 검사 화면에서 선택 가능한 배포 모델 목록을 조회한다.
+- 권한: Authenticated
+- Request: `targetId`, `inspectionType`, `modelCategory`를 Query로 선택 전달한다.
+- Response: `{ success, data: { items: AvailableInspectionModel[] }, message }`
+- 실패 케이스: 인증 실패 `401`, 권한 부족 `403`, 요청 파라미터 형식 오류 `400`
+- 관련 테이블: `model`, `model_version`, `model_artifact`, `model_deployment`, `file`
+- 최근 변경 사유: 최근 배포 기반 검사 모델 선택 흐름 추가 시 `deployment_id`/`file_name`/`object_key` 기준으로 정합성을 맞추고, 조회 실패 시 500 대신 빈 목록 fallback을 적용했다.
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "deploymentId": 3001,
+        "modelVersionId": 10,
+        "modelId": 1,
+        "modelName": "PatchCore Texture Detector",
+        "versionName": "v1.0.0-texture-performance",
+        "displayName": "PatchCore Texture Detector / TEXTURE / PERFORMANCE / 검사대상 전용",
+        "modelCategory": "TEXTURE",
+        "modelProfile": "PERFORMANCE",
+        "deploymentScope": "TARGET",
+        "organizationId": 1001,
+        "targetId": 10,
+        "thresholdDefault": 0.75
+      }
+    ]
+  },
+  "message": "사용 가능한 검사 모델 목록을 조회했습니다."
+}
+```
+
+### 빈 데이터 Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": []
+  },
+  "message": "사용 가능한 검사 모델 목록을 조회했습니다."
+}
+```
+
+## 6.11 GET `/realtime/cameras/available`
+
+- 구현 상태: 구현 완료
+- 설명: 실시간 검사 화면에서 선택 가능한 카메라 목록을 조회한다.
+- 권한: Authenticated
+- Request: `targetId`를 Query로 선택 전달한다.
+- Response: `{ success, data: { items: AvailableRealtimeCamera[] }, message }`
+- 실패 케이스: 인증 실패 `401`, 권한 부족 `403`, 요청 파라미터 형식 오류 `400`
+- 관련 테이블: `camera_source`
+- 최근 변경 사유: 검사 선택 화면에서 모델 선택 API와 동일 패턴으로 카메라 선택 목록 API를 분리했다.
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "cameraId": 7,
+        "cameraName": "Press-Line-1",
+        "organizationId": 1001,
+        "targetId": 10,
+        "targetName": null,
+        "status": "ACTIVE",
+        "displayName": "Press-Line-1"
+      }
+    ]
+  },
+  "message": "사용 가능한 카메라 목록을 조회했습니다."
+}
+```
 
 ---
 
