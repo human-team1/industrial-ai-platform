@@ -74,9 +74,9 @@ public class InspectionController {
         SubmitInspectionResult result = submitInspectionUseCase.execute(new SubmitInspectionCommand(
                 principal.userId(),
                 principal.sessionId(),
-                parseOptionalLong(targetId),
-                parseOptionalLong(deploymentId),
-                parseOptionalLong(thresholdId),
+                parseOptionalLong(targetId, "targetId"),
+                parseOptionalLong(deploymentId, "deploymentId"),
+                parseOptionalLong(thresholdId, "thresholdId"),
                 inputMode,
                 sourceType,
                 roiMode,
@@ -136,8 +136,16 @@ public class InspectionController {
                 .toList());
     }
 
-    private Long parseOptionalLong(String value) {
-        return value == null || value.isBlank() ? null : Long.parseLong(value);
+    private Long parseOptionalLong(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException exception) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    fieldName + " must be a numeric id.");
+        }
     }
 
     private Boolean parseOptionalBoolean(String value) {

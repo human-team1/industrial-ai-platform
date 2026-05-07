@@ -58,6 +58,13 @@ public class InspectionUploadTransactionService {
                 .mimeType(input.getMimeType())
                 .durationSec(input.getDurationSec())
                 .frameCount(input.getFrameCount())
+                .roiMode(input.getRoiMode())
+                .roiCoordinateType(input.getRoiCoordinateType())
+                .roiX(input.getRoiX())
+                .roiY(input.getRoiY())
+                .roiWidth(input.getRoiWidth())
+                .roiHeight(input.getRoiHeight())
+                .qualityGateEnabled(input.getQualityGateEnabled())
                 .build());
         saveInspectionEventLogPort.save(event(inspectionId, InspectionEventType.UPLOAD_RECEIVED, originalFileName));
         saveInspectionEventLogPort.save(event(inspectionId, InspectionEventType.INPUT_SAVED, "input persisted"));

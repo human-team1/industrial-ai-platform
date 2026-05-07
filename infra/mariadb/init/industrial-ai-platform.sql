@@ -188,7 +188,7 @@
     model_artifact_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     model_version_id BIGINT NOT NULL,
     file_id BIGINT NOT NULL,
-    artifact_type VARCHAR(20) NOT NULL,
+    artifact_type VARCHAR(30) NOT NULL,
     checksum VARCHAR(128),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_model_artifact_version FOREIGN KEY (model_version_id) REFERENCES model_version(model_version_id),
@@ -604,8 +604,11 @@
   CREATE INDEX idx_result_inspection_decision ON inspection_result(inspection_id, decision_code, final_decision_code, created_at);
   CREATE INDEX idx_model_type_created ON model(model_type, created_at);
   CREATE INDEX idx_model_version_model_status ON model_version(model_id, deploy_status, is_active, created_at);
+  CREATE INDEX idx_model_version_available ON model_version(model_id, model_category, deploy_status, is_active, created_at);
   CREATE INDEX idx_model_artifact_version_type ON model_artifact(model_version_id, artifact_type);
   CREATE INDEX idx_model_deployment_scope ON model_deployment(organization_id, target_id, deployment_scope, is_active);
+  CREATE INDEX idx_model_deployment_available ON model_deployment(organization_id, target_id, deployment_scope, deploy_status, is_active, deployed_at);
+  CREATE INDEX idx_model_deployment_version_active ON model_deployment(model_version_id, is_active, deploy_status);
   CREATE INDEX idx_analysis_target_org_status ON analysis_target(organization_id, target_status);
   CREATE INDEX idx_notification_user_created ON notification(user_id, created_at);
   CREATE INDEX idx_operation_log_created ON operation_log(created_at);

@@ -15,6 +15,7 @@ public enum ErrorCode {
     ACCOUNT_REJECTED("AUTH-406", HttpStatus.FORBIDDEN, "거절된 계정입니다."),
     SESSION_INVALID("AUTH-407", HttpStatus.UNAUTHORIZED, "세션이 유효하지 않습니다."),
     ACCOUNT_INACTIVE("AUTH-408", HttpStatus.FORBIDDEN, "비활성화된 계정입니다."),
+    SESSION_STORE_UNAVAILABLE("AUTH-503", HttpStatus.SERVICE_UNAVAILABLE, "세션 저장소에 연결할 수 없습니다."),
     FORBIDDEN("COMMON-403", HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     ORGANIZATION_NOT_FOUND("ORG-404", HttpStatus.NOT_FOUND, "조직을 찾을 수 없습니다."),
     ORGANIZATION_INACTIVE("ORG-422", HttpStatus.UNPROCESSABLE_ENTITY, "비활성화된 조직입니다."),

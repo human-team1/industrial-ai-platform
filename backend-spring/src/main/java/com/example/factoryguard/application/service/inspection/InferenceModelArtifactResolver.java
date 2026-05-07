@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -28,9 +29,13 @@ public class InferenceModelArtifactResolver {
 
     @Transactional(readOnly = true)
     public ResolvedInspectionModelArtifacts resolve(Long organizationId, Long targetId, Long deploymentId) {
+        if (deploymentId == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "deploymentId는 필수입니다.");
+        }
+
         ModelDeploymentJpaEntity deployment = modelManagementPort.findDeploymentById(deploymentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MODEL_DEPLOYMENT_NOT_FOUND));
-        if (!organizationId.equals(deployment.getOrganizationId())) {
+        if (!Objects.equals(organizationId, deployment.getOrganizationId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         if (!Boolean.TRUE.equals(deployment.getIsActive()) || deployment.getDeployStatus() != DeploymentStatus.DEPLOYED) {
@@ -49,8 +54,30 @@ public class InferenceModelArtifactResolver {
         }
 
         Map<ModelArtifactType, StoredFile> files = new EnumMap<>(ModelArtifactType.class);
-        modelManagementPort.findArtifactsByVersionId(version.getModelVersionId()).forEach(artifact ->
-                loadFilePort.findById(artifact.getFileId()).ifPresent(file -> files.put(artifact.getArtifactType(), file)));
+        try {
+            modelManagementPort.findArtifactsByVersionId(version.getModelVersionId()).forEach(artifact -> {
+                if (artifact.getArtifactType() == null) {
+                    throw new BusinessException(ErrorCode.MODEL_DEPLOYMENT_CONFLICT,
+                            "required model artifact type missing for versionId=" + version.getModelVersionId());
+                }
+                if (artifact.getFileId() == null) {
+                    throw new BusinessException(ErrorCode.MODEL_DEPLOYMENT_CONFLICT,
+                            "required model artifact fileId missing for versionId=" + version.getModelVersionId()
+                                    + ", artifactType=" + artifact.getArtifactType().name());
+                }
+                loadFilePort.findById(artifact.getFileId())
+                        .ifPresent(file -> files.put(artifact.getArtifactType(), file));
+            });
+        } catch (BusinessException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new BusinessException(
+                    ErrorCode.MODEL_DEPLOYMENT_CONFLICT,
+                    "failed to resolve model artifacts for deploymentId=" + deploymentId
+                            + ", versionId=" + version.getModelVersionId()
+                            + ", reason=" + exception.getClass().getSimpleName()
+            );
+        }
 
         return ResolvedInspectionModelArtifacts.builder()
                 .deployment(deployment)

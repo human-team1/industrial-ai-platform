@@ -39,6 +39,13 @@ public class InspectionPersistenceAdapter implements
     }
 
     @Override
+    public List<AnalysisTarget> findByOrganizationId(Long organizationId) {
+        return analysisTargetJpaRepository.findByOrganizationIdOrderByTargetIdAsc(organizationId).stream()
+                .map(mapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public InspectionRun save(InspectionRun run) {
         InspectionRunJpaEntity saved;
         if (run.getInspectionId() != null) {

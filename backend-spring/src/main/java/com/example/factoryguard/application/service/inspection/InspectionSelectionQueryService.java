@@ -8,18 +8,21 @@ import com.example.factoryguard.application.port.out.inspection.LoadCameraSource
 import com.example.factoryguard.application.port.out.model.ModelManagementPort;
 import com.example.factoryguard.domain.inspection.model.CameraStatus;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InspectionSelectionQueryService implements GetAvailableInspectionModelsUseCase, GetAvailableRealtimeCamerasUseCase {
 
     private final ModelManagementPort modelManagementPort;
     private final LoadCameraSourcePort loadCameraSourcePort;
+    private final InferenceModelArtifactResolver inferenceModelArtifactResolver;
 
     @Override
     @Transactional(readOnly = true)
@@ -30,7 +33,17 @@ public class InspectionSelectionQueryService implements GetAvailableInspectionMo
                 .thenComparing(AvailableInspectionModelItem::getModelProfile, Comparator.nullsLast(String::compareTo))
                 .thenComparing(AvailableInspectionModelItem::getVersionName, Comparator.nullsLast(Comparator.reverseOrder()));
 
-        return modelManagementPort.findAvailableInspectionModels(organizationId, targetId, modelCategory).stream()
+        List<AvailableInspectionModelItem> models;
+        try {
+            models = modelManagementPort.findAvailableInspectionModels(organizationId, targetId, modelCategory);
+        } catch (RuntimeException exception) {
+            log.error("Failed to query available inspection models, organizationId={}, targetId={}, inspectionType={}, modelCategory={}, reason={}",
+                    organizationId, targetId, inspectionType, modelCategory, exception.getMessage(), exception);
+            return List.of();
+        }
+
+        return models.stream()
+                .filter(item -> isUsableDeployment(organizationId, targetId, item))
                 .map(item -> AvailableInspectionModelItem.builder()
                         .deploymentId(item.getDeploymentId())
                         .modelVersionId(item.getModelVersionId())
@@ -80,5 +93,22 @@ public class InspectionSelectionQueryService implements GetAvailableInspectionMo
                 + item.getModelProfile()
                 + " / "
                 + scopeLabel;
+    }
+
+    private boolean isUsableDeployment(Long organizationId, Long targetId, AvailableInspectionModelItem item) {
+        if (item.getDeploymentId() == null) {
+            log.warn("Skipping available inspection model without deploymentId, organizationId={}, targetId={}, modelVersionId={}",
+                    organizationId, targetId, item.getModelVersionId());
+            return false;
+        }
+
+        try {
+            inferenceModelArtifactResolver.resolve(organizationId, targetId, item.getDeploymentId());
+            return true;
+        } catch (RuntimeException exception) {
+            log.warn("Skipping unusable deployment from available inspection models, organizationId={}, targetId={}, deploymentId={}, reason={}",
+                    organizationId, targetId, item.getDeploymentId(), exception.getMessage());
+            return false;
+        }
     }
 }

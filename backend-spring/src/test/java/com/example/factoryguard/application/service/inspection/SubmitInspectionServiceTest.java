@@ -242,7 +242,6 @@ class SubmitInspectionServiceTest {
         MockMultipartFile file = imageFile();
         givenActiveUser();
         when(resolveInspectionThresholdService.resolve(1L, null)).thenReturn(defaultThreshold());
-        when(inferenceModelArtifactResolver.resolve(1L, 99L, 700L)).thenReturn(null);
         when(loadAnalysisTargetPort.findById(99L)).thenReturn(Optional.of(AnalysisTarget.builder()
                 .targetId(99L)
                 .organizationId(2L)

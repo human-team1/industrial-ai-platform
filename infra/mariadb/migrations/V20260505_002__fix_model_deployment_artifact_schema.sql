@@ -1,40 +1,6 @@
-ALTER TABLE model
-  MODIFY COLUMN model_type VARCHAR(50) NOT NULL;
-
-ALTER TABLE model
-  ADD COLUMN IF NOT EXISTS description TEXT NULL AFTER model_type;
-
-CREATE UNIQUE INDEX IF NOT EXISTS uk_model_name_type
-  ON model(model_name, model_type);
-
-ALTER TABLE model_version
-  MODIFY COLUMN version_name VARCHAR(100) NOT NULL;
-
-ALTER TABLE model_version
-  ADD COLUMN IF NOT EXISTS model_category VARCHAR(20) NOT NULL DEFAULT 'OBJECT' AFTER version_name,
-  ADD COLUMN IF NOT EXISTS model_profile VARCHAR(20) NOT NULL DEFAULT 'PERFORMANCE' AFTER model_category,
-  ADD COLUMN IF NOT EXISTS framework VARCHAR(50) NULL AFTER model_profile,
-  ADD COLUMN IF NOT EXISTS input_size VARCHAR(50) NULL AFTER framework,
-  ADD COLUMN IF NOT EXISTS threshold_default DECIMAL(5,4) NULL AFTER input_size,
-  ADD COLUMN IF NOT EXISTS f1_score DECIMAL(6,4) NULL AFTER recall_score,
-  ADD COLUMN IF NOT EXISTS auroc_score DECIMAL(6,4) NULL AFTER f1_score;
-
-UPDATE model_version
-SET deploy_status = CASE deploy_status
-  WHEN 'READY' THEN 'REGISTERED'
-  WHEN 'VALIDATING' THEN 'REGISTERED'
-  WHEN 'ACTIVE' THEN 'DEPLOYED'
-  WHEN 'INACTIVE' THEN 'DEPRECATED'
-  WHEN 'FAILED' THEN 'DEPRECATED'
-  WHEN 'ROLLED_BACK' THEN 'DEPRECATED'
-  ELSE 'REGISTERED'
-END;
-
-ALTER TABLE model_version
-  MODIFY COLUMN deploy_status VARCHAR(20) NOT NULL DEFAULT 'REGISTERED';
-
-CREATE UNIQUE INDEX IF NOT EXISTS uk_model_version_name
-  ON model_version(model_id, version_name);
+-- Align model deployment/artifact schema with Spring model management runtime contract.
+-- This migration is intentionally idempotent for local/dev databases that may have
+-- partially applied earlier model-management migrations.
 
 CREATE TABLE IF NOT EXISTS model_artifact (
   model_artifact_id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -47,6 +13,9 @@ CREATE TABLE IF NOT EXISTS model_artifact (
   CONSTRAINT fk_model_artifact_file FOREIGN KEY (file_id) REFERENCES file(file_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE model_artifact
+  MODIFY COLUMN artifact_type VARCHAR(30) NOT NULL;
+
 ALTER TABLE model_deployment
   ADD COLUMN IF NOT EXISTS organization_id BIGINT NULL AFTER deployment_id,
   ADD COLUMN IF NOT EXISTS target_id BIGINT NULL AFTER organization_id,
@@ -55,6 +24,9 @@ ALTER TABLE model_deployment
   ADD COLUMN IF NOT EXISTS deployed_by BIGINT NULL AFTER deployed_at,
   ADD COLUMN IF NOT EXISTS rollback_from_deployment_id BIGINT NULL AFTER deployed_by,
   ADD COLUMN IF NOT EXISTS reason VARCHAR(255) NULL AFTER rollback_from_deployment_id;
+
+ALTER TABLE model_deployment
+  ADD COLUMN IF NOT EXISTS rollback_flag BOOLEAN NOT NULL DEFAULT FALSE AFTER reason;
 
 UPDATE model_deployment md
 JOIN (SELECT MIN(organization_id) AS organization_id FROM organization) seed
@@ -71,7 +43,55 @@ WHERE md.organization_id IS NOT NULL
   AND seed.organization_id IS NOT NULL;
 
 ALTER TABLE model_deployment
-  MODIFY COLUMN organization_id BIGINT NOT NULL;
+  MODIFY COLUMN organization_id BIGINT NOT NULL,
+  MODIFY COLUMN deployment_scope VARCHAR(20) NOT NULL DEFAULT 'ORGANIZATION',
+  MODIFY COLUMN is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  MODIFY COLUMN rollback_flag BOOLEAN NOT NULL DEFAULT FALSE;
+
+UPDATE model_version
+SET deploy_status = CASE deploy_status
+  WHEN 'READY' THEN 'REGISTERED'
+  WHEN 'VALIDATING' THEN 'REGISTERED'
+  WHEN 'ACTIVE' THEN 'DEPLOYED'
+  WHEN 'INACTIVE' THEN 'DEPRECATED'
+  WHEN 'FAILED' THEN 'DEPRECATED'
+  WHEN 'ROLLED_BACK' THEN 'DEPRECATED'
+  WHEN 'REGISTERED' THEN 'REGISTERED'
+  WHEN 'VALIDATED' THEN 'VALIDATED'
+  WHEN 'DEPLOYED' THEN 'DEPLOYED'
+  WHEN 'DEPRECATED' THEN 'DEPRECATED'
+  ELSE 'REGISTERED'
+END;
+
+ALTER TABLE model_version
+  MODIFY COLUMN deploy_status VARCHAR(20) NOT NULL DEFAULT 'REGISTERED';
+
+UPDATE model_deployment
+SET deploy_status = CASE deploy_status
+  WHEN 'ACTIVE' THEN 'DEPLOYED'
+  WHEN 'INACTIVE' THEN 'DEACTIVATED'
+  WHEN 'FAILED' THEN 'DEACTIVATED'
+  WHEN 'DEPLOYED' THEN 'DEPLOYED'
+  WHEN 'ROLLED_BACK' THEN 'ROLLED_BACK'
+  WHEN 'DEACTIVATED' THEN 'DEACTIVATED'
+  ELSE 'DEPLOYED'
+END;
+
+ALTER TABLE model_deployment
+  MODIFY COLUMN deploy_status VARCHAR(20) NOT NULL DEFAULT 'DEPLOYED';
+
+SET @fk_model_deployment_version :=
+  IF (
+    (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+      WHERE CONSTRAINT_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'model_deployment'
+        AND CONSTRAINT_NAME = 'fk_model_deployment_version') = 0,
+    'ALTER TABLE model_deployment ADD CONSTRAINT fk_model_deployment_version FOREIGN KEY (model_version_id) REFERENCES model_version(model_version_id)',
+    'SELECT 1'
+  );
+PREPARE stmt FROM @fk_model_deployment_version;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 SET @fk_model_deployment_organization :=
   IF (
@@ -125,7 +145,40 @@ PREPARE stmt FROM @fk_model_deployment_rollback;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
-CREATE INDEX IF NOT EXISTS idx_model_type_created ON model(model_type, created_at);
-CREATE INDEX IF NOT EXISTS idx_model_version_model_status ON model_version(model_id, deploy_status, is_active, created_at);
-CREATE INDEX IF NOT EXISTS idx_model_artifact_version_type ON model_artifact(model_version_id, artifact_type);
-CREATE INDEX IF NOT EXISTS idx_model_deployment_scope ON model_deployment(organization_id, target_id, deployment_scope, is_active);
+SET @fk_model_artifact_version :=
+  IF (
+    (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+      WHERE CONSTRAINT_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'model_artifact'
+        AND CONSTRAINT_NAME = 'fk_model_artifact_version') = 0,
+    'ALTER TABLE model_artifact ADD CONSTRAINT fk_model_artifact_version FOREIGN KEY (model_version_id) REFERENCES model_version(model_version_id)',
+    'SELECT 1'
+  );
+PREPARE stmt FROM @fk_model_artifact_version;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @fk_model_artifact_file :=
+  IF (
+    (SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+      WHERE CONSTRAINT_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'model_artifact'
+        AND CONSTRAINT_NAME = 'fk_model_artifact_file') = 0,
+    'ALTER TABLE model_artifact ADD CONSTRAINT fk_model_artifact_file FOREIGN KEY (file_id) REFERENCES file(file_id)',
+    'SELECT 1'
+  );
+PREPARE stmt FROM @fk_model_artifact_file;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+CREATE INDEX IF NOT EXISTS idx_model_deployment_available
+  ON model_deployment(organization_id, target_id, deployment_scope, deploy_status, is_active, deployed_at);
+
+CREATE INDEX IF NOT EXISTS idx_model_deployment_version_active
+  ON model_deployment(model_version_id, is_active, deploy_status);
+
+CREATE INDEX IF NOT EXISTS idx_model_version_available
+  ON model_version(model_id, model_category, deploy_status, is_active, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_model_artifact_version_type
+  ON model_artifact(model_version_id, artifact_type);
