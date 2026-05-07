@@ -6,6 +6,7 @@ import type {
   AnalysisTargetOption,
   AvailableInspectionModel,
   AvailableRealtimeCamera,
+  BrowserCameraDevice,
   InspectionEvent,
   ProgressStepState,
   SelectedInspectionFile,
@@ -55,6 +56,8 @@ export function LiveStreamPanel({
   selectedTargetId,
   cameraOptions,
   selectedCameraId,
+  browserDevices,
+  roiPercent,
   modelOptions,
   selectedDeploymentId,
   thresholdOptions,
@@ -65,17 +68,22 @@ export function LiveStreamPanel({
   browserStream,
   browserCameraError,
   browserCameraStarting,
+  captureLoading,
   onTargetChange,
   onCameraChange,
   onModelChange,
   onThresholdChange,
+  onRoiChange,
   onStartBrowserCamera,
   onStopBrowserCamera,
+  onInspectCapturedImage,
 }: {
   targetOptions: AnalysisTargetOption[]
   selectedTargetId: number | null
   cameraOptions: AvailableRealtimeCamera[]
-  selectedCameraId: number | null
+  selectedCameraId: string | null
+  browserDevices: BrowserCameraDevice[]
+  roiPercent: { x: number; y: number; width: number; height: number }
   modelOptions: AvailableInspectionModel[]
   selectedDeploymentId: number | null
   thresholdOptions: ThresholdOption[]
@@ -86,12 +94,15 @@ export function LiveStreamPanel({
   browserStream: MediaStream | null
   browserCameraError: string | null
   browserCameraStarting: boolean
+  captureLoading: boolean
   onTargetChange: (value: number | null) => void
-  onCameraChange: (value: number | null) => void
+  onCameraChange: (value: string | null) => void
   onModelChange: (value: number | null) => void
   onThresholdChange: (value: number | null) => void
+  onRoiChange: (next: { x: number; y: number; width: number; height: number }) => void
   onStartBrowserCamera: () => void
   onStopBrowserCamera: () => void
+  onInspectCapturedImage: (file: File) => void
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
@@ -105,6 +116,24 @@ export function LiveStreamPanel({
     video.srcObject = browserStream
     void video.play().catch(() => undefined)
   }, [browserStream])
+
+  const handleCapture = () => {
+    const video = videoRef.current
+    if (!video || !browserStream || video.videoWidth <= 0 || video.videoHeight <= 0) {
+      return
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    canvas.toBlob((blob) => {
+      if (!blob) return
+      const file = new File([blob], `browser-camera-frame-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      onInspectCapturedImage(file)
+    }, 'image/jpeg', 0.92)
+  }
 
   return (
     <Card title="실시간 탐지 설정" className="min-h-[520px]">
@@ -147,20 +176,20 @@ export function LiveStreamPanel({
           <select
             className="control w-full"
             value={selectedCameraId ?? ''}
-            onChange={(event) => onCameraChange(event.target.value ? Number(event.target.value) : null)}
+            onChange={(event) => onCameraChange(event.target.value || null)}
             disabled={loadingCameras}
           >
             <option value="">
               {loadingCameras ? '카메라 목록을 불러오는 중입니다.' : '카메라를 선택해 주세요.'}
             </option>
-            {cameraOptions.map((camera) => (
-              <option key={camera.cameraId} value={camera.cameraId}>
-                {camera.displayName}
+            {browserDevices.map((camera) => (
+              <option key={camera.deviceId} value={camera.deviceId}>
+                {camera.label}
               </option>
             ))}
           </select>
-          {cameraOptions.length === 0 && !loadingCameras ? (
-            <p className="mt-1 text-xs text-slate-500">사용 가능한 활성 카메라가 없습니다.</p>
+          {browserDevices.length === 0 && !loadingCameras ? (
+            <p className="mt-1 text-xs text-slate-500">브라우저에서 사용할 수 있는 카메라가 없습니다.</p>
           ) : null}
         </Field>
 
@@ -203,10 +232,51 @@ export function LiveStreamPanel({
             <button type="button" className="btn-secondary" onClick={onStopBrowserCamera}>
               카메라 정지
             </button>
+            <button
+              type="button"
+              className="btn-blue"
+              onClick={handleCapture}
+              disabled={!browserStream || captureLoading || loadingModels || !selectedDeploymentId}
+            >
+              {captureLoading ? '촬영 검사 중...' : 'ROI 촬영 검사'}
+            </button>
           </div>
         </div>
-        <div className="overflow-hidden rounded-md border border-slate-200 bg-black/90">
+        <div className="relative overflow-hidden rounded-md border border-slate-200 bg-black/90">
           <video ref={videoRef} className="h-[260px] w-full object-cover" muted playsInline autoPlay />
+          {browserStream ? (
+            <div
+              className="pointer-events-none absolute border-2 border-emerald-400 bg-emerald-300/10"
+              style={{
+                left: `${roiPercent.x}%`,
+                top: `${roiPercent.y}%`,
+                width: `${roiPercent.width}%`,
+                height: `${roiPercent.height}%`,
+              }}
+            />
+          ) : null}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <RoiInput
+            label="ROI X(%)"
+            value={roiPercent.x}
+            onChange={(value) => onRoiChange({ ...roiPercent, x: value })}
+          />
+          <RoiInput
+            label="ROI Y(%)"
+            value={roiPercent.y}
+            onChange={(value) => onRoiChange({ ...roiPercent, y: value })}
+          />
+          <RoiInput
+            label="ROI W(%)"
+            value={roiPercent.width}
+            onChange={(value) => onRoiChange({ ...roiPercent, width: value })}
+          />
+          <RoiInput
+            label="ROI H(%)"
+            value={roiPercent.height}
+            onChange={(value) => onRoiChange({ ...roiPercent, height: value })}
+          />
         </div>
         {browserCameraError ? <p className="mt-2 text-xs text-red-600">{browserCameraError}</p> : null}
         {!browserCameraError && !browserStream ? (
@@ -224,6 +294,30 @@ export function LiveStreamPanel({
         구현 상태에 따라 동작합니다.
       </div>
     </Card>
+  )
+}
+
+function RoiInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number
+  onChange: (value: number) => void
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
+      <input
+        type="number"
+        className="control w-full"
+        min={0}
+        max={100}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </label>
   )
 }
 

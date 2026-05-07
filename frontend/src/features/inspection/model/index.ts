@@ -13,6 +13,7 @@ import type {
   AnalysisTargetOption,
   AvailableInspectionModel,
   AvailableRealtimeCamera,
+  BrowserCameraDevice,
   InspectionDetail,
   InspectionEvent,
   ProgressStep,
@@ -334,7 +335,8 @@ export function useRealtimeInspection() {
   const [modelOptions, setModelOptions] = useState<AvailableInspectionModel[]>([])
   const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null)
   const [selectedThresholdId, setSelectedThresholdId] = useState<number | null>(null)
-  const [selectedCameraId, setSelectedCameraId] = useState<number | null>(null)
+  // MVP: 상단 카메라 select는 브라우저 카메라(deviceId)를 선택한다.
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
   const [selectedDeploymentId, setSelectedDeploymentId] = useState<number | null>(null)
   const [currentInspectionId, setCurrentInspectionId] = useState<number | null>(null)
   const [events, setEvents] = useState<InspectionEvent[]>([])
@@ -346,10 +348,33 @@ export function useRealtimeInspection() {
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const [uploadResult, setUploadResult] = useState<UploadInspectionResponse | null>(null)
   const [requestDurationMs, setRequestDurationMs] = useState<number | null>(null)
+  const [captureLoading, setCaptureLoading] = useState(false)
   const [browserStream, setBrowserStream] = useState<MediaStream | null>(null)
   const [browserCameraError, setBrowserCameraError] = useState<string | null>(null)
   const [browserCameraStarting, setBrowserCameraStarting] = useState(false)
+  const [browserDevices, setBrowserDevices] = useState<BrowserCameraDevice[]>([])
+  const [roiPercent, setRoiPercent] = useState({ x: 25, y: 20, width: 50, height: 50 })
   const pollingStartedAtRef = useRef<number | null>(null)
+
+  const loadBrowserCameraDevices = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.enumerateDevices) {
+      return
+    }
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const cameras = devices
+      .filter((device) => device.kind === 'videoinput')
+      .map((device, index) => ({
+        deviceId: device.deviceId,
+        label: device.label || `카메라 ${index + 1}`,
+      }))
+    setBrowserDevices(cameras)
+    setSelectedCameraId((current) => {
+      if (current && cameras.some((camera) => camera.deviceId === current)) {
+        return current
+      }
+      return cameras[0]?.deviceId ?? null
+    })
+  }, [])
 
   const stopBrowserCameraPreview = useCallback(() => {
     setBrowserStream((prev) => {
@@ -369,20 +394,24 @@ export function useRealtimeInspection() {
     setBrowserCameraError(null)
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: selectedCameraId ? { deviceId: { exact: selectedCameraId } } : true,
+        audio: false,
+      })
       setBrowserStream((prev) => {
         if (prev) {
           prev.getTracks().forEach((track) => track.stop())
         }
         return stream
       })
+      await loadBrowserCameraDevices()
     } catch (error) {
       setBrowserCameraError(toBrowserCameraErrorMessage(error))
       setBrowserStream(null)
     } finally {
       setBrowserCameraStarting(false)
     }
-  }, [])
+  }, [loadBrowserCameraDevices, selectedCameraId])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -392,12 +421,12 @@ export function useRealtimeInspection() {
     void Promise.allSettled([
       getAnalysisTargets(controller.signal),
       getMyThresholds(controller.signal),
-      fetchAvailableRealtimeCameras({}, controller.signal),
+      // 서버 등록 카메라 목록은 MVP에서 브라우저 카메라와 분리한다.
       fetchAvailableInspectionModels({ inspectionType: 'REALTIME' }, controller.signal),
     ]).then((results) => {
       if (controller.signal.aborted) return
 
-      const [targetsResult, thresholdsResult, camerasResult, modelsResult] = results
+      const [targetsResult, thresholdsResult, modelsResult] = results
 
       if (targetsResult.status === 'fulfilled') {
         setTargetOptions(targetsResult.value)
@@ -409,14 +438,6 @@ export function useRealtimeInspection() {
         setThresholdOptions(thresholdsResult.value)
       } else {
         setThresholdOptions([])
-      }
-
-      if (camerasResult.status === 'fulfilled') {
-        setCameraOptions(camerasResult.value)
-        setSelectedCameraId((current) => pickPreferredId(current, camerasResult.value, 'cameraId'))
-      } else {
-        setCameraOptions([])
-        setSelectedCameraId(null)
       }
 
       if (modelsResult.status === 'fulfilled') {
@@ -443,13 +464,6 @@ export function useRealtimeInspection() {
             : '임계값 목록을 불러오지 못했습니다.',
         )
       }
-      if (camerasResult.status === 'rejected') {
-        messages.push(
-          camerasResult.reason instanceof Error
-            ? camerasResult.reason.message
-            : '카메라 목록을 불러오지 못했습니다.',
-        )
-      }
       if (modelsResult.status === 'rejected') {
         messages.push(
           modelsResult.reason instanceof Error
@@ -466,11 +480,16 @@ export function useRealtimeInspection() {
   }, [])
 
   useEffect(() => {
-    void startBrowserCameraPreview()
+    void loadBrowserCameraDevices().then(() => startBrowserCameraPreview())
     return () => {
       stopBrowserCameraPreview()
     }
-  }, [startBrowserCameraPreview, stopBrowserCameraPreview])
+  }, [loadBrowserCameraDevices, startBrowserCameraPreview, stopBrowserCameraPreview])
+
+  useEffect(() => {
+    if (!selectedCameraId) return
+    void startBrowserCameraPreview()
+  }, [selectedCameraId, startBrowserCameraPreview])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -478,7 +497,6 @@ export function useRealtimeInspection() {
     setLoadingModels(true)
 
     void Promise.allSettled([
-      fetchAvailableRealtimeCameras({ targetId: selectedTargetId }, controller.signal),
       fetchAvailableInspectionModels(
         {
           targetId: selectedTargetId,
@@ -488,15 +506,7 @@ export function useRealtimeInspection() {
       ),
     ]).then((results) => {
       if (controller.signal.aborted) return
-      const [camerasResult, modelsResult] = results
-
-      if (camerasResult.status === 'fulfilled') {
-        setCameraOptions(camerasResult.value)
-        setSelectedCameraId((current) => pickPreferredId(current, camerasResult.value, 'cameraId'))
-      } else {
-        setCameraOptions([])
-        setSelectedCameraId(null)
-      }
+      const [modelsResult] = results
 
       if (modelsResult.status === 'fulfilled') {
         setModelOptions(modelsResult.value)
@@ -507,13 +517,6 @@ export function useRealtimeInspection() {
       }
 
       const messages: string[] = []
-      if (camerasResult.status === 'rejected') {
-        messages.push(
-          camerasResult.reason instanceof Error
-            ? camerasResult.reason.message
-            : '카메라 목록을 불러오지 못했습니다.',
-        )
-      }
       if (modelsResult.status === 'rejected') {
         messages.push(
           modelsResult.reason instanceof Error
@@ -577,8 +580,8 @@ export function useRealtimeInspection() {
     [modelOptions, selectedDeploymentId],
   )
   const selectedCamera = useMemo(
-    () => cameraOptions.find((option) => option.cameraId === selectedCameraId) ?? null,
-    [cameraOptions, selectedCameraId],
+    () => browserDevices.find((d) => d.deviceId === selectedCameraId) ?? null,
+    [browserDevices, selectedCameraId],
   )
 
   const canStart = Boolean(selectedCameraId && selectedDeploymentId) && !isStarting
@@ -592,32 +595,50 @@ export function useRealtimeInspection() {
   }, [isStarting, selectedCameraId, selectedDeploymentId, uploadResult])
 
   const start = useCallback(async () => {
-    if (!selectedCameraId || !selectedDeploymentId || isStarting) return
+    // MVP: 브라우저 카메라 캡처 기반이며 서버 카메라 세션 시작은 후속.
+    return
+  }, [])
 
-    setIsStarting(true)
-    setErrorMessage(null)
-    setNoticeMessage(null)
-    const startedAt = performance.now()
-
-    try {
-      const result = await startRealtimeInspection({
-        targetId: selectedTargetId,
-        cameraId: selectedCameraId,
-        deploymentId: selectedDeploymentId,
-        thresholdId: selectedThresholdId,
-      })
-      setUploadResult(result)
-      setCurrentInspectionId(result.inspectionId)
-      setRequestDurationMs(performance.now() - startedAt)
-      setNoticeMessage('실시간 탐지 시작 요청이 접수되었습니다.')
-      const nextEvents = await getInspectionEvents(result.inspectionId)
-      setEvents(nextEvents)
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '실시간 탐지 시작 요청에 실패했습니다.')
-    } finally {
-      setIsStarting(false)
-    }
-  }, [isStarting, selectedCameraId, selectedDeploymentId, selectedTargetId, selectedThresholdId])
+  const inspectCapturedImage = useCallback(
+    async (capturedFile: File) => {
+      if (!selectedDeploymentId || captureLoading) return
+      const roiX = roiPercent.x / 100
+      const roiY = roiPercent.y / 100
+      const roiWidth = roiPercent.width / 100
+      const roiHeight = roiPercent.height / 100
+      setCaptureLoading(true)
+      setErrorMessage(null)
+      setNoticeMessage(null)
+      const startedAt = performance.now()
+      try {
+        const result = await uploadInspection({
+          file: capturedFile,
+          deploymentId: selectedDeploymentId,
+          targetId: selectedTargetId,
+          thresholdId: selectedThresholdId,
+          inputMode: 'IMAGE',
+          sourceType: 'BROWSER_CAMERA',
+          roiMode: 'FIXED',
+          roiCoordinateType: 'NORMALIZED',
+          roiX,
+          roiY,
+          roiWidth,
+          roiHeight,
+          qualityGateEnabled: true,
+          idempotencyKey: createInspectionIdempotencyKey('browser-capture'),
+        })
+        setUploadResult(result)
+        setCurrentInspectionId(result.inspectionId)
+        setRequestDurationMs(performance.now() - startedAt)
+        setNoticeMessage('ROI 촬영 이미지 검사 요청이 접수되었습니다.')
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : 'ROI 촬영 이미지 검사 요청에 실패했습니다.')
+      } finally {
+        setCaptureLoading(false)
+      }
+    },
+    [captureLoading, roiPercent.height, roiPercent.width, roiPercent.x, roiPercent.y, selectedDeploymentId, selectedTargetId, selectedThresholdId],
+  )
 
   const refreshEvents = useCallback(async () => {
     if (!currentInspectionId) return
@@ -633,6 +654,8 @@ export function useRealtimeInspection() {
     targetOptions,
     thresholdOptions,
     cameraOptions,
+    browserDevices,
+    roiPercent,
     modelOptions,
     selectedTargetId,
     selectedThresholdId,
@@ -656,12 +679,15 @@ export function useRealtimeInspection() {
     statusMessage,
     uploadResult,
     requestDurationMs,
+    captureLoading,
     setSelectedTargetId,
     setSelectedThresholdId,
     setSelectedCameraId,
     setSelectedDeploymentId,
+    setRoiPercent,
     startBrowserCameraPreview,
     stopBrowserCameraPreview,
+    inspectCapturedImage,
     refreshEvents,
     start,
   }

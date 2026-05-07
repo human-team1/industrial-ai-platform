@@ -39,6 +39,11 @@ export async function uploadInspection(
     if (payload.inputMode) formData.append('inputMode', payload.inputMode)
     if (payload.sourceType) formData.append('sourceType', payload.sourceType)
     if (payload.roiMode) formData.append('roiMode', payload.roiMode)
+    if (payload.roiCoordinateType) formData.append('roiCoordinateType', payload.roiCoordinateType)
+    if (payload.roiX != null) formData.append('roiX', String(payload.roiX))
+    if (payload.roiY != null) formData.append('roiY', String(payload.roiY))
+    if (payload.roiWidth != null) formData.append('roiWidth', String(payload.roiWidth))
+    if (payload.roiHeight != null) formData.append('roiHeight', String(payload.roiHeight))
     if (payload.qualityGateEnabled !== undefined) {
       formData.append('qualityGateEnabled', String(payload.qualityGateEnabled))
     }

@@ -52,6 +52,8 @@ export function InspectionPage() {
             selectedTargetId={realtime.selectedTargetId}
             cameraOptions={realtime.cameraOptions}
             selectedCameraId={realtime.selectedCameraId}
+            browserDevices={realtime.browserDevices}
+            roiPercent={realtime.roiPercent}
             modelOptions={realtime.modelOptions}
             selectedDeploymentId={realtime.selectedDeploymentId}
             thresholdOptions={realtime.thresholdOptions}
@@ -62,25 +64,30 @@ export function InspectionPage() {
             browserStream={realtime.browserStream}
             browserCameraError={realtime.browserCameraError}
             browserCameraStarting={realtime.browserCameraStarting}
+            captureLoading={realtime.captureLoading}
             onTargetChange={realtime.setSelectedTargetId}
             onCameraChange={realtime.setSelectedCameraId}
             onModelChange={realtime.setSelectedDeploymentId}
             onThresholdChange={realtime.setSelectedThresholdId}
+            onRoiChange={realtime.setRoiPercent}
             onStartBrowserCamera={() => {
               void realtime.startBrowserCameraPreview()
             }}
             onStopBrowserCamera={realtime.stopBrowserCameraPreview}
+            onInspectCapturedImage={(file) => {
+              void realtime.inspectCapturedImage(file)
+            }}
           />
         </div>
         <aside className="space-y-5">
           <CurrentDetectionResultCard
             uploadResult={realtime.uploadResult}
             modelName={realtime.selectedModel?.displayName ?? null}
-            cameraName={realtime.selectedCamera?.displayName ?? null}
+            cameraName={realtime.selectedCamera?.label ?? null}
           />
           <RecentDetectionEventsCard events={realtime.events} onRefresh={realtime.refreshEvents} />
           <EquipmentInfoCard
-            selectedCameraLabel={realtime.selectedCamera?.displayName ?? null}
+            selectedCameraLabel={realtime.selectedCamera?.label ?? null}
             selectedModelLabel={realtime.selectedModel?.displayName ?? null}
           />
         </aside>

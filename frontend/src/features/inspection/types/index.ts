@@ -13,6 +13,7 @@ export type InspectionDetail = {
 export type InspectionInputMode = 'IMAGE' | 'VIDEO'
 export type InspectionSourceType = 'IMAGE' | 'BROWSER_CAMERA'
 export type InspectionRoiMode = 'FULL_FRAME' | 'FIXED'
+export type InspectionRoiCoordinateType = 'NORMALIZED'
 
 export type UploadInspectionPayload = {
   file: File
@@ -22,6 +23,11 @@ export type UploadInspectionPayload = {
   inputMode?: InspectionInputMode
   sourceType?: InspectionSourceType
   roiMode?: InspectionRoiMode
+  roiCoordinateType?: InspectionRoiCoordinateType
+  roiX?: number | null
+  roiY?: number | null
+  roiWidth?: number | null
+  roiHeight?: number | null
   qualityGateEnabled?: boolean
   idempotencyKey?: string
 }
