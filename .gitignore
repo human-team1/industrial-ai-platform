@@ -53,6 +53,19 @@ test-results/
 # ide
 .vscode/
 .idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+.factorypath
+.springBeans
+
+# java tooling / attach
+hs_err_pid*
+replay_pid*
+.attach_pid*
 
 # os
 .DS_Store
