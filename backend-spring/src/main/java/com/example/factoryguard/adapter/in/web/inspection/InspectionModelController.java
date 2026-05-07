@@ -9,7 +9,6 @@ import com.example.factoryguard.config.security.AuthenticatedPrincipal;
 import com.example.factoryguard.config.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,13 +30,14 @@ public class InspectionModelController {
             @RequestParam(required = false) String modelCategory
     ) {
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
+        List<AvailableInspectionModelItem> items = getAvailableInspectionModelsUseCase.execute(
+                principal.organizationId(),
+                targetId,
+                inspectionType,
+                modelCategory
+        );
         return ApiResponse.success(
-                Map.of("items", getAvailableInspectionModelsUseCase.execute(
-                        principal.organizationId(),
-                        targetId,
-                        inspectionType,
-                        modelCategory
-                )),
+                Map.of("items", items),
                 "사용 가능한 검사 모델 목록을 조회했습니다."
         );
     }

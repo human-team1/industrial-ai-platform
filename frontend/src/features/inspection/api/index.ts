@@ -66,14 +66,15 @@ export async function fetchAvailableInspectionModels(
   signal?: AbortSignal,
 ): Promise<AvailableInspectionModel[]> {
   try {
-    const response = await apiClient.get<ApiResponse<{ items: AvailableInspectionModel[] }>>(
+    const response = await apiClient.get<ApiResponse<{ items: unknown[] }>>(
       '/inspection-models/available',
       {
         params: compactParams(params),
         signal,
       },
     )
-    return response.data.data?.items ?? []
+    const raw = response.data.data?.items ?? []
+    return raw.map(toAvailableInspectionModel).filter((m): m is AvailableInspectionModel => m !== null)
   } catch (error) {
     throw normalizeApiError(error)
   }
@@ -264,6 +265,58 @@ function compactParams(params: Record<string, unknown>) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+function coercePositiveIntId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const n = Math.trunc(value)
+    return n > 0 ? n : null
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Math.trunc(Number(value))
+    return Number.isFinite(n) && n > 0 ? n : null
+  }
+  return null
+}
+
+function toAvailableInspectionModel(raw: unknown): AvailableInspectionModel | null {
+  if (!isRecord(raw)) return null
+  const deploymentId = coercePositiveIntId(raw.deploymentId)
+  const modelVersionId = coercePositiveIntId(raw.modelVersionId)
+  const modelId = coercePositiveIntId(raw.modelId)
+  const organizationId = coercePositiveIntId(raw.organizationId)
+  const modelName = raw.modelName != null ? String(raw.modelName) : ''
+  const versionName = raw.versionName != null ? String(raw.versionName) : ''
+  const displayNameRaw = raw.displayName != null ? String(raw.displayName).trim() : ''
+  if (!deploymentId || !modelVersionId || !modelId || !organizationId) {
+    return null
+  }
+  const displayName =
+    displayNameRaw || [modelName, versionName].filter(Boolean).join(' / ').trim() || `배포 #${deploymentId}`
+  const targetId = raw.targetId == null ? undefined : coercePositiveIntId(raw.targetId)
+  const thresholdRaw = raw.thresholdDefault
+  let thresholdDefault: number | undefined
+  if (typeof thresholdRaw === 'number' && Number.isFinite(thresholdRaw)) {
+    thresholdDefault = thresholdRaw
+  } else if (typeof thresholdRaw === 'string' && thresholdRaw.trim() !== '') {
+    const t = Number(thresholdRaw)
+    if (Number.isFinite(t)) thresholdDefault = t
+  }
+
+  return {
+    deploymentId,
+    modelVersionId,
+    modelId,
+    modelName,
+    versionName,
+    displayName,
+    modelCategory: raw.modelCategory != null ? String(raw.modelCategory) : undefined,
+    modelProfile: raw.modelProfile != null ? String(raw.modelProfile) : undefined,
+    deploymentScope: raw.deploymentScope != null ? String(raw.deploymentScope) : undefined,
+    organizationId,
+    targetId: targetId ?? undefined,
+    thresholdDefault,
+  }
 }
 
 function toOptionalNumber(value: unknown) {

@@ -74,32 +74,64 @@ export function useUploadInspection() {
   useEffect(() => {
     const controller = new AbortController()
     setLoadingOptions(true)
+    setErrorMessage(null)
 
-    Promise.all([
+    void Promise.allSettled([
       getAnalysisTargets(controller.signal),
       getMyThresholds(controller.signal),
       fetchAvailableInspectionModels({ inspectionType: 'UPLOAD' }, controller.signal),
-    ])
-      .then(([targets, thresholds, models]) => {
-        setTargetOptions(targets)
-        setThresholdOptions(thresholds)
+    ]).then((results) => {
+      if (controller.signal.aborted) return
+
+      const [targetsResult, thresholdsResult, modelsResult] = results
+
+      if (targetsResult.status === 'fulfilled') {
+        setTargetOptions(targetsResult.value)
+      } else {
+        setTargetOptions([])
+      }
+
+      if (thresholdsResult.status === 'fulfilled') {
+        setThresholdOptions(thresholdsResult.value)
+      } else {
+        setThresholdOptions([])
+      }
+
+      if (modelsResult.status === 'fulfilled') {
+        const models = modelsResult.value
         setModelOptions(models)
         setSelectedDeploymentId((current) => pickPreferredId(current, models))
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          setTargetOptions([])
-          setThresholdOptions([])
-          setModelOptions([])
-          setSelectedDeploymentId(null)
-          setErrorMessage(
-            error instanceof Error
-              ? error.message
-              : '검사 화면 초기 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
-          )
-        }
-      })
-      .finally(() => setLoadingOptions(false))
+      } else {
+        setModelOptions([])
+        setSelectedDeploymentId(null)
+      }
+
+      const messages: string[] = []
+      if (targetsResult.status === 'rejected') {
+        messages.push(
+          targetsResult.reason instanceof Error
+            ? targetsResult.reason.message
+            : '검사 대상 목록을 불러오지 못했습니다.',
+        )
+      }
+      if (thresholdsResult.status === 'rejected') {
+        messages.push(
+          thresholdsResult.reason instanceof Error
+            ? thresholdsResult.reason.message
+            : '임계값 목록을 불러오지 못했습니다.',
+        )
+      }
+      if (modelsResult.status === 'rejected') {
+        messages.push(
+          modelsResult.reason instanceof Error
+            ? modelsResult.reason.message
+            : '사용 가능한 배포 모델을 불러오지 못했습니다.',
+        )
+      }
+      if (messages.length > 0) {
+        setErrorMessage(messages.join(' '))
+      }
+    }).finally(() => setLoadingOptions(false))
 
     return () => controller.abort()
   }, [])
@@ -319,27 +351,80 @@ export function useRealtimeInspection() {
   useEffect(() => {
     const controller = new AbortController()
     setLoadingOptions(true)
+    setErrorMessage(null)
 
-    Promise.all([
+    void Promise.allSettled([
       getAnalysisTargets(controller.signal),
       getMyThresholds(controller.signal),
       fetchAvailableRealtimeCameras({}, controller.signal),
       fetchAvailableInspectionModels({ inspectionType: 'REALTIME' }, controller.signal),
-    ])
-      .then(([targets, thresholds, cameras, models]) => {
-        setTargetOptions(targets)
-        setThresholdOptions(thresholds)
-        setCameraOptions(cameras)
+    ]).then((results) => {
+      if (controller.signal.aborted) return
+
+      const [targetsResult, thresholdsResult, camerasResult, modelsResult] = results
+
+      if (targetsResult.status === 'fulfilled') {
+        setTargetOptions(targetsResult.value)
+      } else {
+        setTargetOptions([])
+      }
+
+      if (thresholdsResult.status === 'fulfilled') {
+        setThresholdOptions(thresholdsResult.value)
+      } else {
+        setThresholdOptions([])
+      }
+
+      if (camerasResult.status === 'fulfilled') {
+        setCameraOptions(camerasResult.value)
+        setSelectedCameraId((current) => pickPreferredId(current, camerasResult.value, 'cameraId'))
+      } else {
+        setCameraOptions([])
+        setSelectedCameraId(null)
+      }
+
+      if (modelsResult.status === 'fulfilled') {
+        const models = modelsResult.value
         setModelOptions(models)
-        setSelectedCameraId((current) => pickPreferredId(current, cameras, 'cameraId'))
         setSelectedDeploymentId((current) => pickPreferredId(current, models))
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          setErrorMessage(error instanceof Error ? error.message : '실시간 탐지 초기 데이터를 불러오지 못했습니다.')
-        }
-      })
-      .finally(() => setLoadingOptions(false))
+      } else {
+        setModelOptions([])
+        setSelectedDeploymentId(null)
+      }
+
+      const messages: string[] = []
+      if (targetsResult.status === 'rejected') {
+        messages.push(
+          targetsResult.reason instanceof Error
+            ? targetsResult.reason.message
+            : '검사 대상 목록을 불러오지 못했습니다.',
+        )
+      }
+      if (thresholdsResult.status === 'rejected') {
+        messages.push(
+          thresholdsResult.reason instanceof Error
+            ? thresholdsResult.reason.message
+            : '임계값 목록을 불러오지 못했습니다.',
+        )
+      }
+      if (camerasResult.status === 'rejected') {
+        messages.push(
+          camerasResult.reason instanceof Error
+            ? camerasResult.reason.message
+            : '카메라 목록을 불러오지 못했습니다.',
+        )
+      }
+      if (modelsResult.status === 'rejected') {
+        messages.push(
+          modelsResult.reason instanceof Error
+            ? modelsResult.reason.message
+            : '사용 가능한 배포 모델을 불러오지 못했습니다.',
+        )
+      }
+      if (messages.length > 0) {
+        setErrorMessage(messages.join(' '))
+      }
+    }).finally(() => setLoadingOptions(false))
 
     return () => controller.abort()
   }, [])
@@ -538,17 +623,29 @@ function createInspectionIdempotencyKey(prefix: string) {
   return `${prefix}-${Date.now()}-${random}`
 }
 
-function pickPreferredId<T extends { deploymentId?: number; cameraId?: number }>(
+function coerceSelectId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const n = Math.trunc(value)
+    return n > 0 ? n : null
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Math.trunc(Number(value))
+    return Number.isFinite(n) && n > 0 ? n : null
+  }
+  return null
+}
+
+function pickPreferredId<T extends Record<string, unknown>>(
   current: number | null,
   items: T[],
   field: 'deploymentId' | 'cameraId' = 'deploymentId',
 ) {
-  if (current && items.some((item) => item[field] === current)) {
-    return current
+  const currentNorm = coerceSelectId(current)
+  if (currentNorm != null && items.some((item) => coerceSelectId(item[field]) === currentNorm)) {
+    return currentNorm
   }
 
-  const first = items[0]?.[field]
-  return typeof first === 'number' ? first : null
+  return coerceSelectId(items[0]?.[field])
 }
 
 function applyInspectionDetail(

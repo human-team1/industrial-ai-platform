@@ -33,14 +33,7 @@ public class InspectionSelectionQueryService implements GetAvailableInspectionMo
                 .thenComparing(AvailableInspectionModelItem::getModelProfile, Comparator.nullsLast(String::compareTo))
                 .thenComparing(AvailableInspectionModelItem::getVersionName, Comparator.nullsLast(Comparator.reverseOrder()));
 
-        List<AvailableInspectionModelItem> models;
-        try {
-            models = modelManagementPort.findAvailableInspectionModels(organizationId, targetId, modelCategory);
-        } catch (RuntimeException exception) {
-            log.error("Failed to query available inspection models, organizationId={}, targetId={}, inspectionType={}, modelCategory={}, reason={}",
-                    organizationId, targetId, inspectionType, modelCategory, exception.getMessage(), exception);
-            return List.of();
-        }
+        List<AvailableInspectionModelItem> models = modelManagementPort.findAvailableInspectionModels(organizationId, targetId, modelCategory);
 
         return models.stream()
                 .filter(item -> isUsableDeployment(organizationId, targetId, item))
