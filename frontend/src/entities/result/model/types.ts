@@ -56,7 +56,8 @@ export type AnomalyRegion = {
 }
 
 export type ResultImage = {
-  imageId: number
+  /** DB `image` 행이 없이 inspection 입력만으로 채워질 때 null */
+  imageId?: number | null
   fileId?: number | null
   imageRole?: string | null
   regions: AnomalyRegion[]

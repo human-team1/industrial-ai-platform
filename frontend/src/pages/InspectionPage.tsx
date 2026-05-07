@@ -59,10 +59,17 @@ export function InspectionPage() {
             loadingOptions={realtime.loadingOptions}
             loadingCameras={realtime.loadingCameras}
             loadingModels={realtime.loadingModels}
+            browserStream={realtime.browserStream}
+            browserCameraError={realtime.browserCameraError}
+            browserCameraStarting={realtime.browserCameraStarting}
             onTargetChange={realtime.setSelectedTargetId}
             onCameraChange={realtime.setSelectedCameraId}
             onModelChange={realtime.setSelectedDeploymentId}
             onThresholdChange={realtime.setSelectedThresholdId}
+            onStartBrowserCamera={() => {
+              void realtime.startBrowserCameraPreview()
+            }}
+            onStopBrowserCamera={realtime.stopBrowserCameraPreview}
           />
         </div>
         <aside className="space-y-5">

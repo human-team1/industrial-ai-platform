@@ -27,7 +27,9 @@ export function DetectionInfoCard({ target, inspection, result, originalImage }:
           ['모델버전', result.modelVersionId],
           [
             '이미지ID / 파일ID',
-            originalImage ? `${originalImage.imageId} / ${display(originalImage.fileId)}` : '-',
+            originalImage
+              ? `${originalImage.imageId != null ? originalImage.imageId : '-'} / ${display(originalImage.fileId)}`
+              : '-',
           ],
         ]}
       />

@@ -8,7 +8,7 @@ type Props = {
 }
 
 export function OriginalImageCard({ images }: Props) {
-  const original = images.find((image) => image.imageRole === 'ORIGINAL') ?? images[0]
+  const original = images.find((image) => String(image.imageRole).toUpperCase() === 'ORIGINAL')
   const preview = useResultFilePreview(original?.fileId)
   return (
     <InfoCard title="원본 이미지">

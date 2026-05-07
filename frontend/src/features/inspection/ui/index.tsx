@@ -1,5 +1,5 @@
 import type { DragEvent, ReactNode } from 'react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatElapsedTime } from '../../../shared/lib/date'
 import { computeProgressSteps } from '../model'
 import type {
@@ -62,10 +62,15 @@ export function LiveStreamPanel({
   loadingOptions,
   loadingCameras,
   loadingModels,
+  browserStream,
+  browserCameraError,
+  browserCameraStarting,
   onTargetChange,
   onCameraChange,
   onModelChange,
   onThresholdChange,
+  onStartBrowserCamera,
+  onStopBrowserCamera,
 }: {
   targetOptions: AnalysisTargetOption[]
   selectedTargetId: number | null
@@ -78,11 +83,29 @@ export function LiveStreamPanel({
   loadingOptions: boolean
   loadingCameras: boolean
   loadingModels: boolean
+  browserStream: MediaStream | null
+  browserCameraError: string | null
+  browserCameraStarting: boolean
   onTargetChange: (value: number | null) => void
   onCameraChange: (value: number | null) => void
   onModelChange: (value: number | null) => void
   onThresholdChange: (value: number | null) => void
+  onStartBrowserCamera: () => void
+  onStopBrowserCamera: () => void
 }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    if (!browserStream) {
+      video.srcObject = null
+      return
+    }
+    video.srcObject = browserStream
+    void video.play().catch(() => undefined)
+  }, [browserStream])
+
   return (
     <Card title="실시간 탐지 설정" className="min-h-[520px]">
       <div className="grid gap-4 md:grid-cols-2">
@@ -163,6 +186,32 @@ export function LiveStreamPanel({
             </p>
           ) : null}
         </Field>
+      </div>
+
+      <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-slate-800">노트북 카메라 미리보기</h3>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onStartBrowserCamera}
+              disabled={browserCameraStarting}
+            >
+              {browserCameraStarting ? '시작 중...' : '카메라 시작'}
+            </button>
+            <button type="button" className="btn-secondary" onClick={onStopBrowserCamera}>
+              카메라 정지
+            </button>
+          </div>
+        </div>
+        <div className="overflow-hidden rounded-md border border-slate-200 bg-black/90">
+          <video ref={videoRef} className="h-[260px] w-full object-cover" muted playsInline autoPlay />
+        </div>
+        {browserCameraError ? <p className="mt-2 text-xs text-red-600">{browserCameraError}</p> : null}
+        {!browserCameraError && !browserStream ? (
+          <p className="mt-2 text-xs text-slate-500">카메라 시작 버튼을 눌러 브라우저 카메라 미리보기를 켜세요.</p>
+        ) : null}
       </div>
 
       <div className="mt-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-4 text-sm text-blue-900">

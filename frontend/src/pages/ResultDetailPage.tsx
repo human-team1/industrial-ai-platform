@@ -31,9 +31,15 @@ export function ResultDetailPage() {
   const [rerunMessage, setRerunMessage] = useState<string | null>(null)
   const [rerunError, setRerunError] = useState<string | null>(null)
 
-  const regions = useMemo(() => data?.images.flatMap((image) => image.regions) ?? [], [data])
+  const regions = useMemo(
+    () =>
+      data?.images
+        .filter((image) => String(image.imageRole).toUpperCase() !== 'ORIGINAL')
+        .flatMap((image) => image.regions) ?? [],
+    [data],
+  )
   const originalImage = useMemo(
-    () => data?.images.find((image) => image.imageRole === 'ORIGINAL') ?? data?.images[0],
+    () => data?.images.find((image) => String(image.imageRole).toUpperCase() === 'ORIGINAL'),
     [data],
   )
 

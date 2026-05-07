@@ -346,7 +346,43 @@ export function useRealtimeInspection() {
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null)
   const [uploadResult, setUploadResult] = useState<UploadInspectionResponse | null>(null)
   const [requestDurationMs, setRequestDurationMs] = useState<number | null>(null)
+  const [browserStream, setBrowserStream] = useState<MediaStream | null>(null)
+  const [browserCameraError, setBrowserCameraError] = useState<string | null>(null)
+  const [browserCameraStarting, setBrowserCameraStarting] = useState(false)
   const pollingStartedAtRef = useRef<number | null>(null)
+
+  const stopBrowserCameraPreview = useCallback(() => {
+    setBrowserStream((prev) => {
+      if (prev) {
+        prev.getTracks().forEach((track) => track.stop())
+      }
+      return null
+    })
+  }, [])
+
+  const startBrowserCameraPreview = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setBrowserCameraError('현재 브라우저는 카메라 미리보기를 지원하지 않습니다.')
+      return
+    }
+    setBrowserCameraStarting(true)
+    setBrowserCameraError(null)
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      setBrowserStream((prev) => {
+        if (prev) {
+          prev.getTracks().forEach((track) => track.stop())
+        }
+        return stream
+      })
+    } catch (error) {
+      setBrowserCameraError(toBrowserCameraErrorMessage(error))
+      setBrowserStream(null)
+    } finally {
+      setBrowserCameraStarting(false)
+    }
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -430,11 +466,18 @@ export function useRealtimeInspection() {
   }, [])
 
   useEffect(() => {
+    void startBrowserCameraPreview()
+    return () => {
+      stopBrowserCameraPreview()
+    }
+  }, [startBrowserCameraPreview, stopBrowserCameraPreview])
+
+  useEffect(() => {
     const controller = new AbortController()
     setLoadingCameras(true)
     setLoadingModels(true)
 
-    Promise.all([
+    void Promise.allSettled([
       fetchAvailableRealtimeCameras({ targetId: selectedTargetId }, controller.signal),
       fetchAvailableInspectionModels(
         {
@@ -443,26 +486,48 @@ export function useRealtimeInspection() {
         },
         controller.signal,
       ),
-    ])
-      .then(([cameras, models]) => {
-        setCameraOptions(cameras)
-        setModelOptions(models)
-        setSelectedCameraId((current) => pickPreferredId(current, cameras, 'cameraId'))
-        setSelectedDeploymentId((current) => pickPreferredId(current, models))
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          setCameraOptions([])
-          setModelOptions([])
-          setSelectedCameraId(null)
-          setSelectedDeploymentId(null)
-          setErrorMessage(error instanceof Error ? error.message : '실시간 탐지 옵션을 조회하지 못했습니다.')
-        }
-      })
-      .finally(() => {
-        setLoadingCameras(false)
-        setLoadingModels(false)
-      })
+    ]).then((results) => {
+      if (controller.signal.aborted) return
+      const [camerasResult, modelsResult] = results
+
+      if (camerasResult.status === 'fulfilled') {
+        setCameraOptions(camerasResult.value)
+        setSelectedCameraId((current) => pickPreferredId(current, camerasResult.value, 'cameraId'))
+      } else {
+        setCameraOptions([])
+        setSelectedCameraId(null)
+      }
+
+      if (modelsResult.status === 'fulfilled') {
+        setModelOptions(modelsResult.value)
+        setSelectedDeploymentId((current) => pickPreferredId(current, modelsResult.value))
+      } else {
+        setModelOptions([])
+        setSelectedDeploymentId(null)
+      }
+
+      const messages: string[] = []
+      if (camerasResult.status === 'rejected') {
+        messages.push(
+          camerasResult.reason instanceof Error
+            ? camerasResult.reason.message
+            : '카메라 목록을 불러오지 못했습니다.',
+        )
+      }
+      if (modelsResult.status === 'rejected') {
+        messages.push(
+          modelsResult.reason instanceof Error
+            ? modelsResult.reason.message
+            : '사용 가능한 배포 모델을 불러오지 못했습니다.',
+        )
+      }
+      if (messages.length > 0) {
+        setErrorMessage(messages.join(' '))
+      }
+    }).finally(() => {
+      setLoadingCameras(false)
+      setLoadingModels(false)
+    })
 
     return () => controller.abort()
   }, [selectedTargetId])
@@ -577,6 +642,9 @@ export function useRealtimeInspection() {
     selectedModel,
     selectedCamera,
     currentInspectionId,
+    browserStream,
+    browserCameraError,
+    browserCameraStarting,
     events,
     loadingOptions,
     loadingCameras,
@@ -592,9 +660,27 @@ export function useRealtimeInspection() {
     setSelectedThresholdId,
     setSelectedCameraId,
     setSelectedDeploymentId,
+    startBrowserCameraPreview,
+    stopBrowserCameraPreview,
     refreshEvents,
     start,
   }
+}
+
+function toBrowserCameraErrorMessage(error: unknown) {
+  if (!(error instanceof DOMException)) {
+    return '노트북 카메라를 시작하지 못했습니다.'
+  }
+  if (error.name === 'NotAllowedError') {
+    return '카메라 권한이 거부되었습니다. 브라우저 주소창에서 카메라 권한을 허용해 주세요.'
+  }
+  if (error.name === 'NotFoundError') {
+    return '사용 가능한 카메라 장치를 찾지 못했습니다.'
+  }
+  if (error.name === 'NotReadableError') {
+    return '카메라가 다른 앱에서 사용 중입니다. 사용 중인 앱을 종료한 뒤 다시 시도해 주세요.'
+  }
+  return '노트북 카메라를 시작하지 못했습니다.'
 }
 
 function validateInspectionFile(file: File) {
