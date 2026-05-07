@@ -105,8 +105,8 @@ public class ModelManagementQueryRepository {
                     md.deployment_scope,
                     md.organization_id,
                     md.target_id,
-                    mv.deploy_status,
-                    md.deploy_status,
+                    mv.deploy_status AS version_deploy_status,
+                    md.deploy_status AS deployment_deploy_status,
                     md.is_active,
                     mv.threshold_default,
                     md.deployed_at
