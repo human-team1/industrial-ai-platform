@@ -59,6 +59,8 @@
 | SourceType | `IMAGE / VIDEO / BROWSER_CAMERA / RTSP_STREAM` |
 | RoiMode | `FULL_FRAME / FIXED` |
 | RoiCoordinateType | `NORMALIZED` |
+| ImageRole | `ORIGINAL / VISUALIZED` |
+| ResultArtifactType | `HEATMAP / ANOMALY_MAP / BOUNDING_BOX_IMAGE / THUMBNAIL / REPORT` |
 | InputQualityStatus | `PASSED / WARNING / FAILED` |
 | InputQualityReason | `TOO_DARK / TOO_BRIGHT / LOW_CONTRAST / BLURRY / ROI_INVALID / COLOR_SHIFT / SOME_FRAMES_RECHECK / INSUFFICIENT_VALID_FRAMES` |
 | ModelCategory | `OBJECT / TEXTURE` |
@@ -202,6 +204,7 @@ MVP 프론트는 이미지 업로드와 브라우저 카메라 단건 캡처만 
 | Field | Type | Required | 설명 |
 | --- | --- | --- | --- |
 | `file` | File | Y | 검사 이미지. jpg/jpeg/png/webp |
+| `deploymentId` | Long | Y | 검사에 사용할 배포 모델 ID |
 | `targetId` | Long | N | 검사 대상 ID |
 | `thresholdId` | Long | N | 적용 임계값 ID |
 | `inputMode` | String | N | 기본 `IMAGE` |
@@ -221,11 +224,30 @@ MVP 프론트는 이미지 업로드와 브라우저 카메라 단건 캡처만 
 
 ```text
 file=sample.jpg
+deploymentId=2
 inputMode=IMAGE
 sourceType=IMAGE
 roiMode=FULL_FRAME
 qualityGateEnabled=true
 idempotencyKey=upload-20260503-0001
+```
+
+### 브라우저 카메라 캡처 + FIXED ROI 요청 예시 (MVP)
+
+브라우저 카메라 전체 프레임을 캡처하여 전송하고, ROI 좌표(정규화)를 함께 전송한다.
+
+```text
+file=browser-camera-frame.jpg
+inputMode=IMAGE
+sourceType=BROWSER_CAMERA
+deploymentId=2
+roiMode=FIXED
+roiCoordinateType=NORMALIZED
+roiX=0.25
+roiY=0.20
+roiWidth=0.50
+roiHeight=0.50
+qualityGateEnabled=true
 ```
 
 ### Response
@@ -446,7 +468,7 @@ idempotencyKey=upload-20260503-0001
 - Response: `{ success, data: { items: AvailableInspectionModel[] }, message }`
 - 실패 케이스: 인증 실패 `401`, 권한 부족 `403`, 요청 파라미터 형식 오류 `400`
 - 관련 테이블: `model`, `model_version`, `model_artifact`, `model_deployment`, `file`
-- 최근 변경 사유: 최근 배포 기반 검사 모델 선택 흐름 추가 시 `deployment_id`/`file_name`/`object_key` 기준으로 정합성을 맞추고, 조회 실패 시 500 대신 빈 목록 fallback을 적용했다.
+- 정책: 사용 가능한 배포 모델이 없으면 빈 목록(`200 + items: []`)을 반환한다. 단, DB/쿼리/서버 오류는 전역 예외 처리에 따른 에러 응답을 반환한다. (장애를 빈 목록으로 숨기지 않음)
 
 ### Response
 
@@ -497,6 +519,7 @@ idempotencyKey=upload-20260503-0001
 - 실패 케이스: 인증 실패 `401`, 권한 부족 `403`, 요청 파라미터 형식 오류 `400`
 - 관련 테이블: `camera_source`
 - 최근 변경 사유: 검사 선택 화면에서 모델 선택 API와 동일 패턴으로 카메라 선택 목록 API를 분리했다.
+- 역할 분리: 브라우저 노트북/USB 카메라는 프론트에서 `navigator.mediaDevices.enumerateDevices()`로 조회한다. 이 API는 서버에 등록된 카메라 소스(`camera_source`) 조회용이다. MVP 단건 캡처 방식에서는 브라우저 카메라 선택이 우선이다.
 
 ### Response
 
@@ -597,6 +620,35 @@ idempotencyKey=upload-20260503-0001
 ```
 
 ---
+
+## GET `/results/{resultId}/images`
+
+결과 이미지 목록을 조회한다. `imageRole`로 원본(ORIGINAL)과 시각화(VISUALIZED)를 구분한다.
+
+참고: 프론트에서는 `fileId`로 파일 미리보기를 조회한다. (예: `GET /files/{fileId}/preview`)
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "imageId": 1,
+      "imageRole": "ORIGINAL",
+      "fileId": 100,
+      "fileUrl": "/api/v1/files/100/preview"
+    },
+    {
+      "imageId": 2,
+      "imageRole": "VISUALIZED",
+      "fileId": 101,
+      "fileUrl": "/api/v1/files/101/preview"
+    }
+  ],
+  "message": "결과 이미지를 조회했습니다."
+}
+```
 
 # 8. Review
 

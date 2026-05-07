@@ -106,6 +106,13 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 
 ---
 
+### RESULT_ARTIFACT / IMAGE 역할 구분 (중요)
+
+| 구분 | 값 | 설명 |
+| --- | --- | --- |
+| image.image_role | `ORIGINAL / VISUALIZED / THUMBNAIL` | 결과 상세 화면에서 원본/시각화/썸네일 구분 |
+| result_artifact.artifact_type | `HEATMAP / ANOMALY_MAP / BOUNDING_BOX_IMAGE / THUMBNAIL / REPORT` | AI 산출물 유형(시각화/리포트 등). MVP 시각화는 주로 HEATMAP 사용 |
+
 # ✅ 3. REVIEW DOMAIN
 
 | Table | Columns | Description |
