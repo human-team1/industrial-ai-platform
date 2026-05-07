@@ -38,7 +38,11 @@ export function ModelManagementPanel() {
     reloadAll,
     submitCreateModel,
     submitGenerateFromNormalImages,
+    submitActivateVersion,
+    submitDeleteVersion,
+    submitActivateDeployment,
     submitDeactivateDeployment,
+    submitDeleteDeployment,
     submitRollbackDeployment,
   } = useModelManagement()
 
@@ -105,8 +109,8 @@ export function ModelManagementPanel() {
     }
     if (thresholdDefault.trim()) {
       const threshold = Number(thresholdDefault)
-      if (Number.isNaN(threshold) || threshold < 0 || threshold > 1) {
-        window.alert('기본 임계값은 0~1 범위로 입력하세요.')
+      if (Number.isNaN(threshold) || threshold < 0) {
+        window.alert('기본 임계값은 0 이상으로 입력하세요.')
         return
       }
     }
@@ -305,6 +309,24 @@ export function ModelManagementPanel() {
                   <InfoRow label="프레임워크" value={version.framework || '-'} />
                   <InfoRow label="입력 크기" value={version.inputSize || '-'} />
                 </dl>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    disabled={busy.actionId === `activate-${version.modelVersionId}`}
+                    onClick={() => void submitActivateVersion(version.modelVersionId, '운영 활성화')}
+                    className="h-9 rounded border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100"
+                  >
+                    활성화
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy.actionId === `delete-version-${version.modelVersionId}`}
+                    onClick={() => void submitDeleteVersion(version.modelVersionId, '운영 삭제')}
+                    className="h-9 rounded border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:bg-slate-100"
+                  >
+                    삭제
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -327,7 +349,9 @@ export function ModelManagementPanel() {
                 rollbackToId={rollbackToId[deployment.deploymentId] ?? ''}
                 onRollbackToIdChange={(value) => setRollbackToId((prev) => ({ ...prev, [deployment.deploymentId]: value }))}
                 actionId={busy.actionId}
+                onActivate={() => void submitActivateDeployment(deployment.deploymentId, '운영 재활성화')}
                 onDeactivate={() => void submitDeactivateDeployment(deployment.deploymentId, '운영 비활성화')}
+                onDelete={() => void submitDeleteDeployment(deployment.deploymentId, '운영 삭제')}
                 onRollback={() => {
                   const target = Number(rollbackToId[deployment.deploymentId] ?? '')
                   if (!target) {
@@ -381,14 +405,18 @@ function DeploymentCard({
   rollbackToId,
   onRollbackToIdChange,
   actionId,
+  onActivate,
   onDeactivate,
+  onDelete,
   onRollback,
 }: {
   deployment: ModelDeployment
   rollbackToId: string
   onRollbackToIdChange: (value: string) => void
   actionId?: string | null
+  onActivate: () => void
   onDeactivate: () => void
+  onDelete: () => void
   onRollback: () => void
 }) {
   const isActive = deployment.isActive === true
@@ -415,6 +443,14 @@ function DeploymentCard({
           <div className="flex gap-2">
             <button
               type="button"
+              disabled={isActive || actionId === `deployment-on-${deployment.deploymentId}`}
+              onClick={onActivate}
+              className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              활성화
+            </button>
+            <button
+              type="button"
               disabled={!isActive || actionId === `deployment-off-${deployment.deploymentId}`}
               onClick={onDeactivate}
               className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
@@ -428,6 +464,14 @@ function DeploymentCard({
               className="h-10 flex-1 rounded border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
             >
               롤백
+            </button>
+            <button
+              type="button"
+              disabled={actionId === `deployment-delete-${deployment.deploymentId}`}
+              onClick={onDelete}
+              className="h-10 flex-1 rounded border border-rose-300 bg-white px-4 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            >
+              삭제
             </button>
           </div>
         </div>

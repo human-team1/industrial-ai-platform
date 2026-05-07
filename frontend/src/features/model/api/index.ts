@@ -172,6 +172,37 @@ export async function deactivateModelDeployment(deploymentId: number, reason: st
   }
 }
 
+export async function activateModelDeployment(deploymentId: number, reason: string): Promise<ModelDeployment> {
+  try {
+    const response = await apiClient.patch<ApiResponse<ModelDeployment>>(`/model-deployments/${deploymentId}/activate`, { reason })
+    return response.data.data
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
+export async function deleteModelDeployment(deploymentId: number, reason: string): Promise<ModelDeployment> {
+  try {
+    const response = await apiClient.delete<ApiResponse<ModelDeployment>>(`/model-deployments/${deploymentId}`, {
+      data: { reason },
+    })
+    return response.data.data
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
+export async function deleteModelVersion(versionId: number, reason: string): Promise<ModelVersionDetail> {
+  try {
+    const response = await apiClient.delete<ApiResponse<ModelVersionDetail>>(`/model-versions/${versionId}`, {
+      data: { reason },
+    })
+    return response.data.data
+  } catch (error) {
+    throw normalizeApiError(error)
+  }
+}
+
 export async function rollbackModelDeployment(deploymentId: number, rollbackToDeploymentId: number, reason: string): Promise<ModelDeployment> {
   try {
     const response = await apiClient.patch<ApiResponse<ModelDeployment>>(`/model-deployments/${deploymentId}/rollback`, {
