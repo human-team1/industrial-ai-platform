@@ -34,9 +34,9 @@ public class DashboardOverviewQueryRepository {
                     SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'RECHECK' THEN 1 ELSE 0 END) AS recheck_count
                 FROM inspection_run ir
                 JOIN inspection_result r ON r.inspection_id = ir.inspection_id
-                WHERE ir.run_status = 'COMPLETED'
-                  AND COALESCE(ir.completed_at, r.created_at) >= :from
-                  AND COALESCE(ir.completed_at, r.created_at) < :to
+                WHERE r.result_status IN ('SUCCESS', 'REVIEW_REQUIRED', 'FAILED')
+                  AND COALESCE(r.created_at, ir.started_at) >= :from
+                  AND COALESCE(r.created_at, ir.started_at) < :to
                 """, organizationId);
         Query query = entityManager.createNativeQuery(sql.value());
         query.setParameter("from", from);
@@ -49,18 +49,18 @@ public class DashboardOverviewQueryRepository {
     public List<DashboardOverviewResult.TrendPoint> loadTrend(LocalDateTime from, LocalDateTime to, Long organizationId) {
         SqlParts sql = withOrganization("""
                 SELECT
-                    DATE(COALESCE(ir.completed_at, r.created_at)) AS inspected_date,
+                    DATE(COALESCE(r.created_at, ir.started_at)) AS inspected_date,
                     SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'NORMAL' THEN 1 ELSE 0 END) AS normal_count,
                     SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'DEFECT' THEN 1 ELSE 0 END) AS anomaly_count,
                     SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'RECHECK' THEN 1 ELSE 0 END) AS recheck_count,
                     COUNT(*) AS total_count
                 FROM inspection_run ir
                 JOIN inspection_result r ON r.inspection_id = ir.inspection_id
-                WHERE ir.run_status = 'COMPLETED'
-                  AND COALESCE(ir.completed_at, r.created_at) >= :from
-                  AND COALESCE(ir.completed_at, r.created_at) < :to
+                WHERE r.result_status IN ('SUCCESS', 'REVIEW_REQUIRED', 'FAILED')
+                  AND COALESCE(r.created_at, ir.started_at) >= :from
+                  AND COALESCE(r.created_at, ir.started_at) < :to
                 """, organizationId, """
-                GROUP BY DATE(COALESCE(ir.completed_at, r.created_at))
+                GROUP BY DATE(COALESCE(r.created_at, ir.started_at))
                 ORDER BY inspected_date
                 """);
         Query query = entityManager.createNativeQuery(sql.value());
@@ -89,17 +89,17 @@ public class DashboardOverviewQueryRepository {
         SqlParts sql = withOrganization("""
                 SELECT
                     at.target_id,
-                    COALESCE(at.equipment_name, at.target_name, 'Unknown') AS equipment_name,
+                    COALESCE(at.equipment_name, at.target_name, '검사대상 없음') AS equipment_name,
                     COUNT(*) AS inspection_count,
                     SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'DEFECT' THEN 1 ELSE 0 END) AS anomaly_count
                 FROM inspection_run ir
                 JOIN inspection_result r ON r.inspection_id = ir.inspection_id
                 LEFT JOIN analysis_target at ON at.target_id = ir.target_id
-                WHERE ir.run_status = 'COMPLETED'
-                  AND COALESCE(ir.completed_at, r.created_at) >= :from
-                  AND COALESCE(ir.completed_at, r.created_at) < :to
+                WHERE r.result_status IN ('SUCCESS', 'REVIEW_REQUIRED', 'FAILED')
+                  AND COALESCE(r.created_at, ir.started_at) >= :from
+                  AND COALESCE(r.created_at, ir.started_at) < :to
                 """, organizationId, """
-                GROUP BY at.target_id, COALESCE(at.equipment_name, at.target_name, 'Unknown')
+                GROUP BY at.target_id, COALESCE(at.equipment_name, at.target_name, '검사대상 없음')
                 ORDER BY (SUM(CASE WHEN COALESCE(r.final_decision_code, r.decision_code) = 'DEFECT' THEN 1 ELSE 0 END) * 1.0 / COUNT(*)) DESC,
                          anomaly_count DESC,
                          inspection_count DESC
@@ -131,8 +131,8 @@ public class DashboardOverviewQueryRepository {
                 SELECT
                     r.result_id,
                     ir.inspection_id,
-                    COALESCE(ir.completed_at, r.created_at) AS inspected_at,
-                    COALESCE(at.equipment_name, at.target_name, 'Unknown') AS equipment_name,
+                    COALESCE(r.created_at, ir.started_at) AS inspected_at,
+                    COALESCE(at.equipment_name, at.target_name, '검사대상 없음') AS equipment_name,
                     ir.run_type,
                     COALESCE(r.final_decision_code, r.decision_code) AS decision_code,
                     r.score,
@@ -140,9 +140,9 @@ public class DashboardOverviewQueryRepository {
                 FROM inspection_result r
                 JOIN inspection_run ir ON r.inspection_id = ir.inspection_id
                 LEFT JOIN analysis_target at ON at.target_id = ir.target_id
-                WHERE ir.run_status = 'COMPLETED'
+                WHERE r.result_status IN ('SUCCESS', 'REVIEW_REQUIRED', 'FAILED')
                 """, organizationId, """
-                ORDER BY COALESCE(ir.completed_at, r.created_at) DESC, r.result_id DESC
+                ORDER BY COALESCE(r.created_at, ir.started_at) DESC, r.result_id DESC
                 """);
         Query query = entityManager.createNativeQuery(sql.value());
         bind(query, sql.parameters());
