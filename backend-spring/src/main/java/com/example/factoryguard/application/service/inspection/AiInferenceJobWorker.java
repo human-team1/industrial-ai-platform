@@ -321,6 +321,7 @@ public class AiInferenceJobWorker {
                 .failureReason(null)
                 .build());
 
+        persistOriginalInputImage(saved.getResultId(), input);
         persistArtifacts(saved.getResultId(), result.getArtifacts());
 
         if (decisionCode == DecisionCode.RECHECK) {
@@ -353,6 +354,17 @@ public class AiInferenceJobWorker {
         inspectionEventLogger.log(run.getInspectionId(), InspectionEventType.COMPLETED, "inspection completed");
     }
 
+    private void persistOriginalInputImage(Long resultId, InspectionInput input) {
+        if (resultId == null || input == null || input.getFileId() == null) {
+            return;
+        }
+        saveResultImagePort.save(Image.builder()
+                .resultId(resultId)
+                .fileId(input.getFileId())
+                .imageRole(ImageRole.ORIGINAL)
+                .build());
+    }
+
     private void persistArtifacts(Long resultId, List<AiInspectionResult.Artifact> artifacts) {
         if (artifacts == null) {
             return;
@@ -378,7 +390,9 @@ public class AiInferenceJobWorker {
                     .artifactType(artifactType)
                     .fileId(storedFile.getFileId())
                     .build());
-            if (artifactType == ArtifactType.HEATMAP) {
+            if (artifactType == ArtifactType.HEATMAP
+                    || artifactType == ArtifactType.ANOMALY_MAP
+                    || artifactType == ArtifactType.BOUNDING_BOX_IMAGE) {
                 saveResultImagePort.save(Image.builder()
                         .resultId(resultId)
                         .fileId(storedFile.getFileId())

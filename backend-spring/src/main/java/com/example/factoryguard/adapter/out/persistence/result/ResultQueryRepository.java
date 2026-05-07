@@ -361,13 +361,35 @@ public class ResultQueryRepository {
                 SELECT image_id, file_id, image_role
                 FROM image
                 WHERE result_id = :resultId
-                ORDER BY image_id
+                ORDER BY
+                  CASE UPPER(COALESCE(image_role, ''))
+                    WHEN 'ORIGINAL' THEN 0
+                    WHEN 'VISUALIZED' THEN 1
+                    ELSE 2
+                  END,
+                  image_id
                 """);
         query.setParameter("resultId", resultId);
         @SuppressWarnings("unchecked")
         List<Object[]> rows = query.getResultList();
 
+        boolean hasOriginal = rows.stream()
+                .map(r -> toStringObject(r[2]))
+                .anyMatch(role -> role != null && role.equalsIgnoreCase("ORIGINAL"));
+
         List<ResultImageResponse> images = new ArrayList<>();
+        if (!hasOriginal) {
+            Long inputFileId = findInputFileIdForResult(resultId);
+            if (inputFileId != null) {
+                images.add(ResultImageResponse.builder()
+                        .imageId(null)
+                        .fileId(inputFileId)
+                        .imageRole("ORIGINAL")
+                        .regions(List.of())
+                        .build());
+            }
+        }
+
         for (Object[] row : rows) {
             Long imageId = toLongObject(row[0]);
             images.add(ResultImageResponse.builder()
@@ -378,6 +400,25 @@ public class ResultQueryRepository {
                     .build());
         }
         return images;
+    }
+
+    private Long findInputFileIdForResult(Long resultId) {
+        Query q = entityManager.createNativeQuery("""
+                SELECT ii.file_id
+                FROM inspection_input ii
+                JOIN inspection_result r ON r.inspection_id = ii.inspection_id
+                WHERE r.result_id = :resultId
+                  AND ii.file_id IS NOT NULL
+                ORDER BY ii.inspection_input_id ASC
+                LIMIT 1
+                """);
+        q.setParameter("resultId", resultId);
+        @SuppressWarnings("unchecked")
+        List<Object> found = q.getResultList();
+        if (found.isEmpty()) {
+            return null;
+        }
+        return toLongObject(found.get(0));
     }
 
     private List<AnomalyRegionResponse> findRegions(Long imageId) {
