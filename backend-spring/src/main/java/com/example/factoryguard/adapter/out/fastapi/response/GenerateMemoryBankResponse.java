@@ -2,6 +2,7 @@ package com.example.factoryguard.adapter.out.fastapi.response;
 
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
@@ -22,5 +23,6 @@ public class GenerateMemoryBankResponse {
         private String inputSize;
         private String framework;
         private LocalDateTime createdAt;
+        private BigDecimal calibratedThreshold;
     }
 }

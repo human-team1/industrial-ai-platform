@@ -95,3 +95,34 @@ tmp-doc-test/
 bootrun-*.txt
 bootrun-error.txt
 bootrun-error-err.txt
+
+# AI experiment outputs / generated artifacts
+ai-server/experiments/**/results/
+ai-server/experiments/**/outputs/
+ai-server/experiments/**/runs/
+ai-server/experiments/**/logs/
+
+# HuggingFace / model cache
+ai-server/experiments/**/cache/
+ai-server/**/cache/huggingface/
+ai-server/**/.cache/
+ai-server/**/.cache/huggingface/
+
+# PatchCore memory bank / model artifacts
+ai-server/**/*memory_bank*
+ai-server/**/memory_bank*/
+ai-server/**/memory-bank*/
+
+# Large model/vector artifacts
+ai-server/**/*.pt
+ai-server/**/*.pth
+ai-server/**/*.ckpt
+ai-server/**/*.safetensors
+ai-server/**/*.onnx
+ai-server/**/*.bin
+ai-server/**/*.npy
+ai-server/**/*.npz
+ai-server/**/*.pkl
+ai-server/**/*.pickle
+ai-server/**/*.joblib
+ai-server/**/*.faiss

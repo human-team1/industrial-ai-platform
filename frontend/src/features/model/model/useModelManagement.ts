@@ -10,8 +10,11 @@ import type {
   UploadModelVersionForm,
 } from '../../../entities/model'
 import {
+  activateModelDeployment,
   activateModelVersion,
   createModel,
+  deleteModelDeployment,
+  deleteModelVersion,
   deactivateModelDeployment,
   deployModelVersion,
   deprecateModelVersion,
@@ -193,6 +196,20 @@ export function useModelManagement() {
     }
   }
 
+  async function submitDeleteVersion(versionId: number, reason: string) {
+    setBusy((prev) => ({ ...prev, actionId: `delete-version-${versionId}` }))
+    setError(null)
+    try {
+      await deleteModelVersion(versionId, reason)
+      setMessage('모델 버전을 삭제 처리했습니다.')
+      await Promise.all([loadVersions(selectedModelId), loadDeployments()])
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : '모델 버전 삭제에 실패했습니다.')
+    } finally {
+      setBusy((prev) => ({ ...prev, actionId: null }))
+    }
+  }
+
   async function submitDeployVersion(versionId: number, payload: DeployModelVersionRequest) {
     setBusy((prev) => ({ ...prev, deploy: true }))
     setError(null)
@@ -216,6 +233,34 @@ export function useModelManagement() {
       await loadDeployments()
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : '배포 비활성화에 실패했습니다.')
+    } finally {
+      setBusy((prev) => ({ ...prev, actionId: null }))
+    }
+  }
+
+  async function submitActivateDeployment(deploymentId: number, reason: string) {
+    setBusy((prev) => ({ ...prev, actionId: `deployment-on-${deploymentId}` }))
+    setError(null)
+    try {
+      await activateModelDeployment(deploymentId, reason)
+      setMessage('배포를 활성화했습니다.')
+      await loadDeployments()
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : '배포 활성화에 실패했습니다.')
+    } finally {
+      setBusy((prev) => ({ ...prev, actionId: null }))
+    }
+  }
+
+  async function submitDeleteDeployment(deploymentId: number, reason: string) {
+    setBusy((prev) => ({ ...prev, actionId: `deployment-delete-${deploymentId}` }))
+    setError(null)
+    try {
+      await deleteModelDeployment(deploymentId, reason)
+      setMessage('배포를 삭제 처리했습니다.')
+      await loadDeployments()
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : '배포 삭제 처리에 실패했습니다.')
     } finally {
       setBusy((prev) => ({ ...prev, actionId: null }))
     }
@@ -253,8 +298,11 @@ export function useModelManagement() {
     submitGenerateFromNormalImages,
     submitActivateVersion,
     submitDeprecateVersion,
+    submitDeleteVersion,
     submitDeployVersion,
+    submitActivateDeployment,
     submitDeactivateDeployment,
+    submitDeleteDeployment,
     submitRollbackDeployment,
   }
 }

@@ -116,6 +116,8 @@ public class ModelManagementQueryRepository {
                 WHERE md.organization_id = :organizationId
                   AND md.is_active = true
                   AND mv.is_active = true
+                  AND md.deleted_at IS NULL
+                  AND mv.deleted_at IS NULL
                   AND md.deploy_status = 'DEPLOYED'
                   AND mv.deploy_status = 'DEPLOYED'
                 """);
@@ -166,6 +168,18 @@ public class ModelManagementQueryRepository {
                 .toList();
     }
 
+    public boolean existsInspectionResultByModelVersionId(Long modelVersionId) {
+        Query query = entityManager.createNativeQuery("""
+                SELECT COUNT(*)
+                FROM inspection_result
+                WHERE model_version_id = :modelVersionId
+                """);
+        query.setParameter("modelVersionId", modelVersionId);
+        Object value = query.getSingleResult();
+        long count = value instanceof Number number ? number.longValue() : Long.parseLong(String.valueOf(value));
+        return count > 0;
+    }
+
     private SqlParts buildModelsSql(ListModelsQuery query, boolean count) {
         StringBuilder sql = new StringBuilder(count
                 ? "SELECT COUNT(*) FROM model m WHERE 1 = 1"
@@ -194,6 +208,7 @@ public class ModelManagementQueryRepository {
                 """);
         Map<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("modelId", query.getModelId());
+        sql.append(" AND mv.deleted_at IS NULL");
         if (hasText(query.getModelCategory())) {
             sql.append(" AND mv.model_category = :modelCategory");
             parameters.put("modelCategory", query.getModelCategory().trim());
@@ -222,7 +237,7 @@ public class ModelManagementQueryRepository {
                 : """
                 SELECT md.deployment_id, md.organization_id, md.target_id, md.model_version_id, mv.model_id, m.model_name,
                        mv.version_name, md.deployment_scope, md.deploy_status, md.is_active, md.deployed_at, md.deployed_by,
-                       md.rollback_from_deployment_id, md.reason
+                       md.rollback_from_deployment_id, md.reason, md.deleted_at, md.deleted_by, md.delete_reason
                 FROM model_deployment md
                 JOIN model_version mv ON md.model_version_id = mv.model_version_id
                 JOIN model m ON mv.model_id = m.model_id
@@ -248,6 +263,9 @@ public class ModelManagementQueryRepository {
         if (query.getIsActive() != null) {
             sql.append(" AND md.is_active = :isActive");
             parameters.put("isActive", query.getIsActive());
+        }
+        if (!Boolean.TRUE.equals(query.getIncludeDeleted())) {
+            sql.append(" AND md.deleted_at IS NULL");
         }
         if (!count) {
             sql.append(" ORDER BY md.deployed_at DESC, md.deployment_id DESC");
@@ -316,6 +334,9 @@ public class ModelManagementQueryRepository {
                 .deployedBy(toLong(row[11]))
                 .rollbackFromDeploymentId(toLong(row[12]))
                 .reason(toStringValue(row[13]))
+                .deletedAt(toDateTime(row[14]))
+                .deletedBy(toLong(row[15]))
+                .deleteReason(toStringValue(row[16]))
                 .build();
     }
 

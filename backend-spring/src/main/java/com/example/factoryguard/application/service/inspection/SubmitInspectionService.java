@@ -3,6 +3,7 @@ package com.example.factoryguard.application.service.inspection;
 import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
 import com.example.factoryguard.adapter.out.storage.minio.MinioStorageAdapter;
 import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
+import com.example.factoryguard.application.dto.inspection.ResolvedInspectionModelArtifacts;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.dto.operation.RecordOperationLogCommand;
@@ -84,7 +85,8 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         ResolvedThreshold resolved = resolveInspectionThresholdService.resolve(
                 command.getUserId(), command.getThresholdId());
         validateTargetAccess(command.getTargetId(), user.getOrganizationId());
-        validateDeployment(command.getDeploymentId(), user.getOrganizationId(), command.getTargetId());
+        ResolvedInspectionModelArtifacts resolvedModel = validateDeployment(
+                command.getDeploymentId(), user.getOrganizationId(), command.getTargetId());
 
         Long orgId = user.getOrganizationId();
         Long userId = command.getUserId();
@@ -115,7 +117,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
 
         InspectionRun run;
         try {
-            run = createRun(command, resolved, orgId, userId, idempotencyKey, fingerprint, file);
+            run = createRun(command, resolved, resolvedModel, orgId, userId, idempotencyKey, fingerprint, file);
         } catch (DataIntegrityViolationException race) {
             log.info("Idempotency race detected, key={}", idempotencyKey);
             InspectionRun existing = loadInspectionRunPort
@@ -164,7 +166,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         return SubmitInspectionResult.accepted(run.toBuilder().runStatus(RunStatus.PROCESSING).build(), false);
     }
 
-    private InspectionRun createRun(SubmitInspectionCommand command, ResolvedThreshold resolved, Long orgId,
+    private InspectionRun createRun(SubmitInspectionCommand command, ResolvedThreshold resolved, ResolvedInspectionModelArtifacts resolvedModel, Long orgId,
                                     Long userId, String idempotencyKey, String fingerprint, MultipartFile file) {
         String inputMode = resolveInputMode(command, file);
         String sourceType = resolveSourceType(command);
@@ -177,7 +179,7 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
                 .sourceType(sourceType)
                 .sourceId(InspectionRunSourceMetadata.forUpload(file.getOriginalFilename(), command.getDeploymentId()))
                 .runStatus(RunStatus.PENDING)
-                .appliedThreshold(BigDecimal.valueOf(resolved.getAnomalyThreshold()))
+                .appliedThreshold(BigDecimal.valueOf(resolveAppliedThreshold(resolved, resolvedModel)))
                 .idempotencyKey(idempotencyKey)
                 .payloadFingerprint(fingerprint)
                 .startedAt(LocalDateTime.now())
@@ -256,11 +258,23 @@ public class SubmitInspectionService implements SubmitInspectionUseCase {
         }
     }
 
-    private void validateDeployment(Long deploymentId, Long organizationId, Long targetId) {
+    private ResolvedInspectionModelArtifacts validateDeployment(Long deploymentId, Long organizationId, Long targetId) {
         if (deploymentId == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "deploymentId는 필수입니다.");
         }
-        inferenceModelArtifactResolver.resolve(organizationId, targetId, deploymentId);
+        return inferenceModelArtifactResolver.resolve(organizationId, targetId, deploymentId);
+    }
+
+    private double resolveAppliedThreshold(ResolvedThreshold resolved, ResolvedInspectionModelArtifacts resolvedModel) {
+        if (resolved.getThresholdId() != null) {
+            return resolved.getAnomalyThreshold();
+        }
+        if (resolvedModel != null
+                && resolvedModel.getVersion() != null
+                && resolvedModel.getVersion().getThresholdDefault() != null) {
+            return resolvedModel.getVersion().getThresholdDefault().doubleValue();
+        }
+        return resolved.getAnomalyThreshold();
     }
 
     private String resolveIdempotencyKey(String rawKey) {

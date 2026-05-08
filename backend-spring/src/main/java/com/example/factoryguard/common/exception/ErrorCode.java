@@ -40,6 +40,8 @@ public enum ErrorCode {
     MODEL_CONFIG_NOT_FOUND("MODEL_CONFIG_NOT_FOUND", HttpStatus.NOT_FOUND, "모델 config 파일을 찾을 수 없습니다."),
     MODEL_VERSION_NOT_FOUND("MODEL-VERSION-404", HttpStatus.NOT_FOUND, "모델 버전을 찾을 수 없습니다."),
     MODEL_DEPLOYMENT_NOT_FOUND("MODEL-DEPLOYMENT-404", HttpStatus.NOT_FOUND, "모델 배포 이력을 찾을 수 없습니다."),
+    MODEL_DEPLOYMENT_DELETED("MODEL-DEPLOYMENT-409A", HttpStatus.CONFLICT, "삭제 처리된 모델 배포입니다."),
+    MODEL_GENERATION_FAILED("MODEL-GENERATION-500", HttpStatus.INTERNAL_SERVER_ERROR, "모델 생성 중 오류가 발생했습니다."),
     MODEL_CONFLICT("MODEL-409", HttpStatus.CONFLICT, "중복되거나 충돌하는 모델 요청입니다."),
     MODEL_VERSION_CONFLICT("MODEL-VERSION-409", HttpStatus.CONFLICT, "중복되거나 충돌하는 모델 버전 요청입니다."),
     MODEL_DEPLOYMENT_CONFLICT("MODEL-DEPLOYMENT-409", HttpStatus.CONFLICT, "모델 배포 상태가 현재 요청과 충돌합니다."),

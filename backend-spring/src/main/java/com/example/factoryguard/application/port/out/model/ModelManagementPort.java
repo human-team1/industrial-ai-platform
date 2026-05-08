@@ -15,6 +15,8 @@ import com.example.factoryguard.application.dto.model.ModelSummaryResponse;
 import com.example.factoryguard.application.dto.model.ModelVersionSummaryResponse;
 import com.example.factoryguard.domain.model.vo.DeploymentScope;
 import com.example.factoryguard.domain.model.vo.ModelArtifactType;
+import com.example.factoryguard.domain.model.vo.ModelCategory;
+import com.example.factoryguard.domain.model.vo.ModelProfile;
 
 import java.util.List;
 import java.util.Optional;
@@ -56,4 +58,25 @@ public interface ModelManagementPort {
     List<ModelDeploymentJpaEntity> findActiveDeployments(Long organizationId, Long targetId, DeploymentScope scope);
 
     List<ModelDeploymentJpaEntity> findActiveDeploymentsByVersionId(Long versionId);
+
+    List<ModelDeploymentJpaEntity> findDeploymentsByVersionId(Long versionId);
+
+    boolean existsInspectionResultByModelVersionId(Long versionId);
+
+    int deactivateActiveDeploymentsInSameSlot(
+            Long organizationId,
+            Long targetId,
+            DeploymentScope scope,
+            ModelCategory modelCategory,
+            ModelProfile modelProfile
+    );
+
+    int deactivateActiveDeploymentsInSameSlotExcludingDeployment(
+            Long organizationId,
+            Long targetId,
+            DeploymentScope scope,
+            ModelCategory modelCategory,
+            ModelProfile modelProfile,
+            Long excludeDeploymentId
+    );
 }

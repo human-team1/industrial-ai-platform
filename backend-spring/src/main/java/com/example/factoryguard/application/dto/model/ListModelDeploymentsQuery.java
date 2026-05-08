@@ -12,6 +12,7 @@ public class ListModelDeploymentsQuery {
     private final Long modelVersionId;
     private final String deploymentScope;
     private final Boolean isActive;
+    private final Boolean includeDeleted;
     private final int page;
     private final int size;
     private final String sort;

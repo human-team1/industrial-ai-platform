@@ -1221,9 +1221,12 @@ PatchCore 계열 모델은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 모두 �
 | GET | `/model-versions/{versionId}/artifacts` | 모델 버전 산출물 목록 조회 | ROLE_SITE_ADMIN |
 | PATCH | `/model-versions/{versionId}/activate` | 모델 버전 활성화 | ROLE_SITE_ADMIN |
 | PATCH | `/model-versions/{versionId}/deprecate` | 모델 버전 사용 중단 | ROLE_SITE_ADMIN |
+| DELETE | `/model-versions/{versionId}` | 모델 버전 삭제(soft delete) | ROLE_SITE_ADMIN |
 | GET | `/model-deployments` | 모델 배포 목록 조회 | ROLE_SITE_ADMIN |
 | POST | `/model-versions/{versionId}/deployments` | 조직/검사대상에 모델 배포 | ROLE_SITE_ADMIN |
 | PATCH | `/model-deployments/{deploymentId}/deactivate` | 모델 배포 비활성화 | ROLE_SITE_ADMIN |
+| PATCH | `/model-deployments/{deploymentId}/activate` | 모델 배포 재활성화 | ROLE_SITE_ADMIN |
+| DELETE | `/model-deployments/{deploymentId}` | 모델 배포 삭제(soft delete) | ROLE_SITE_ADMIN |
 | PATCH | `/model-deployments/{deploymentId}/rollback` | 이전 모델 배포로 롤백 | ROLE_SITE_ADMIN |
 
 ---
@@ -1537,6 +1540,7 @@ PatchCore 계열 모델은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 모두 �
 | `modelVersionId` | Long | N | 모델 버전 ID |
 | `deploymentScope` | String | N | `ORGANIZATION / TARGET` |
 | `isActive` | Boolean | N | 활성 배포 여부 |
+| `includeDeleted` | Boolean | N | 기본 `false`. `true`면 삭제 행 포함 |
 | `page` | Int | N | 페이지 |
 | `size` | Int | N | 크기 |
 
@@ -1559,7 +1563,10 @@ PatchCore 계열 모델은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 모두 �
         "isActive": true,
         "deployedAt": "2026-05-03T10:10:00",
         "deployedBy": 1,
-        "reason": "고객사 A 프레스 검사대상에 Texture 성능형 모델 적용"
+        "reason": "고객사 A 프레스 검사대상에 Texture 성능형 모델 적용",
+        "deletedAt": null,
+        "deletedBy": null,
+        "deleteReason": null
       }
     ],
     "page": 0,
@@ -1574,7 +1581,9 @@ PatchCore 계열 모델은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 모두 �
 
 ## 15.11 POST `/model-versions/{versionId}/deployments`
 
-모델 버전을 조직 또는 특정 검사대상에 배포한다. 동일 범위에 기존 활성 배포가 있으면 기존 배포를 비활성화하고 신규 배포를 활성화한다.
+모델 버전을 조직 또는 특정 검사대상에 배포한다.
+동일 조직/검사대상/배포범위 안에서 같은 `modelCategory + modelProfile` 조합의 기존 활성 배포가 있으면 해당 배포만 비활성화하고 신규 배포를 활성화한다.
+서로 다른 `modelCategory` 또는 `modelProfile` 배포는 동시에 활성 상태를 유지할 수 있다.
 
 ### Request
 
@@ -1634,7 +1643,91 @@ PatchCore 계열 모델은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 모두 �
 
 ---
 
-## 15.13 PATCH `/model-deployments/{deploymentId}/rollback`
+## 15.13 PATCH `/model-deployments/{deploymentId}/activate`
+
+삭제되지 않은(`deletedAt IS NULL`) 비활성 배포는 재활성화할 수 있다. 삭제된 배포는 409로 차단한다.
+
+### Request
+
+```json
+{
+  "reason": "시연을 위해 기존 배포 재활성화"
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "deploymentId": 6,
+    "modelVersionId": 94004,
+    "organizationId": 9001,
+    "targetId": null,
+    "deploymentScope": "ORGANIZATION",
+    "deployStatus": "DEPLOYED",
+    "isActive": true
+  },
+  "message": "모델 배포가 활성화되었습니다."
+}
+```
+
+### 실패 응답 예시 (삭제된 배포 활성화 시)
+
+```json
+{
+  "type": "about:blank",
+  "title": "삭제 처리된 모델 배포입니다.",
+  "status": 409,
+  "detail": "삭제 처리된 모델 배포는 다시 활성화할 수 없습니다.",
+  "instance": "uri=/api/v1/model-deployments/6/activate",
+  "errorCode": "MODEL-DEPLOYMENT-409A",
+  "requestId": "4a9c970c-2e2e-4fa2-8264-fac48af04b5f",
+  "failedStep": "ACTIVATE_DELETED_DEPLOYMENT"
+}
+```
+
+---
+
+## 15.14 DELETE `/model-deployments/{deploymentId}`
+
+배포 삭제는 hard delete가 아닌 soft delete다.
+
+- `deploy_status = DEACTIVATED`
+- `is_active = false`
+- `deleted_at = NOW()`
+- `deleted_by = currentUserId`
+- `delete_reason = request.reason`
+
+### Request
+
+```json
+{
+  "reason": "잘못된 전처리 정책으로 생성된 이전 배포 삭제"
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "deploymentId": 6,
+    "deployStatus": "DEACTIVATED",
+    "isActive": false,
+    "deletedAt": "2026-05-07T22:10:19",
+    "deletedBy": 1,
+    "deleteReason": "운영 삭제"
+  },
+  "message": "모델 배포가 삭제 처리되었습니다."
+}
+```
+
+---
+
+## 15.15 PATCH `/model-deployments/{deploymentId}/rollback`
 
 ### Request
 
@@ -1666,7 +1759,42 @@ PatchCore 계열 모델은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 모두 �
 
 ---
 
-## 15.14 POST `/models/{modelId}/versions/from-normal-images`
+## 15.16 DELETE `/model-versions/{versionId}`
+
+모델 버전 삭제는 검사 이력 보호를 위해 soft delete로 처리한다.
+
+- `deploy_status = DEPRECATED`
+- `is_active = false`
+- `deleted_at/deleted_by/delete_reason` 기록
+- 연결된 `model_deployment`도 soft delete 처리
+
+### Request
+
+```json
+{
+  "reason": "전처리 정책 변경 전 생성된 이전 모델 삭제"
+}
+```
+
+### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "version": {
+      "modelVersionId": 94004,
+      "deployStatus": "DEPRECATED",
+      "isActive": false
+    }
+  },
+  "message": "모델 버전이 삭제 처리되었습니다."
+}
+```
+
+---
+
+## 15.17 POST `/models/{modelId}/versions/from-normal-images`
 
 정상 이미지셋을 업로드하여 `memory_bank`를 생성하고, 고정 `ckpt/config`와 조합해 모델 버전 및 배포를 자동 생성한다.
 
@@ -1674,6 +1802,16 @@ PatchCore 계열 모델은 `CKPT`, `CONFIG`, `MEMORY_BANK` 산출물이 모두 �
 - 검사용 이미지 업로드는 `/inspections/upload`를 사용한다.
 - `modelProfile` 미전송 시 `SPEED`, `PERFORMANCE`를 모두 생성한다.
 - `modelProfile` 전송 시 해당 프로필만 생성한다.
+- 자동 생성 배포도 동일한 배포 슬롯 정책(`organizationId + targetId/scope + deploymentScope + modelCategory + modelProfile`)을 따른다.
+- 따라서 같은 조직/검사대상에서도 `OBJECT/SPEED`, `OBJECT/PERFORMANCE`, `TEXTURE/SPEED`, `TEXTURE/PERFORMANCE` 조합이 동시에 활성화될 수 있다.
+- 모델 조합별 전처리/메모리뱅크/임계값 정책은 아래 고정값을 사용한다.
+
+| modelProfile | modelCategory | 모델 계열 | 입력 크기 | Shot | Target Memory Bank Size | Image Threshold | Pixel Threshold |
+| --- | --- | --- | --- | --- | ---: | ---: | ---: |
+| PERFORMANCE | OBJECT | DINOv2-base + PatchCore | 336x336 | 50-shot | 2000 | 7.4762 | 6.6040 |
+| PERFORMANCE | TEXTURE | DINOv2-base + PatchCore 3layers | 448x448 | 50-shot | 2000 | 22.2103 | 25.827 |
+| SPEED | OBJECT | WideResNet50 + PatchCore layer2 | 224x224 | full-shot | 10000 | 36.8688 | 28.4368 |
+| SPEED | TEXTURE | WideResNet50 + PatchCore layer2 | 256x256 | full-shot | 5000 | 40.0642 | 36.5779 |
 
 `multipart/form-data`
 
@@ -1775,11 +1913,32 @@ reason=성능형 memory bank 재생성
 | `deploymentScope` 허용값 아님 | 422 |
 | `deploymentScope=TARGET`인데 `targetId` 누락 | 422 |
 | `targetId`가 해당 조직 소속 아님 | 422 |
-| `thresholdDefault`가 0~1 범위 밖 | 422 |
+| `thresholdDefault`가 0 미만 | 422 |
 | 중복 `versionName` | 409 |
 | MinIO 저장 실패 | 500 |
 | FastAPI memory bank 생성 실패 | 500 |
 | 모델 버전/산출물/배포 생성 실패 | 500 |
+
+### 실패 응답 정책 (500)
+
+`COMMON-500`으로 뭉개지지 않고 다음 필드를 포함한다.
+
+- `errorCode = MODEL-GENERATION-500`
+- `requestId`
+- `failedStep` (예: `POLICY_RESOLUTION`, `MEMORY_BANK_GENERATION`, `PERSIST_MODEL_ENTITIES`)
+
+```json
+{
+  "type": "about:blank",
+  "title": "모델 생성 중 오류가 발생했습니다.",
+  "status": 500,
+  "detail": "FastAPI memory_bank generation failed.",
+  "instance": "uri=/api/v1/models/93003/versions/from-normal-images",
+  "errorCode": "MODEL-GENERATION-500",
+  "requestId": "4a9c970c-2e2e-4fa2-8264-fac48af04b5f",
+  "failedStep": "MEMORY_BANK_GENERATION"
+}
+```
 
 ---
 
@@ -2036,7 +2195,7 @@ FastAPI 내부 API는 Spring 전용이다. 외부 사용자와 프론트엔드�
   },
   "qualityGateEnabled": true,
   "threshold": {
-    "anomalyThreshold": 0.75,
+    "anomalyThreshold": 36.8688,
     "lowConfidenceThreshold": 0.55
   }
 }
@@ -2050,9 +2209,13 @@ FastAPI 내부 API는 Spring 전용이다. 외부 사용자와 프론트엔드�
   "data": {
     "inspectionId": 1001,
     "modelVersionId": 10,
-    "score": 0.8123,
+    "score": 19.8892,
+    "scoreType": "ANOMALIB_PRED_SCORE",
+    "scoreSource": "anomalib.pred_score",
+    "imageThreshold": 36.8688,
+    "pixelThreshold": 28.4368,
     "confidence": 0.91,
-    "decisionCode": "DEFECT",
+    "decisionCode": "NORMAL",
     "quality": {
       "status": "PASSED",
       "reason": null
@@ -2064,6 +2227,18 @@ FastAPI 내부 API는 Spring 전용이다. 외부 사용자와 프론트엔드�
       }
     ],
     "regions": [],
+    "metadata": {
+      "backend": "anomalib",
+      "anomalibVersion": "2.4.0",
+      "modelCategory": "OBJECT",
+      "modelProfile": "SPEED",
+      "inputSize": "224x224",
+      "scoreAggregationMethod": "anomalib_default_pred_score",
+      "anomalyMapMin": 0.0,
+      "anomalyMapMax": 1.0,
+      "anomalyMapMean": 0.12,
+      "ckptSource": "model_artifact.CKPT"
+    },
     "processedAt": "2026-05-03T10:00:03"
   },
   "message": "이미지 추론이 완료되었습니다."
@@ -2080,11 +2255,11 @@ FastAPI 내부 API는 Spring 전용이다. 외부 사용자와 프론트엔드�
 | `configFileKey` 누락 | 400 |
 | `memoryBankFileKey` 누락 | 400 |
 | 모델 카테고리/프로필 허용값 오류 | 422 |
-| threshold 범위 오류 | 422 |
+| `anomalyThreshold`가 0 미만 | 422 |
 | ROI 좌표 오류 | 422 |
 | 이미지 또는 모델 산출물 파일 없음 | 404 |
 | 모델 로드 실패 | 500 |
-| memory bank 로드 실패 | 500 |
+| memory bank 로드 실패(보조 산출물) | 500 |
 | 추론 실패 | 500 |
 
 ---

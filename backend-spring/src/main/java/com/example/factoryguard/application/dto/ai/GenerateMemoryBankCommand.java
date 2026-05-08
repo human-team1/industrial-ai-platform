@@ -5,6 +5,7 @@ import com.example.factoryguard.domain.model.vo.ModelProfile;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Getter
@@ -22,4 +23,9 @@ public class GenerateMemoryBankCommand {
     private final String configFileKey;
     private final List<String> normalImageFileKeys;
     private final String outputPrefix;
+    private final String inputSize;
+    private final Integer targetMemoryBankSize;
+    private final String shotPolicy;
+    private final BigDecimal imageThreshold;
+    private final BigDecimal pixelThreshold;
 }

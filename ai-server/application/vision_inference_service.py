@@ -6,6 +6,7 @@ from datetime import datetime
 from time import perf_counter
 
 from application.exceptions import AppException
+from domain.vision_model_profile import get_vision_model_profile_spec
 from domain.vision_interfaces import (
     HeatmapGeneratorPort,
     ImagePreprocessorPort,
@@ -53,6 +54,14 @@ class VisionInferenceService:
         started_at_iso = datetime.now().isoformat()
         model_request = request.model
 
+        logger.info(
+            "vision_inference_started requestId=%s inspectionId=%s modelVersionId=%s modelCategory=%s modelProfile=%s",
+            request_id,
+            request.inspectionId,
+            model_request.modelVersionId,
+            model_request.modelCategory,
+            model_request.modelProfile,
+        )
         try:
             async with self._inference_limiter.limit(
                 request_id=request_id,
@@ -68,7 +77,7 @@ class VisionInferenceService:
                 )
 
             logger.info(
-                "[AI_INFERENCE_DONE] requestId=%s inspectionId=%s modelVersionId=%s inferenceFinishedAt=%s latencyMs=%s status=%s",
+                "vision_inference_completed requestId=%s inspectionId=%s modelVersionId=%s inferenceFinishedAt=%s latencyMs=%s status=%s",
                 request_id,
                 request.inspectionId,
                 model_request.modelVersionId,
@@ -81,19 +90,20 @@ class VisionInferenceService:
             raise
         except Exception as exc:
             logger.exception(
-                "[AI_INFERENCE_FAILED] requestId=%s inspectionId=%s modelVersionId=%s fileKey=%s ckptFileKey=%s latencyMs=%s errorCode=%s",
+                "vision_inference_failed requestId=%s inspectionId=%s modelVersionId=%s fileKey=%s ckptFileKey=%s latencyMs=%s failedStep=%s errorCode=%s",
                 request_id,
                 request.inspectionId,
                 model_request.modelVersionId,
                 request.fileKey,
                 model_request.ckptFileKey,
                 round((perf_counter() - started_at) * 1000, 2),
+                "ANOMALIB_PREDICT",
                 "AI_INFERENCE_FAILED",
             )
             raise AppException(
                 500,
                 "Inference failed",
-                "이미지 추론 중 오류가 발생했습니다.",
+                f"이미지 추론 중 오류가 발생했습니다. modelVersionId={model_request.modelVersionId} category={model_request.modelCategory} profile={model_request.modelProfile}",
                 "AI_INFERENCE_FAILED",
             ) from exc
 
@@ -123,6 +133,8 @@ class VisionInferenceService:
         )
 
         config = self._config_loader.load(config_bytes)
+        config["modelCategory"] = model_request.modelCategory
+        config["modelProfile"] = model_request.modelProfile
         model = self._model_loader.load(
             model_request.modelVersionId,
             model_request.ckptFileKey,
@@ -130,6 +142,17 @@ class VisionInferenceService:
             model_request.memoryBankFileKey,
             ckpt_bytes,
             config,
+            memory_bank_bytes=memory_bank_bytes,
+        )
+        logger.info(
+            "anomalib_model_loaded requestId=%s modelVersionId=%s category=%s profile=%s inputSize=%s ckpt=%s memoryBank=%s",
+            request_id,
+            model_request.modelVersionId,
+            model_request.modelCategory,
+            model_request.modelProfile,
+            model_request.inputSize,
+            model_request.ckptFileKey,
+            model_request.memoryBankFileKey,
         )
         memory_bank = self._memory_bank_loader.load(
             model_request.memoryBankFileKey,
@@ -140,8 +163,18 @@ class VisionInferenceService:
         image = self._preprocessor.preprocess(
             image_bytes,
             roi_payload,
-            model_request.inputSize,
-            config,
+            model_request.modelCategory,
+            model_request.modelProfile,
+        )
+        spec = get_vision_model_profile_spec(model_request.modelCategory, model_request.modelProfile)
+        logger.info(
+            "preprocessing_info requestId=%s originalImageSize=%sx%s modelInputSize=%sx%s modelCategory=%s modelProfile=%s ckptFileKey=%s scoreType=ANOMALIB_PRED_SCORE scoreSource=anomalib.pred_score",
+            request_id,
+            image.original_size[0], image.original_size[1],
+            spec.input_size, spec.input_size,
+            model_request.modelCategory,
+            model_request.modelProfile,
+            model_request.ckptFileKey,
         )
         quality = self._quality_evaluator.evaluate(image.image_array)
 
@@ -150,17 +183,11 @@ class VisionInferenceService:
         confidence = 0.35
         decision_code = "RECHECK"
         anomaly_map = None
+        threshold = request.threshold.anomalyThreshold
+        low_confidence_threshold = request.threshold.lowConfidenceThreshold
 
         if not request.qualityGateEnabled or quality.status != "FAILED":
             inference = self._inferencer.infer(image, model, config, memory_bank)
-            threshold = (
-                request.threshold.anomalyThreshold
-                or config.get("anomalyThreshold")
-                or config.get("threshold")
-                or config.get("thresholdDefault")
-                or 0.75
-            )
-            low_confidence_threshold = request.threshold.lowConfidenceThreshold
             score = inference.score
             confidence = inference.confidence
             anomaly_map = inference.anomaly_map
@@ -172,12 +199,22 @@ class VisionInferenceService:
                 decision_code = "RECHECK"
             else:
                 decision_code = "NORMAL"
+            logger.info(
+                "anomalib_prediction_completed requestId=%s modelVersionId=%s "
+                "predScore=%.4f imageThreshold=%.4f decision=%s confidence=%.4f",
+                request_id,
+                model_request.modelVersionId,
+                score if score is not None else float("nan"),
+                threshold,
+                decision_code,
+                confidence,
+            )
 
             if anomaly_map is not None:
                 heatmap_key = f"inspections/{request.inspectionId}/artifacts/heatmap.png"
                 try:
                     heatmap_bytes = self._heatmap_generator.render(
-                        image.image_array,
+                        image.original_image_array,
                         anomaly_map,
                     )
                     self._storage.put_object(
@@ -203,6 +240,10 @@ class VisionInferenceService:
                 "inspectionId": request.inspectionId,
                 "modelVersionId": model_request.modelVersionId,
                 "score": score,
+                "scoreType": "ANOMALIB_PRED_SCORE",
+                "scoreSource": "anomalib.pred_score",
+                "imageThreshold": threshold,
+                "pixelThreshold": spec.pixel_threshold,
                 "confidence": confidence,
                 "decisionCode": decision_code,
                 "quality": {
@@ -215,12 +256,31 @@ class VisionInferenceService:
                 },
                 "artifacts": artifacts,
                 "regions": [],
+                "metadata": {
+                    "backend": "anomalib",
+                    "anomalibVersion": "2.4.0",
+                    "modelCategory": model_request.modelCategory,
+                    "modelProfile": model_request.modelProfile,
+                    "inputSize": model_request.inputSize or f"{spec.input_size}x{spec.input_size}",
+                    "originalImageSize": f"{image.original_size[0]}x{image.original_size[1]}",
+                    "modelInputSize": f"{spec.input_size}x{spec.input_size}",
+                    "anomalyMapShape": f"{anomaly_map.shape[0]}x{anomaly_map.shape[1]}" if anomaly_map is not None else None,
+                    "overlayOutputSize": f"{image.original_size[0]}x{image.original_size[1]}",
+                    "ckptFileKey": model_request.ckptFileKey,
+                    "scoreType": "ANOMALIB_PRED_SCORE",
+                    "scoreSource": "anomalib.pred_score",
+                    "scoreAggregationMethod": "anomalib_default_pred_score",
+                    "anomalyMapMin": float(anomaly_map.min()) if anomaly_map is not None else None,
+                    "anomalyMapMax": float(anomaly_map.max()) if anomaly_map is not None else None,
+                    "anomalyMapMean": float(anomaly_map.mean()) if anomaly_map is not None else None,
+                    "ckptSource": "model_artifact.CKPT",
+                },
                 "processedAt": datetime.now(),
             },
             "message": "이미지 추론이 완료되었습니다.",
         }
         logger.info(
-            "vision infer completed requestId=%s inspectionId=%s modelVersionId=%s fileKey=%s ckptFileKey=%s inferenceStartedAt=%s latencyMs=%s decisionCode=%s",
+            "vision_inference_completed requestId=%s inspectionId=%s modelVersionId=%s fileKey=%s ckptFileKey=%s inferenceStartedAt=%s latencyMs=%s decisionCode=%s",
             request_id,
             request.inspectionId,
             model_request.modelVersionId,

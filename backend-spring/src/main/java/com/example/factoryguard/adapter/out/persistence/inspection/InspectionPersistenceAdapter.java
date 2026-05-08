@@ -55,7 +55,7 @@ public class InspectionPersistenceAdapter implements
             if (run.getErrorCode() != null) {
                 existing.updateError(run.getErrorCode());
             }
-            saved = existing;
+            saved = inspectionRunJpaRepository.save(existing);
         } else {
             saved = inspectionRunJpaRepository.save(mapper.toEntity(run));
         }

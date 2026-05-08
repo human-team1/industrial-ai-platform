@@ -20,7 +20,7 @@ export function ScoreBar({ score, decisionCode }: Props) {
 
 function toPercent(value?: number | null) {
   if (value === null || value === undefined) return '-'
-  return `${Math.max(0, Math.min(100, Number(value) * 100)).toFixed(1)}%`
+  return `${Math.max(0, Math.min(100, Number(value))).toFixed(1)}%`
 }
 
 function formatScore(value?: number | null) {

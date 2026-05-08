@@ -45,6 +45,11 @@ public class MemoryBankFastApiAdapter implements GenerateMemoryBankPort {
                 .configFileKey(command.getConfigFileKey())
                 .normalImageFileKeys(command.getNormalImageFileKeys())
                 .outputPrefix(command.getOutputPrefix())
+                .inputSize(command.getInputSize())
+                .targetMemoryBankSize(command.getTargetMemoryBankSize())
+                .shotPolicy(command.getShotPolicy())
+                .imageThreshold(command.getImageThreshold())
+                .pixelThreshold(command.getPixelThreshold())
                 .build();
         Instant startedAt = Instant.now();
         try {
@@ -162,6 +167,7 @@ public class MemoryBankFastApiAdapter implements GenerateMemoryBankPort {
                 .inputSize(data.getInputSize())
                 .framework(data.getFramework())
                 .createdAt(data.getCreatedAt())
+                .calibratedThreshold(data.getCalibratedThreshold())
                 .build();
     }
 

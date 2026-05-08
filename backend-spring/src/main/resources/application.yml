@@ -56,7 +56,7 @@ inspection:
 
 app:
   session:
-    max-active-users: ${MAX_ACTIVE_USERS:3}
+    max-active-users: ${MAX_ACTIVE_USERS:10}
     active-session-ttl-seconds: ${ACTIVE_SESSION_TTL_SECONDS:1800}
   document:
     upload:
@@ -106,7 +106,7 @@ app:
     expire-minutes: ${JWT_EXPIRE_MINUTES:60}
   oauth2:
     google:
-      client-id: ${GOOGLE_CLIENT_ID:354049085922-5dbjmlo3qbmpoalapeh0n8fnus72bc65.apps.googleusercontent.com}
+      client-id: ${GOOGLE_CLIENT_ID:812519122100-ck4ian5nmbav9l05696hs7ppvjbuflsd.apps.googleusercontent.com}
       client-secret: ${GOOGLE_CLIENT_SECRET:}
 
 factoryguard:

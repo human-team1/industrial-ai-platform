@@ -5,6 +5,7 @@ from pathlib import Path
 
 from application.exceptions import AppException
 from domain.models.memory_bank import MemoryBankProfileSpec, ModelCategory, ModelProfile
+from domain.vision_model_profile import get_vision_model_profile_spec
 from infrastructure.modeling.patchcore_memory_bank_generator import PatchCoreMemoryBankGenerator
 
 
@@ -42,31 +43,17 @@ class MemoryBankGeneratorFactory:
         return PatchCoreMemoryBankGenerator(spec)
 
     def to_spec(self, category: ModelCategory, profile: ModelProfile, config: dict) -> MemoryBankProfileSpec:
-        image_size = config.get("imageSize") or config.get("image_size") or config.get("inputSize")
-        if isinstance(image_size, int):
-            size = (image_size, image_size)
-        elif isinstance(image_size, list) and len(image_size) >= 2:
-            size = (int(image_size[0]), int(image_size[1]))
-        else:
-            raise AppException(422, "Invalid model config", "imageSize is required.", "MODEL_CONFIG_INVALID")
-
-        layers = config.get("layers")
-        if not isinstance(layers, list) or not layers:
-            raise AppException(422, "Invalid model config", "layers is required.", "MODEL_CONFIG_INVALID")
-
-        target_size = config.get("targetMemoryBankSize")
-        if target_size is None:
-            target_size = (config.get("patchcore") or {}).get("memoryBankSize")
-        if target_size is None:
-            raise AppException(422, "Invalid model config", "targetMemoryBankSize is required.", "MODEL_CONFIG_INVALID")
-
+        profile_spec = get_vision_model_profile_spec(category.value, profile.value)
         pipeline = str(config.get("modelPipeline") or config.get("pipeline") or "PatchCore")
         return MemoryBankProfileSpec(
             category=category,
             profile=profile,
             pipeline=pipeline,
-            image_size=size,
-            target_memory_bank_size=int(target_size),
-            layers=tuple(str(layer) for layer in layers),
+            image_size=(profile_spec.input_size, profile_spec.input_size),
+            target_memory_bank_size=int(profile_spec.target_memory_bank_size),
+            layers=tuple(profile_spec.patchcore_layers),
+            shot_policy=profile_spec.shot_policy,
+            image_threshold=float(profile_spec.image_threshold),
+            pixel_threshold=float(profile_spec.pixel_threshold),
             framework="PYTORCH",
         )

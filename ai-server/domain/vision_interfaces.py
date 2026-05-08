@@ -15,7 +15,7 @@ class VisionConfigLoaderPort(Protocol):
 
 
 class VisionModelLoaderPort(Protocol):
-    def load(self, model_version_id: int, ckpt_file_key: str, config_file_key: str, memory_bank_file_key: str, ckpt_bytes: bytes, config: dict) -> LoadedVisionModel: ...
+    def load(self, model_version_id: int, ckpt_file_key: str, config_file_key: str, memory_bank_file_key: str, ckpt_bytes: bytes, config: dict, memory_bank_bytes: bytes | None = None) -> LoadedVisionModel: ...
 
 
 class MemoryBankLoaderPort(Protocol):
@@ -23,7 +23,7 @@ class MemoryBankLoaderPort(Protocol):
 
 
 class ImagePreprocessorPort(Protocol):
-    def preprocess(self, image_bytes: bytes, roi: dict | None, input_size: str | None, config: dict) -> PreprocessedImage: ...
+    def preprocess(self, image_bytes: bytes, roi: dict | None, model_category: str, model_profile: str) -> PreprocessedImage: ...
 
 
 class QualityEvaluatorPort(Protocol):

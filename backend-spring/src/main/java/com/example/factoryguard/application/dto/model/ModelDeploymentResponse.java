@@ -23,4 +23,7 @@ public class ModelDeploymentResponse {
     private final Long deployedBy;
     private final Long rollbackFromDeploymentId;
     private final String reason;
+    private final LocalDateTime deletedAt;
+    private final Long deletedBy;
+    private final String deleteReason;
 }
