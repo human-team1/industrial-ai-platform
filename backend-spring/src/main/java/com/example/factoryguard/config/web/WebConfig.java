@@ -13,9 +13,7 @@ import java.util.List;
 public class WebConfig {
 
     /**
-     * allowedOriginPatterns 는 와일드카드 패턴(https://*.ngrok-free.app 등)과
-     * 정확한 origin(http://localhost) 모두 허용하며,
-     * allowCredentials(true)와 함께 사용 가능합니다.
+     * allowedOriginPatterns 는 와일드카드 패턴과 정확한 origin 모두 허용합니다.
      * 운영 프로필(prod)에서는 application-prod.yml 에 엄격한 origin 목록을 명시하세요.
      */
     @Value("${app.cors.allowed-origin-patterns:http://localhost:5173,http://localhost}")

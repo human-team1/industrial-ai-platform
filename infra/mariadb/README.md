@@ -1,7 +1,5 @@
 # MariaDB 로컬 초기화/시드
 
-로컬 MariaDB는 Docker Compose로 실행하고, 스키마는 `mariadb/init/industrial-ai-platform.sql`을 수동 적용합니다.
-
 ## 기준
 
 - DBMS: MariaDB 10.6.21
@@ -11,12 +9,51 @@
 - 공식 테이블명: lowercase snake_case
 - Spring local profile: `ddl-auto=validate`
 
-## DB 작업 모드 선택
+## 폴더 구조
 
-- `db-reset`: DB 전체 초기화 + init + migration + seed (파괴적)
-- `db-migrate`: migration SQL만 순차 적용
-- `db-seed`: 샘플 데이터만 재삽입
-- `db-status`: 테이블/migration/샘플 건수/role 분포 조회
+```
+mariadb/
+├── init/         # 베이스라인 스키마 (전체 테이블 정의, 최신 상태 유지)
+├── migrations/   # 스키마 변경 이력 (schema_migration 테이블로 추적, 幂等성 보장)
+├── seed/         # 샘플 데이터 (ON DUPLICATE KEY UPDATE, 반복 적용 가능)
+└── demo-data/    # 특정 환경 전용 데이터 (MinIO 파일 참조 포함, 해당 환경에서만 실행)
+```
+
+### `demo-data/` 주의사항
+
+이 폴더의 SQL은 특정 MinIO 파일(`file_id`, `model_id` 등)을 하드코딩으로 참조합니다.
+**신규 로컬 환경에서는 자동 실행되지 않으며, 해당 MinIO 오브젝트가 존재하는 환경에서만 수동 적용합니다.**
+
+---
+
+## 신규 팀원 환경 설정 (표준 절차)
+
+> **사전 조건**: `infra/.env` 준비 완료, Docker 실행 중
+
+```powershell
+# 1. MariaDB 컨테이너 실행
+cd infra
+docker compose --env-file .env up -d mariadb
+
+# 2. 전체 초기화 (스키마 + 마이그레이션 + 샘플 데이터 한 번에)
+.\scripts\db-reset.ps1 -Force
+
+# 3. 구글 로그인 후 관리자 승격
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<MARIADB_ROOT_PASSWORD> <MARIADB_DATABASE> -e "UPDATE users SET status='ACTIVE', role='ROLE_SITE_ADMIN', deleted_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE email='본인@gmail.com';"
+```
+
+`<MARIADB_ROOT_PASSWORD>`, `<MARIADB_DATABASE>` 는 `infra/.env` 값으로 교체합니다.
+
+---
+
+## 스크립트 모드 선택
+
+| 스크립트 | 동작 | 파괴적 |
+|---|---|---|
+| `db-reset -Force` | DB 초기화 + init + migration + seed | **예** |
+| `db-migrate` | `migrations/` SQL을 미적용분만 순차 적용 | 아니오 |
+| `db-seed` | `seed/` 샘플 데이터 재삽입 | 아니오 |
+| `db-status` | 테이블/migration/샘플 건수/role 분포 조회 | 아니오 |
 
 PowerShell:
 
@@ -38,76 +75,59 @@ cd infra
 ./scripts/db-reset.sh --force
 ```
 
-## 1. MariaDB 실행
+---
+
+## 마이그레이션 이력 관리 방식
+
+- `schema_migration` 테이블로 적용 여부를 추적합니다.
+- 이미 적용된 파일은 파일명 기준으로 건너뜁니다.
+- `migrations/` 의 모든 SQL은 `IF NOT EXISTS` / `ON DUPLICATE KEY` 등 **幂等성 패턴**을 준수합니다.
+- 신규 스키마 변경은 반드시 `migrations/` 에 버전 파일(`V날짜_순번__설명.sql`)로 추가합니다.
+- `init/industrial-ai-platform.sql` 은 **현재 시점 전체 스키마 베이스라인**으로 유지합니다.
+  마이그레이션을 추가할 때마다 init 파일도 동기화합니다.
+
+---
+
+## 관리자 승격
+
+구글 로그인 후 `PENDING` 상태인 계정을 관리자로 승격합니다.
 
 ```powershell
-cd infra
-docker compose --env-file .env up -d mariadb
-docker ps
-```
-
-## 2. 스키마 적용
-
-```powershell
-cd infra
-Get-Content -Raw -Encoding UTF8 .\mariadb\init\industrial-ai-platform.sql |
-  docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name>
-```
-
-`<root_password>`와 `<database_name>`은 `infra/.env`의 `MARIADB_ROOT_PASSWORD`, `MARIADB_DATABASE` 값으로 바꿉니다.
-
-## 3. 샘플 조직 시드
-
-가입 페이지의 조직 선택 목록은 `organization_public` view를 사용합니다. 로컬에서 바로 확인하려면 샘플 조직을 넣습니다.
-
-```powershell
-cd infra
-Get-Content -Raw -Encoding UTF8 .\mariadb\seed\seed-sample-organizations.sql |
-  docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name>
-```
-
-## 4. 관리자 승격
-
-회원가입/로그인 후 `PENDING` 상태인 계정을 로컬 검증용 관리자 계정으로 승격합니다.
-
-```powershell
-docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "UPDATE users SET status='ACTIVE', role='ROLE_SITE_ADMIN', deleted_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE email='본인@gmail.com';"
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<MARIADB_ROOT_PASSWORD> <MARIADB_DATABASE> -e "UPDATE users SET status='ACTIVE', role='ROLE_SITE_ADMIN', deleted_at=NULL, updated_at=CURRENT_TIMESTAMP WHERE email='본인@gmail.com';"
 ```
 
 확인:
 
 ```powershell
-docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SELECT user_id, organization_id, email, name, status, role, deleted_at FROM users WHERE email='본인@gmail.com';"
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<MARIADB_ROOT_PASSWORD> <MARIADB_DATABASE> -e "SELECT user_id, organization_id, email, name, status, role, deleted_at FROM users WHERE email='본인@gmail.com';"
 ```
 
-## 5. 확인
+---
+
+## DB 상태 확인
 
 ```powershell
-docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SHOW FULL TABLES;"
-docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SELECT organization_id, organization_name, status FROM organization ORDER BY organization_id;"
-docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SELECT id, name FROM organization_public ORDER BY id;"
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<MARIADB_ROOT_PASSWORD> <MARIADB_DATABASE> -e "SHOW FULL TABLES;"
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<MARIADB_ROOT_PASSWORD> <MARIADB_DATABASE> -e "SELECT organization_id, organization_name, status FROM organization ORDER BY organization_id;"
+docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<MARIADB_ROOT_PASSWORD> <MARIADB_DATABASE> -e "SELECT id, name FROM organization_public ORDER BY id;"
 ```
 
-## 6. 최신 스키마 확인
+---
 
-```powershell
-docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SHOW COLUMNS FROM inspection_input LIKE 'source_type';"
-docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p<root_password> <database_name> -e "SHOW COLUMNS FROM chat_message; SHOW COLUMNS FROM chat_source;"
-```
-
-## 7. 재초기화
+## 재초기화
 
 로컬 DB를 완전히 지워도 되는 경우에만 실행합니다.
 
 ```powershell
 cd infra
-docker compose down
-docker compose --env-file .env up -d
+docker compose down -v
+docker compose --env-file .env up -d mariadb
+.\scripts\db-reset.ps1 -Force
 ```
 
-그 뒤 스키마와 seed를 다시 적용합니다.
+---
 
-## 8. 현재 스키마 주의사항
+## 현재 스키마 주의사항
 
 - 가입 신청은 `signup_request`에 저장됩니다.
 - 로컬 관리자 승격은 `users.status='ACTIVE'`, `users.role='ROLE_SITE_ADMIN'` 기준입니다.

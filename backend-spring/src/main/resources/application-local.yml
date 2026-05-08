@@ -14,8 +14,7 @@ app:
   jwt:
     secret: local-dev-jwt-secret-key-must-be-at-least-32-characters-long
   cors:
-    # local/demo 전용 CORS 완화 설정 — 운영(prod)에서는 반드시 엄격한 origin 목록으로 교체할 것
-    allowed-origin-patterns: "http://localhost,http://localhost:5173,https://*.ngrok-free.app,https://*.ngrok-free.dev"
+    allowed-origin-patterns: "http://localhost,http://localhost:5173"
     exposed-headers: "Authorization,X-Request-Id"
 
 logging:
