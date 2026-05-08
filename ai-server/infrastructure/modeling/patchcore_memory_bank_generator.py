@@ -392,11 +392,12 @@ class PatchCoreMemoryBankGenerator(MemoryBankGenerator):
     ) -> float:
         """정상 이미지로 generated memory bank의 threshold를 재보정한다.
 
-        공식: calibrated = max(policyThreshold, percentile(normal_scores, 99) + margin)
+        공식: calibrated = percentile(normal_scores, 99) + margin
         margin = max(0.5, std * 3)
 
         base ckpt의 MVTec 기준 threshold는 고객 이미지 score 분포와 달라질 수 있으므로
         generated memory bank 생성 직후 정상 이미지를 기반으로 재보정이 필요하다.
+        메모리뱅크마다 고유 threshold를 갖도록 policy threshold를 하한으로 고정하지 않는다.
         """
         mb_tensor = torch_module.from_numpy(memory_bank).to(device)
         model.memory_bank = mb_tensor
@@ -438,7 +439,7 @@ class PatchCoreMemoryBankGenerator(MemoryBankGenerator):
         arr_scores = np.array(scores, dtype=np.float32)
         margin = float(max(0.5, float(arr_scores.std()) * 3))
         p99 = float(np.percentile(arr_scores, 99))
-        calibrated = float(max(self._spec.image_threshold, p99 + margin))
+        calibrated = float(max(0.0, p99 + margin))
         log.info(
             "memory_bank_threshold_calibrated requestId=%s category=%s profile=%s "
             "normalSampleCount=%s mean=%.4f std=%.4f p99=%.4f margin=%.4f "

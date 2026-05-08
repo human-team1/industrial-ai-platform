@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 import math
 from io import BytesIO
+from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
 import timm
@@ -128,16 +129,30 @@ def load_patchcore_ckpt(ckpt_bytes: bytes, device: str) -> Patchcore:
     )
 
     if not _is_vit_backbone(backbone):
-        # WideResNet: standard path works fine
-        model = Patchcore.load_from_checkpoint(
-            checkpoint_path=BytesIO(ckpt_bytes),
-            map_location=device,
-            strict=False,
-        )
-        model.to(device)
-        model.eval()
-        logger.info("anomalib_ckpt_loaded_standard backbone=%s", backbone)
-        return model
+        # WideResNet: file-like object can fail on some Lightning versions.
+        # Persist to a temp file for stable checkpoint loading.
+        tmp_path = None
+        try:
+            with NamedTemporaryFile(suffix=".ckpt", delete=False) as tmp:
+                tmp.write(ckpt_bytes)
+                tmp_path = tmp.name
+            model = Patchcore.load_from_checkpoint(
+                checkpoint_path=tmp_path,
+                map_location=device,
+                strict=False,
+                weights_only=False,
+            )
+            model.to(device)
+            model.eval()
+            logger.info("anomalib_ckpt_loaded_standard backbone=%s", backbone)
+            return model
+        finally:
+            if tmp_path:
+                try:
+                    import os
+                    os.remove(tmp_path)
+                except OSError:
+                    logger.warning("anomalib_ckpt_temp_cleanup_failed path=%s", tmp_path)
 
     # ViT / DINOv2 path ----------------------------------------------------
     img_size = _infer_img_size_from_pos_embed(state_dict, backbone)
