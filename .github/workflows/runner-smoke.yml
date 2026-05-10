@@ -16,7 +16,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check runner tools
-        shell: pwsh
         run: |
           Write-Host "Runner smoke started"
           whoami
