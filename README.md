@@ -78,6 +78,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8001
 
 ## 시스템별 실행 문서
 
+- **팀원용: 로컬 개발 실행 / 배포용 로컬 Docker fullstack** — [`docs/project/테스트실행가이드.md`](docs/project/테스트실행가이드.md) · 구 경로 [`team-test-guide.md`](docs/project/team-test-guide.md) 는 동 문서로 리다이렉트
 - 인프라: [`infra/README.md`](infra/README.md)
 - Backend(Spring): [`backend-spring/README.md`](backend-spring/README.md)
 - Frontend: [`frontend/README.md`](frontend/README.md)
@@ -111,9 +112,17 @@ Nginx
   └─ /api   → Spring Boot
 ```
 
-- 외부 공개 포트는 우선 `80`만 사용합니다.
+- 로컬 개발용 Nginx는 보통 `80`을 쓰고, **배포용 `docker-compose.prod.yml` 로컬 실행**은 **`https://localhost`(443)** 기준인 경우가 많습니다. [`docs/project/테스트실행가이드.md`](docs/project/테스트실행가이드.md) 를 참고합니다.
 - FastAPI, MariaDB, Redis, MinIO, ChromaDB는 외부에 직접 공개하지 않습니다.
 - 프론트 API base URL 기본값은 `/api/v1` 상대경로입니다.
 - 자세한 실행 방법은 [`infra/README.md`](infra/README.md), 포트 정책은 [`docs/project/포트정리.md`](docs/project/포트정리.md)를 따릅니다.
+
+## 운영 fullstack Compose (Docker)
+
+- **실행 모드 (배포 초안 단일 기준 SSOT)**: `nginx`, `frontend`, `spring`, `ai-server`, `mariadb`, `redis`, `minio`, `chroma` 를 한 스택으로 기동함.
+- Compose 네트워크에서는 peer 접속에 **`localhost` 를 쓰지 않고 Compose 서비스명**만 사용함.
+- **환경 변수**: 커밋 대상 예시만 [`infra/.env.prod.example`](infra/.env.prod.example). 실 배포 파일 `infra/.env.prod` 및 비밀은 **커밋하지 않음**.
+- **설명 표·경로 검증 요약**: [`docs/project/docker-compose-prod.md`](docs/project/docker-compose-prod.md)
+- Compose 파일: [`infra/docker-compose.prod.yml`](infra/docker-compose.prod.yml)
 
 다른 문서에서는 권한 상세를 중복 설명하지 않고 위 문서를 참조합니다.

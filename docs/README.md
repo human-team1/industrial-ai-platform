@@ -5,6 +5,7 @@
 
 ## 문서 영역
 
+- 팀원 테스트 가이드(로컬 개발 / 배포용 로컬 fullstack): [`project/테스트실행가이드.md`](project/테스트실행가이드.md)
 - 프로젝트 설계/정책/API/ERD: [`project/README.md`](project/README.md)
 - 권한/역할 기준(SSOT): [`auth/README.md`](auth/README.md)
 - DB 초기화/마이그레이션/시드: [`db/README.md`](db/README.md)

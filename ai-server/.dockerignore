@@ -1,0 +1,28 @@
+# --- Python / toolchain ---
+.git
+.venv/
+venv/
+**/__pycache__/
+**/*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# 로컬 시크릿(런타임은 compose env_file 로 주입)
+.env
+.env.*
+
+# 실험·임베딩 캐시(이미지 런타임 불필요, 컨텍스트 수 GB 방지)
+experiments/
+
+# 레포 안에 생성된 오프플라인 pytest 캐시 디렉터리
+pytest-cache-files-*/
+
+# 로그·IDE
+*.log
+.idea/
+.vscode/

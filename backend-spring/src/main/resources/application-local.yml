@@ -13,9 +13,6 @@ spring:
 app:
   jwt:
     secret: local-dev-jwt-secret-key-must-be-at-least-32-characters-long
-  cors:
-    allowed-origin-patterns: "http://localhost,http://localhost:5173"
-    exposed-headers: "Authorization,X-Request-Id"
 
 logging:
   level:
