@@ -5,7 +5,7 @@ on:
 
 jobs:
   smoke:
-    runs-on: [self-hosted, Windows]
+    runs-on: self-hosted
 
     defaults:
       run:
