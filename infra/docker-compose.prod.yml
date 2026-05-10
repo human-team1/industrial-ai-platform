@@ -1,0 +1,243 @@
+# 운영 fullstack Compose 초안 — 외부 공개 포트는 nginx HTTPS(443) 단일 진입점.
+# 실행: infra 디렉터리에서
+#   Copy-Item .env.prod.example .env.prod  후 값 채우기 →
+#   TLS: nginx/ssl 에 fullchain.pem, privkey.pem 배치 후
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+name: industrial-ai-platform-prod
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: industrial-nginx:${IMAGE_TAG:-local}
+    container_name: industrial-nginx-prod
+    ports:
+      # Let's Encrypt HTTP-01 / 순수 HTTP→HTTPS 리다이렉트가 필요할 때만 주석 해제
+      # - "${NGINX_PUBLISH_HTTP_PORT:-80}:80"
+      - "${NGINX_PUBLISH_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d/default.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      spring:
+        condition: service_started
+    networks:
+      - industrial-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_APP_NAME: ${VITE_APP_NAME:-Industrial AI Platform}
+    image: industrial-frontend:${IMAGE_TAG:-local}
+    container_name: industrial-frontend-prod
+    expose:
+      - "80"
+    networks:
+      - industrial-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  spring:
+    build:
+      context: ../backend-spring
+      dockerfile: Dockerfile
+    image: industrial-spring:${IMAGE_TAG:-local}
+    container_name: industrial-spring-prod
+    env_file:
+      - .env.prod
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      APP_ENV: ${APP_ENV:-prod}
+      APP_NAME: ${SPRING_APP_NAME:-factory-guard-api}
+      APP_PORT: "${SPRING_APP_PORT:-8080}"
+    expose:
+      - "8080"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      ai-server:
+        condition: service_started
+    networks:
+      - industrial-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/api/v1/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  ai-server:
+    build:
+      context: ../ai-server
+      dockerfile: Dockerfile
+    image: industrial-ai-server:${IMAGE_TAG:-local}
+    container_name: industrial-ai-server-prod
+    env_file:
+      - .env.prod
+    environment:
+      APP_ENV: ${APP_ENV:-prod}
+      APP_NAME: ${AI_SERVICE_APP_NAME:-industrial-ai-server}
+      APP_PORT: "${FASTAPI_APP_PORT:-8001}"
+      AI_SERVER_HOST: "${AI_SERVER_LISTEN_HOST:-0.0.0.0}"
+      AI_SERVER_PORT: "${FASTAPI_APP_PORT:-8001}"
+    expose:
+      - "8001"
+    depends_on:
+      mariadb:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+    networks:
+      - industrial-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -fsS http://127.0.0.1:8001/ai/v1/health >/dev/null || exit 1",
+        ]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 180s
+
+  mariadb:
+    image: mariadb:10.6.21
+    platform: linux/amd64
+    container_name: industrial-mariadb-prod
+    command:
+      - --port=3307
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?set in .env.prod}
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-industrial_ai}
+      MARIADB_USER: ${MARIADB_USER:-industrial_user}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:?set in .env.prod}
+      TZ: Asia/Seoul
+    volumes:
+      - mariadb_data_prod:/var/lib/mysql
+      - ./mariadb/init:/docker-entrypoint-initdb.d:ro
+    expose:
+      - "3307"
+    healthcheck:
+      # 공식 이미지는 MYSQL_ROOT_PASSWORD 로 루트 비번 설정 — CLI 인자 노출 최소화
+      test:
+        [
+          "CMD-SHELL",
+          "mariadb-admin ping -h 127.0.0.1 -P 3307 -uroot -p\"$$MARIADB_ROOT_PASSWORD\" || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 40s
+    networks:
+      - industrial-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    platform: linux/amd64
+    container_name: industrial-redis-prod
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data_prod:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - industrial-network
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    platform: linux/amd64
+    container_name: industrial-minio-prod
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set in .env.prod}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set in .env.prod}
+      TZ: Asia/Seoul
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data_prod:/data
+    expose:
+      - "9000"
+      - "9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - industrial-network
+    restart: unless-stopped
+
+  chroma:
+    image: chromadb/chroma:0.5.15
+    platform: linux/amd64
+    container_name: industrial-chroma-prod
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma/chroma
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - chroma_data_prod:/chroma/chroma
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/heartbeat')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      - industrial-network
+    restart: unless-stopped
+
+volumes:
+  mariadb_data_prod:
+  redis_data_prod:
+  minio_data_prod:
+  chroma_data_prod:
+
+networks:
+  industrial-network:
+    name: industrial-network-prod

@@ -1,0 +1,122 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    platform: linux/amd64
+    container_name: industrial-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      # 전체 conf.d 디렉터리를 마운트하면 default.prod.conf 와 함께 로드되어 upstream 이 중복된다.
+      - ./nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - mariadb
+      - redis
+      - minio
+      - chroma
+    networks:
+      - industrial-network
+
+  mariadb:
+    image: mariadb:10.6.21
+    platform: linux/amd64
+    container_name: industrial-mariadb
+    restart: unless-stopped
+    command:
+      - --port=3307
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+      TZ: Asia/Seoul
+    ports:
+      - "3307:3307"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./mariadb/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - industrial-network
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-P", "3307", "-uroot", "-p${MARIADB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    platform: linux/amd64
+    container_name: industrial-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - industrial-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    platform: linux/amd64
+    container_name: industrial-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      TZ: Asia/Seoul
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - industrial-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chroma:
+    image: chromadb/chroma:0.5.15
+    platform: linux/amd64
+    container_name: industrial-chroma
+    restart: unless-stopped
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma/chroma
+      ANONYMIZED_TELEMETRY: "FALSE"
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    networks:
+      industrial-network:
+        aliases:
+          - chromadb
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/heartbeat')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mariadb_data:
+  redis_data:
+  minio_data:
+  chroma_data:
+
+networks:
+  industrial-network:
+    name: industrial-network

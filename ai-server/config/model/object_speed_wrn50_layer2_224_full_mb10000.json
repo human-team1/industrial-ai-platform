@@ -1,0 +1,50 @@
+{
+  "dataset": "MVTec AD",
+  "seed": 42,
+  "batchSize": 4,
+  "numWorkers": 2,
+  "task": "segmentation",
+  "thresholdPolicy": "anomalib_default_not_manually_tuned",
+  "manualThresholdTuning": false,
+  "artifactPolicy": {
+    "CONFIG": "fixed by modelCategory + modelProfile",
+    "CKPT": "created from normal images",
+    "MEMORY_BANK": "stored inside ckpt or optionally saved separately"
+  },
+  "configFileName": "object_speed_wrn50_layer2_224_full_mb10000.json",
+  "packageFolderName": "object_speed_wrn50_layer2_224_full_mb10000_bottle",
+  "modelCategory": "Object",
+  "modelProfile": "speed",
+  "exampleCategory": "bottle",
+  "modelPipeline": "WideResNet50 + PatchCore",
+  "model": "PatchCore",
+  "backbone": "wide_resnet50_2",
+  "layers": [
+    "layer2"
+  ],
+  "imageSize": [
+    224,
+    224
+  ],
+  "shot": "full-shot",
+  "targetMemoryBankSize": 10000,
+  "imageThreshold": 36.8688,
+  "pixelThreshold": 28.4368,
+  "normalize": "imagenet",
+  "normalSamplePolicy": "full-shot",
+  "createdAt": "2026-05-04T06:00:57.045463",
+  "serviceUsage": {
+    "springSelectBy": [
+      "modelCategory",
+      "modelProfile"
+    ],
+    "artifacts": [
+      "CONFIG",
+      "CKPT"
+    ],
+    "optionalArtifacts": [
+      "MEMORY_BANK"
+    ]
+  },
+  "note": "This config is fixed by modelCategory + modelProfile. The actual ckpt should be generated per company/product/category from uploaded normal images."
+}

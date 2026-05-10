@@ -1,0 +1,52 @@
+{
+  "dataset": "MVTec AD",
+  "seed": 42,
+  "batchSize": 4,
+  "numWorkers": 2,
+  "task": "segmentation",
+  "thresholdPolicy": "anomalib_default_not_manually_tuned",
+  "manualThresholdTuning": false,
+  "artifactPolicy": {
+    "CONFIG": "fixed by modelCategory + modelProfile",
+    "CKPT": "created from normal images",
+    "MEMORY_BANK": "stored inside ckpt or optionally saved separately"
+  },
+  "configFileName": "texture_perf_dinov2_base_3layers_448_50shot_mb2000.json",
+  "packageFolderName": "texture_perf_dinov2_base_3layers_448_50shot_mb2000_tile",
+  "modelCategory": "Texture",
+  "modelProfile": "performance",
+  "exampleCategory": "tile",
+  "modelPipeline": "DINOv2-base + PatchCore",
+  "model": "PatchCore",
+  "backbone": "vit_base_patch14_dinov2",
+  "layers": [
+    "blocks.3",
+    "blocks.7",
+    "blocks.11"
+  ],
+  "imageSize": [
+    448,
+    448
+  ],
+  "shot": 50,
+  "targetMemoryBankSize": 2000,
+  "imageThreshold": 22.2103,
+  "pixelThreshold": 25.827,
+  "normalize": "imagenet",
+  "normalSamplePolicy": "50-shot",
+  "createdAt": "2026-05-04T07:18:48.398695",
+  "serviceUsage": {
+    "springSelectBy": [
+      "modelCategory",
+      "modelProfile"
+    ],
+    "artifacts": [
+      "CONFIG",
+      "CKPT"
+    ],
+    "optionalArtifacts": [
+      "MEMORY_BANK"
+    ]
+  },
+  "note": "This config is fixed by modelCategory + modelProfile. The actual ckpt should be generated per company/product/category from uploaded normal images."
+}

@@ -1,0 +1,99 @@
+package com.example.factoryguard.common.validation;
+
+import com.example.factoryguard.common.exception.BusinessException;
+import com.example.factoryguard.common.exception.ErrorCode;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+@Component
+@RequiredArgsConstructor
+public class FileValidator {
+
+    private static final int MAX_FILENAME_LENGTH = 255;
+    private static final Pattern FILENAME_WHITELIST = Pattern.compile("^[A-Za-z0-9._\\-()\\uAC00-\\uD7A3]+$");
+    private static final Set<String> WINDOWS_RESERVED_NAMES = Set.of(
+            "con", "prn", "aux", "nul",
+            "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
+            "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9"
+    );
+
+    private final FileValidationProperties properties;
+
+    public void validate(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_EMPTY);
+        }
+        if (file.getSize() > properties.getMaxSize().toBytes()) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_SIZE);
+        }
+        String mime = file.getContentType();
+        if (mime == null || !properties.getAllowedMimeTypes().contains(mime.toLowerCase(Locale.ROOT))) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_MIME);
+        }
+        String original = file.getOriginalFilename();
+        validateFilename(original);
+        String ext = extractExtension(original);
+        if (ext == null || !properties.getAllowedExtensions().contains(ext)) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_EXTENSION);
+        }
+    }
+
+    private void validateFilename(String original) {
+        if (original == null || original.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_NAME);
+        }
+        if (original.length() > MAX_FILENAME_LENGTH) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_NAME);
+        }
+        if (containsForbiddenWhitespaceOrControl(original)) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_NAME);
+        }
+        if (original.contains("..") || original.contains("/") || original.contains("\\")) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_NAME);
+        }
+        if (original.length() >= 2 && original.charAt(1) == ':') {
+            throw new BusinessException(ErrorCode.INVALID_FILE_NAME);
+        }
+        if (!FILENAME_WHITELIST.matcher(original).matches()) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_NAME);
+        }
+        String stem = stripExtension(original).toLowerCase(Locale.ROOT);
+        if (WINDOWS_RESERVED_NAMES.contains(stem)) {
+            throw new BusinessException(ErrorCode.INVALID_FILE_NAME);
+        }
+    }
+
+    private boolean containsForbiddenWhitespaceOrControl(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+                return true;
+            }
+            if (c < 0x20 || c == 0x7F) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String stripExtension(String filename) {
+        int dot = filename.lastIndexOf('.');
+        if (dot <= 0) {
+            return filename;
+        }
+        return filename.substring(0, dot);
+    }
+
+    private String extractExtension(String filename) {
+        int dot = filename.lastIndexOf('.');
+        if (dot < 0 || dot == filename.length() - 1) {
+            return null;
+        }
+        return filename.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+}

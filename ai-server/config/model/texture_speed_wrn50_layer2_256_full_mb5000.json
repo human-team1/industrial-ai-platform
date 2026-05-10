@@ -1,0 +1,50 @@
+{
+  "dataset": "MVTec AD",
+  "seed": 42,
+  "batchSize": 4,
+  "numWorkers": 2,
+  "task": "segmentation",
+  "thresholdPolicy": "anomalib_default_not_manually_tuned",
+  "manualThresholdTuning": false,
+  "artifactPolicy": {
+    "CONFIG": "fixed by modelCategory + modelProfile",
+    "CKPT": "created from normal images",
+    "MEMORY_BANK": "stored inside ckpt or optionally saved separately"
+  },
+  "configFileName": "texture_speed_wrn50_layer2_256_full_mb5000.json",
+  "packageFolderName": "texture_speed_wrn50_layer2_256_full_mb5000_tile",
+  "modelCategory": "Texture",
+  "modelProfile": "speed",
+  "exampleCategory": "tile",
+  "modelPipeline": "WideResNet50 + PatchCore",
+  "model": "PatchCore",
+  "backbone": "wide_resnet50_2",
+  "layers": [
+    "layer2"
+  ],
+  "imageSize": [
+    256,
+    256
+  ],
+  "shot": "full-shot",
+  "targetMemoryBankSize": 5000,
+  "imageThreshold": 40.0642,
+  "pixelThreshold": 36.5779,
+  "normalize": "imagenet",
+  "normalSamplePolicy": "full-shot",
+  "createdAt": "2026-05-04T06:29:28.790203",
+  "serviceUsage": {
+    "springSelectBy": [
+      "modelCategory",
+      "modelProfile"
+    ],
+    "artifacts": [
+      "CONFIG",
+      "CKPT"
+    ],
+    "optionalArtifacts": [
+      "MEMORY_BANK"
+    ]
+  },
+  "note": "This config is fixed by modelCategory + modelProfile. The actual ckpt should be generated per company/product/category from uploaded normal images."
+}
