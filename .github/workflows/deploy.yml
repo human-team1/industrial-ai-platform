@@ -19,18 +19,24 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          $envFile = "C:\project\industrial-ai-platform\infra\.env.prod"
+          $sourceEnvFile = "C:\project\industrial-ai-platform\infra\.env.prod"
+          $workspaceEnvFile = "infra\.env.prod"
 
-          if (!(Test-Path $envFile)) {
-            throw ".env file not found: $envFile"
+          if (!(Test-Path $sourceEnvFile)) {
+            throw ".env file not found: $sourceEnvFile"
           }
 
-          Copy-Item $envFile ".env" -Force
-          Write-Host ".env copied to GitHub Actions workspace"
+          if (!(Test-Path "infra")) {
+            New-Item -ItemType Directory -Path "infra" | Out-Null
+          }
+
+          Copy-Item $sourceEnvFile $workspaceEnvFile -Force
+          Write-Host ".env.prod copied to workspace infra directory"
 
       - name: Deploy with Docker Compose
         run: |
           $ErrorActionPreference = "Stop"
 
-          docker compose -f infra/docker-compose.prod.yml --env-file .env up -d --build
-          docker compose -f infra/docker-compose.prod.yml ps
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.prod config
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.prod up -d --build
+          docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.prod ps
