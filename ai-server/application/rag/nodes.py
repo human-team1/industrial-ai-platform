@@ -582,7 +582,7 @@ def build_answer_prompt(
         question=question,
         question_mode=current.question_mode.value if hasattr(current.question_mode, "value") else str(current.question_mode),
         result_context=current.result_context,
-        sources=current.sources,
+        sources=current.sources[:3],
     )
 
     if current.question_mode == QuestionMode.RESULT_LINKED:
