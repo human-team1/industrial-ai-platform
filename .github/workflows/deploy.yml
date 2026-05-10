@@ -19,7 +19,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          $envFile = "C:\project\industrial-ai-platform\.env"
+          $envFile = "C:\project\industrial-ai-platform\infra\.env.prod"
 
           if (!(Test-Path $envFile)) {
             throw ".env file not found: $envFile"
