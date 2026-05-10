@@ -71,7 +71,7 @@ public class AiServerProperties {
 
     public static class DocumentIndex {
         private int defaultChunkSize = 800;
-        private int defaultChunkOverlap = 120;
+        private int defaultChunkOverlap = 100;
         private String defaultEmbeddingModel = "default";
         private boolean pollingEnabled = true;
         private long pollIntervalMs = 10000L;
