@@ -2,6 +2,15 @@
 
 로컬 개발용 인프라 실행과 DB 초기화 절차를 정리한 문서입니다.
 
+## 실행 모드가 헷갈릴 때 (2가지)
+
+| 모드 | 요약 |
+|------|------|
+| **로컬 개발 실행** | ① `infra/docker-compose.yml` + `infra/.env` 로 DB·Redis·MinIO·Chroma → ② 호스트에서 Spring / FastAPI / Frontend. 자세한 표·체크리스트는 [`docs/project/테스트실행가이드.md`](../docs/project/테스트실행가이드.md) |
+| **배포용 로컬 Docker fullstack** | `docker-compose.prod.yml` + `.env.prod` → `https://localhost` (동일 문서 참고) |
+
+MinIO 필수 버킷(검사 업로드 등): `infra/scripts/init-minio-buckets.ps1` 또는 `init-minio-buckets.sh`.
+
 ## 구성 서비스
 
 - MariaDB: `localhost:3307`
@@ -19,6 +28,26 @@ Copy-Item .env.example .env
 ```
 
 실제 비밀번호는 `.env`에만 작성하고 커밋하지 않습니다.
+
+## 운영 fullstack Compose (Docker)
+
+로컬은 아래 「신규 클론 기준 …」처럼 `docker compose`만 써도 되고, **배포/운영(SSOT 초안)** 은 다음을 따릅니다.
+
+- **Compose 파일**: `docker-compose.prod.yml` (`nginx`, `frontend`, `spring`, `ai-server`, `mariadb`, `redis`, `minio`, `chroma`)
+- **외부 공개 포트**: 로컬 풀스택은 기본 **`HTTPS 443`** (`NGINX_PUBLISH_HTTPS_PORT`). HTTP·ACME 등은 compose 주석 및 `NGINX_PUBLISH_HTTP_PORT` 로 선택.
+- **내부 통신**: `localhost` 대신 **Compose 서비스명**(`spring`, `ai-server`, `mariadb` 등).
+- **환경 변수 예시**(비밀 없음): `.env.prod.example` → 배포 서버에서는 `.env.prod` 로 복사 후 채움. **`.env.prod`는 Git에 넣지 않음.**
+- **라우팅·매트릭스·볼륨 초기화 주의**: [`docs/project/docker-compose-prod.md`](../docs/project/docker-compose-prod.md)
+
+실행 예:
+
+```powershell
+cd infra
+Copy-Item .env.prod.example .env.prod
+# .env.prod 수정 후
+
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
 
 ## 신규 클론 기준 DB 초기화 순서
 

@@ -1,3 +1,4 @@
+-- Baseline SQL (레거시 참고용). Docker 자동 초기화는 동일 내용의 `01-schema.sql`(IF NOT EXISTS)·`02-seed.sql`을 사용합니다.
   CREATE DATABASE IF NOT EXISTS industrial_ai
     DEFAULT CHARACTER SET utf8mb4
     COLLATE utf8mb4_unicode_ci;
@@ -96,10 +97,10 @@
   CREATE TABLE user_threshold (
     threshold_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
-    anomaly_threshold DECIMAL(8,4),
+    anomaly_threshold DECIMAL(8,4) NOT NULL,
     low_confidence_threshold DOUBLE,
-    min_allowed DECIMAL(8,4),
-    max_allowed DECIMAL(8,4),
+    min_allowed DECIMAL(8,4) NOT NULL,
+    max_allowed DECIMAL(8,4) NOT NULL,
     apply_scope VARCHAR(50),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -111,8 +112,8 @@
     threshold_history_id BIGINT PRIMARY KEY AUTO_INCREMENT,
     threshold_id BIGINT NOT NULL,
     version INT,
-    old_anomaly_threshold DECIMAL(8,4),
-    new_anomaly_threshold DECIMAL(8,4),
+    old_anomaly_threshold DECIMAL(8,4) NOT NULL,
+    new_anomaly_threshold DECIMAL(8,4) NOT NULL,
     change_reason TEXT,
     changed_by BIGINT,
     changed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -233,7 +234,7 @@
     source_type VARCHAR(20),
     source_id VARCHAR(255),
     run_status VARCHAR(20) NOT NULL DEFAULT 'REQUESTED',
-    applied_threshold DECIMAL(8,4),
+    applied_threshold DECIMAL(8,4) NOT NULL,
     idempotency_key VARCHAR(255) NOT NULL,
     payload_fingerprint VARCHAR(64),
     error_code VARCHAR(50),
