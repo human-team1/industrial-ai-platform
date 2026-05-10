@@ -88,6 +88,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8001
 
 문서의 기준 경로와 역할은 [`docs/README.md`](docs/README.md)에서 먼저 확인합니다.
 
+- 인프라·실행 모드 작업 요약·학습용: [`작업정리-인프라-실행모드.md`](작업정리-인프라-실행모드.md)
 - 프로젝트 정책/요구/설계: `docs/project/`
 - 권한/역할 기준(SSOT): `docs/auth/api-authority-matrix.md`
 - DB 초기화/마이그레이션/시드: `docs/db/`
