@@ -1,0 +1,23 @@
+name: Runner Smoke
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: [self-hosted, Windows, X64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check runner tools
+        shell: pwsh
+        run: |
+          Write-Host "Runner smoke started"
+          whoami
+          Get-Location
+          git --version
+          docker version
+          docker compose version
+          Write-Host "Runner smoke completed"
