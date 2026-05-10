@@ -3,11 +3,6 @@ spring:
     activate:
       on-profile: dev
 
-app:
-  cors:
-    allowed-origin-patterns: "http://localhost,http://localhost:5173"
-    exposed-headers: "Authorization,X-Request-Id"
-
 logging:
   level:
     com.example.factoryguard: INFO
