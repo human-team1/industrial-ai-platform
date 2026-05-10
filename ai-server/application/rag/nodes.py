@@ -202,35 +202,6 @@ def build_need_clarification_response(state: GraphState | dict[str, Any]) -> dic
     }
 
 
-#  실제 result_context 대신 결과 연계 경로 placeholder만 반환한다.
-def build_result_linked_placeholder(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = to_state(state)
-
-    return {
-        "answer": "graph skeleton: 결과 연계 질문 경로로 라우팅되었습니다. 후에 result_context를 주입하고, 실제 답변을 생성합니다.",
-        "answer_type": AnswerType.RESULT_LINKED,
-        "need_result_context": True,
-        "need_retrieval": True,
-        "need_llm": False,
-        "llm_called": False,
-        "route_path": append_route(current, "build_result_linked_placeholder"),
-    }
-
-
-# 실제 검색 대신 문서 검색 경로 placeholder만 반환한다.
-def build_document_search_placeholder(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = to_state(state)
-
-    return {
-        "answer": "graph skeleton: 문서 검색 질문 경로로 라우팅되었습니다. MockRetriever를 연결하고, 실제 답변을 생성합니다.",
-        "answer_type": AnswerType.DOCUMENT_SEARCH,
-        "need_retrieval": True,
-        "need_llm": False,
-        "llm_called": False,
-        "route_path": append_route(current, "build_document_search_placeholder"),
-    }
-
-
 # 서비스 범위 안의 일반 안내 질문에 대한 고정 응답이다.
 def build_general_response(state: GraphState | dict[str, Any]) -> dict[str, Any]:
     current = to_state(state)
@@ -629,21 +600,6 @@ def build_answer_prompt(
         "need_llm": True,
         "llm_called": False,
         "route_path": route_path,
-    }
-
-
-def build_prompt_ready_response(state: GraphState | dict[str, Any]) -> dict[str, Any]:
-    current = to_state(state)
-
-    # 아직 LLM은 호출하지 않고, prompt 생성 완료 상태만 확인한다.
-    return {
-        "answer": (
-            "prompt_builder: 프롬프트 생성이 완료되었습니다. "
-            "LLM client를 연결해 실제 답변을 생성합니다."
-        ),
-        "need_llm": True,
-        "llm_called": False,
-        "route_path": append_route(current, "build_prompt_ready_response"),
     }
 
 
