@@ -82,7 +82,7 @@ class DocumentChunkingOptions:
 
 @dataclass(frozen=True, slots=True)
 class DocumentEmbeddingOptions:
-    embedding_model: str = "default"
+    embedding_model: str = "BAAI/bge-m3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +110,7 @@ class DocumentIndexJobResult:
     organization_id: int
     indexing_status: DocumentIndexJobStatus
     collection_name: str
+    embedding_model: str | None = None
     indexed_chunk_count: int = 0
     chunks: list[IndexedChunk] = field(default_factory=list)
     error_message: str | None = None

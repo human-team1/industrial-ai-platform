@@ -274,7 +274,8 @@ class Settings(BaseSettings):
 
     gemini_api_key: str | None = None
 
-    rag_embedding_model_name: str = "deterministic-hash-embedding"
+    # rag_embedding_model_name: str = "deterministic-hash-embedding"
+    rag_embedding_model_name: str = "BAAI/bge-m3"
     
 
 @lru_cache
