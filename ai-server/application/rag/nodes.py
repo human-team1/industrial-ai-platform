@@ -34,6 +34,24 @@ def validate_input(state: GraphState | dict[str, Any]) -> dict[str, Any]:
 
     question = current.question or ""
     normalized = normalize_question(question)
+    organization_id = normalize_organization_id_for_retrieval(current.organization_id)
+
+    if organization_id is None:
+        safety_flags = list(current.safety_flags)
+        if SafetyFlag.VALIDATION_ERROR not in safety_flags:
+            safety_flags.append(SafetyFlag.VALIDATION_ERROR)
+
+        return {
+            "normalized_question": normalized,
+            "answer": "조직 정보가 누락되어 문서 검색을 진행할 수 없습니다. 다시 로그인한 뒤 시도해주세요.",
+            "answer_type": AnswerType.VALIDATION_ERROR,
+            "need_clarification": True,
+            "need_llm": False,
+            "llm_called": False,
+            "route_path": route_path,
+            "errors": [*current.errors, "organization_id_missing"],
+            "safety_flags": safety_flags,
+        }
 
     if len(normalized) < 2:
         return {
@@ -488,10 +506,7 @@ def retrieve_documents(
     )
 
     filters = {
-        "organization_id": normalize_organization_id_for_retrieval(
-            current.organization_id,
-            runtime.rag_default_organization_id,
-        ),
+        "organization_id": normalize_organization_id_for_retrieval(current.organization_id),
         "document_status": runtime.rag_default_document_status,
     }
 

@@ -17,17 +17,24 @@ def append_route(state: GraphState, node_name: str) -> list[str]:
 
 def normalize_organization_id_for_retrieval(
     value: Any,
-    default_organization_id: str,
-) -> str:
+) -> str | None:
     if value is None:
-        normalized_default = str(default_organization_id).strip()
-        if normalized_default.lower().startswith("org-"):
-            suffix = normalized_default[4:]
-            if suffix.isdigit():
-                return suffix
-        return normalized_default
+        return None
 
-    return str(value).strip()
+    normalized = str(value).strip()
+    if not normalized:
+        return None
+
+    if normalized.lower().startswith("org-"):
+        suffix = normalized[4:]
+        if suffix.isdigit() and int(suffix) > 0:
+            return suffix
+        return None
+
+    if normalized.isdigit() and int(normalized) > 0:
+        return normalized
+
+    return None
 
 
 def source_to_source_chunk(source: Any) -> SourceChunk:

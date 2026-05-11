@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class SourceChunkMetadata(BaseModel):
-    organization_id: str = Field(default="org-001")
+    organization_id: str = Field(min_length=1)
     document_status: str = Field(default="PUBLISHED")
     document_version_policy: str = Field(default="latest_only")
 

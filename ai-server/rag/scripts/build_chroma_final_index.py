@@ -99,9 +99,7 @@ def build_metadata(
     settings: Settings,
     vector_ref: str,
 ) -> dict[str, str | int | float | bool]:
-    organization_id = normalize_organization_id(
-        chunk.get("organization_id") or settings.rag_default_organization_id
-    )
+    organization_id = normalize_organization_id(chunk.get("organization_id"))
 
     metadata: dict[str, Any] = {
         "retrieval_config_id": settings.retrieval_config_id,
@@ -137,9 +135,28 @@ def build_metadata(
 
 
 def normalize_organization_id(value: Any) -> str:
-    if str(value) in {"1", "1.0"}:
-        return "org-001"
-    return str(value)
+    if value is None:
+        raise ValueError("organization_id is required for chunk metadata")
+
+    normalized = str(value).strip()
+    if not normalized:
+        raise ValueError("organization_id is required for chunk metadata")
+
+    if normalized.lower().startswith("org-"):
+        suffix = normalized[4:]
+        if suffix.isdigit() and int(suffix) > 0:
+            return suffix
+        raise ValueError(f"invalid organization_id: {value}")
+
+    if normalized.isdigit() and int(normalized) > 0:
+        return normalized
+
+    if normalized.endswith(".0"):
+        integer_part = normalized[:-2]
+        if integer_part.isdigit() and int(integer_part) > 0:
+            return integer_part
+
+    raise ValueError(f"invalid organization_id: {value}")
 
 
 def sanitize_metadata(values: dict[str, Any]) -> dict[str, str | int | float | bool]:

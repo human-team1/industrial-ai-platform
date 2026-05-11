@@ -19,7 +19,6 @@ class RagRuntime:
     retrieval_config_id: str | None
     rag_top_k: int
     rag_default_document_status: str
-    rag_default_organization_id: str
     prompt_version: str
     llm_provider: str
     llm_model_name: str
