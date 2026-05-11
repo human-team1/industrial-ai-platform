@@ -1,7 +1,7 @@
 # 운영 fullstack Compose 초안 — 외부 공개 포트는 nginx HTTPS(443) 단일 진입점.
 # 실행: infra 디렉터리에서
 #   Copy-Item .env.prod.example .env.prod  후 값 채우기 →
-#   TLS: nginx/ssl 에 fullchain.pem, privkey.pem 배치 후
+#   TLS: .env.prod 의 NGINX_SSL_DIR(호스트 절대 경로)에 fullchain.pem, privkey.pem 배치
 #   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 
 name: industrial-ai-platform-prod
@@ -20,7 +20,10 @@ services:
     volumes:
       - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d/default.prod.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - type: bind
+        source: ${NGINX_SSL_DIR:?set NGINX_SSL_DIR in .env.prod to host TLS directory}
+        target: /etc/nginx/ssl
+        read_only: true
     depends_on:
       frontend:
         condition: service_started

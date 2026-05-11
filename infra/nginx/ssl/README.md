@@ -1,6 +1,6 @@
-# Nginx TLS 인증서 디렉터리 (운영)
+# Nginx TLS 인증서 (운영)
 
-`docker-compose.prod.yml` 에서 `./nginx/ssl` → 컨테이너 `/etc/nginx/ssl` 로 **읽기 전용** 마운트합니다.
+`docker-compose.prod.yml` 은 `.env.prod` 의 **`NGINX_SSL_DIR`**(호스트 디렉터리)를 컨테이너 `/etc/nginx/ssl` 로 **read-only bind** 합니다. Self-hosted 예: `C:/industrial-ai-runtime/nginx/ssl`. 로컬만 쓸 때는 `NGINX_SSL_DIR=./nginx/ssl` 로 이 폴더를 가리키면 됩니다.
 
 nginx 가 기대하는 파일 이름:
 
