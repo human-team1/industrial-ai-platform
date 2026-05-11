@@ -185,7 +185,7 @@ function TrendComboChart({ trend }: { trend: DashboardTrendPoint[] }) {
   const barW = (plotW / rows.length) * 0.367
 
   const linePoints = rows.map((r, i) => ({ x: xAt(i), y: yRate(r.rate) }))
-  const linePath = smoothPath(linePoints)
+  const linePath = monotonePath(linePoints)
 
   return (
     <section className="flex h-full flex-col rounded border border-slate-200 bg-white p-[15px] shadow-sm">
@@ -256,20 +256,49 @@ function TrendComboChart({ trend }: { trend: DashboardTrendPoint[] }) {
   )
 }
 
-function smoothPath(pts: { x: number; y: number }[]) {
+function monotonePath(pts: { x: number; y: number }[]) {
   if (pts.length === 0) return ''
   if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`
+  if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`
+
+  const n = pts.length
+  const dx: number[] = []
+  const delta: number[] = []
+  for (let i = 0; i < n - 1; i++) {
+    dx.push(pts[i + 1].x - pts[i].x)
+    delta.push((pts[i + 1].y - pts[i].y) / dx[i])
+  }
+
+  const m: number[] = new Array(n)
+  m[0] = delta[0]
+  m[n - 1] = delta[n - 2]
+  for (let i = 1; i < n - 1; i++) {
+    m[i] = delta[i - 1] * delta[i] <= 0 ? 0 : (delta[i - 1] + delta[i]) / 2
+  }
+
+  for (let i = 0; i < n - 1; i++) {
+    if (delta[i] === 0) {
+      m[i] = 0
+      m[i + 1] = 0
+      continue
+    }
+    const a = m[i] / delta[i]
+    const b = m[i + 1] / delta[i]
+    const h = a * a + b * b
+    if (h > 9) {
+      const t = 3 / Math.sqrt(h)
+      m[i] = t * a * delta[i]
+      m[i + 1] = t * b * delta[i]
+    }
+  }
+
   let d = `M ${pts[0].x} ${pts[0].y}`
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i]
-    const p1 = pts[i]
-    const p2 = pts[i + 1]
-    const p3 = pts[i + 2] ?? p2
-    const cp1x = p1.x + (p2.x - p0.x) / 6
-    const cp1y = p1.y + (p2.y - p0.y) / 6
-    const cp2x = p2.x - (p3.x - p1.x) / 6
-    const cp2y = p2.y - (p3.y - p1.y) / 6
-    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`
+  for (let i = 0; i < n - 1; i++) {
+    const cp1x = pts[i].x + dx[i] / 3
+    const cp1y = pts[i].y + (m[i] * dx[i]) / 3
+    const cp2x = pts[i + 1].x - dx[i] / 3
+    const cp2y = pts[i + 1].y - (m[i + 1] * dx[i]) / 3
+    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${pts[i + 1].x} ${pts[i + 1].y}`
   }
   return d
 }
