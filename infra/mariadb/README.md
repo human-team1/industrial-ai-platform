@@ -65,6 +65,14 @@ cd infra
 .\scripts\db-reset.ps1 -Force
 ```
 
+운영 compose를 대상으로 실행할 때는 `-ComposeFile`, `-EnvFile` 인자를 사용합니다.
+
+```powershell
+cd infra
+.\scripts\db-migrate.ps1 -ComposeFile docker-compose.prod.yml -EnvFile .env.prod
+.\scripts\db-status.ps1 -ComposeFile docker-compose.prod.yml -EnvFile .env.prod
+```
+
 Bash:
 
 ```bash

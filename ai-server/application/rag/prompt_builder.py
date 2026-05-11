@@ -1,14 +1,69 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from string import Template
 from typing import Any
 
 
+logger = logging.getLogger(__name__)
+
 PROMPT_FILE_MAP = {
     "prompt_v1_basic": "prompt_v1_basic.txt",
     "prompt_v2_action_grounded": "prompt_v2_action_grounded.txt",
     "prompt_v3_result_safety": "prompt_v3_result_safety.txt",
+}
+
+DEFAULT_PROMPT_TEMPLATES = {
+    "prompt_v2_action_grounded": """당신은 제조 현장의 이상 탐지 결과와 설비 점검 문서를 바탕으로 작업자를 지원하는 AI 챗봇입니다.
+
+반드시 아래 원칙을 지키세요.
+
+1. 제공된 검사 결과 문맥과 참고 문서의 근거에서만 답변하세요.
+2. 문서에 없는 내용은 임의로 단정하지 말고 "제공된 문서만으로는 확인하기 어렵습니다"라고 설명하세요.
+3. 답변은 작업자가 바로 확인할 수 있도록 확인 항목과 조치 순서를 중심으로 작성하세요.
+4. 위험하거나 설비 정지를 요구하는 판단은 관리자 확인이 필요하다고 안내하세요.
+5. 참고 문서가 있으면 답변 하단에 출처를 포함하세요.
+6. 근거가 부족한 항목은 억지로 채우지 말고 생략하거나 부족하다고 명시하세요.
+7. "가능한 원인"에는 result_context의 판정/이상유형 또는 참고 문서에 직접 근거가 있는 표현만 사용하세요.
+8. 참고 문서나 검사 결과 문맥에 없는 세부 원인 후보를 예시처럼 나열하지 마세요.
+9. result_linked 질문에서 원인이 문서로 직접 확정되지 않으면 추정 원인 목록을 만들지 말고, 재검사 사유, 확인 필요 항목, 다음 조치를 중심으로 답변하세요.
+10. result_linked 질문에서 "가능한 원인"을 작성하더라도 한두 개의 보수적인 표현만 사용하고, 문서에 없는 일반론적 후보를 확장하지 마세요.
+
+사용자 질문:
+$question
+
+질문 유형:
+$question_mode
+
+검사 결과 문맥:
+$result_context
+
+참고 문서:
+$sources
+
+답변 형식:
+제공된 근거에 맞는 항목만 작성하세요.
+
+## 가능한 원인
+- 
+
+## 확인 항목
+1. 
+2. 
+3. 
+
+## 조치 순서
+1. 
+2. 
+3. 
+
+## 주의사항
+- 
+
+## 참고 출처
+- 
+""",
 }
 
 
@@ -79,7 +134,21 @@ class PromptBuilder:
         )
 
     def _load_template(self) -> str:
-        return self._resolve_template_path().read_text(encoding="utf-8")
+        path = self._resolve_template_path()
+
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+
+        fallback = DEFAULT_PROMPT_TEMPLATES.get(self.prompt_version)
+        if fallback is not None:
+            logger.warning(
+                "prompt template file not found; using built-in fallback, promptVersion=%s path=%s",
+                self.prompt_version,
+                path,
+            )
+            return fallback
+
+        raise FileNotFoundError(f"prompt template not found: {path}")
 
     def _resolve_template_path(self) -> Path:
         file_name = PROMPT_FILE_MAP.get(self.prompt_version)
@@ -88,9 +157,6 @@ class PromptBuilder:
             raise ValueError(f"unsupported prompt_version: {self.prompt_version}")
 
         path = self.prompt_dir / file_name
-
-        if not path.exists():
-            raise FileNotFoundError(f"prompt template not found: {path}")
 
         return path
 

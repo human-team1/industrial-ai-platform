@@ -65,13 +65,13 @@ class DocumentIndexChunkingRequest(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
     chunk_size: int = 800
-    chunk_overlap: int = 120
+    chunk_overlap: int = 100
 
 
 class DocumentIndexEmbeddingRequest(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    embedding_model: str = "default"
+    embedding_model: str = "BAAI/bge-m3"
 
 
 class DocumentIndexRequest(BaseModel):
@@ -231,6 +231,7 @@ class DocumentIndexJobStatusResponse(BaseModel):
     organization_id: int
     indexing_status: str
     collection_name: str
+    embedding_model: str | None = None
     indexed_chunk_count: int
     chunks: list[IndexedChunkResponse] = Field(default_factory=list)
     error_message: str | None = None
@@ -300,6 +301,7 @@ def job_status_result_to_response(result: DocumentIndexJobResult) -> DocumentInd
         organization_id=result.organization_id,
         indexing_status=result.indexing_status.value,
         collection_name=result.collection_name,
+        embedding_model=result.embedding_model,
         indexed_chunk_count=result.indexed_chunk_count,
         chunks=[IndexedChunkResponse(**asdict(chunk)) for chunk in result.chunks],
         error_message=result.error_message,

@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 
+from api.rag_streaming import stream_rag_response
 from api.schemas import RagQueryRequest, rag_result_to_response
 from application.rag.graph_runner import RagGraphRunner
 from application.rag.response_mapper import build_rag_query_response
@@ -39,6 +41,12 @@ async def query_rag_internal(
         },
     )
     response = rag_result_to_response(build_rag_query_response(result))
+    if request.stream:
+        return StreamingResponse(
+            stream_rag_response(response),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache"},
+        )
     return {
         "success": True,
         "data": response.model_dump(by_alias=True),
