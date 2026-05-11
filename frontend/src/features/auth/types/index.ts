@@ -27,6 +27,8 @@ export type GoogleLoginResponse = {
   picture?: string
   role?: AuthRole
   organizationId?: number
+  // REJECTED일 때만 채워질 수 있음. 관리자가 사유 미입력 시 null
+  rejectReason?: string | null
   // NEW일 때만 존재 — googleSub은 이 토큰 안에 포함
   signupToken?: string
 }
