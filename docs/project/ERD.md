@@ -43,7 +43,7 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | INSPECTION_RUN | inspection_id (PK), organization_id (FK), user_id (FK), target_id (FK), run_type, input_type, source_type, source_id, run_status, applied_threshold, idempotency_key, payload_fingerprint, error_code, started_at, completed_at | 검사 실행 | UK: organization_id, user_id, idempotency_key |
 | INSPECTION_INPUT | inspection_input_id (PK), inspection_id (FK), source_type, file_id, camera_id, stream_url, source_name, mime_type, duration_sec, frame_count, roi_mode, roi_coordinate_type, roi_x, roi_y, roi_width, roi_height, sampling_fps, max_frames, quality_gate_enabled, created_at | 검사 입력 데이터 | 이미지/영상/실시간 입력 조건 |
 | INSPECTION_EVENT_LOG | event_id (PK), inspection_id (FK), event_type, message, created_at | 검사 이벤트 로그 |  |
-| INSPECTION_RESULT | result_id (PK), inspection_id (FK), score, confidence, decision_code, final_decision_code, result_status, threshold_source, threshold_id, threshold_version, model_version_id (FK), analyzed_frame_count, skipped_frame_count, defect_frame_count, recheck_frame_count, max_frame_score, avg_frame_score, representative_frame_seq, input_quality_status, input_quality_reason, failure_reason, created_at | 검사 결과 | 이미지 단건 및 영상/세션 집계 |
+| INSPECTION_RESULT | result_id (PK), inspection_id (FK), score, confidence, decision_code, final_decision_code, result_status, threshold_source, threshold_id, threshold_version, model_version_id (FK), image_path, category_type, category, model_profile, model_name, anomaly_score, image_threshold, predicted_label, heatmap_path, pixel_threshold, inference_time, analyzed_frame_count, skipped_frame_count, defect_frame_count, recheck_frame_count, max_frame_score, avg_frame_score, representative_frame_seq, input_quality_status, input_quality_reason, failure_reason, created_at | 검사 결과 | 이미지 단건 및 영상/세션 집계 |
 | RESULT_ARTIFACT | artifact_id (PK), result_id (FK), artifact_type, file_id, created_at | 결과 산출물 |  |
 | IMAGE | image_id (PK), result_id (FK), file_id, image_role, created_at | 결과 이미지 |  |
 | ANOMALY_REGION | region_id (PK), image_id (FK), label_code, bbox_x, bbox_y, bbox_w, bbox_h, score, created_at | 이상 영역 |  |
@@ -103,6 +103,17 @@ ERD 문서는 논리 테이블명 표기를 위해 대문자를 유지한다.
 | input_quality_status | VARCHAR(30) | 입력 품질 요약 상태 |
 | input_quality_reason | VARCHAR(100) | 입력 품질 대표 사유 |
 | model_version_id  | BIGINT FK | 검사에 사용된 모델 버전 ID |
+| image_path | VARCHAR(500) | 추론 입력 이미지 object key 스냅샷 |
+| category_type | VARCHAR(50) | 모델 category/type 스냅샷 |
+| category | VARCHAR(100) | 검사 카테고리 스냅샷 |
+| model_profile | VARCHAR(20) | SPEED / PERFORMANCE 스냅샷 |
+| model_name | VARCHAR(100) | 모델명 스냅샷 |
+| anomaly_score | DECIMAL(12,6) | 원본 anomaly score 스냅샷 |
+| image_threshold | DECIMAL(12,6) | 이미지 단위 threshold 스냅샷 |
+| predicted_label | VARCHAR(50) | 저장된 최종 판정 라벨 |
+| heatmap_path | VARCHAR(500) | heatmap object key 스냅샷 |
+| pixel_threshold | DECIMAL(12,6) | 픽셀 단위 threshold 스냅샷 |
+| inference_time | BIGINT | 추론 소요 시간(ms) |
 
 ---
 

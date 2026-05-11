@@ -1,13 +1,21 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+if (-not $script:DbComposeFile) {
+    $script:DbComposeFile = "docker-compose.yml"
+}
+
+if (-not $script:DbEnvFile) {
+    $script:DbEnvFile = ".env"
+}
+
 function Get-InfraRoot {
     return (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 }
 
 function Get-EnvMap {
     $infraRoot = Get-InfraRoot
-    $envPath = Join-Path $infraRoot ".env"
+    $envPath = Join-Path $infraRoot $script:DbEnvFile
     if (-not (Test-Path $envPath)) {
         throw "infra/.env 파일이 없습니다. 먼저 infra/.env.example을 복사하세요."
     }
@@ -39,7 +47,7 @@ function Invoke-MariaDbSql {
     }
 
     $Sql |
-        docker compose --env-file .env exec -T mariadb sh -lc "mariadb --default-character-set=utf8mb4 -u${user} -p${password} ${db}"
+        docker compose -f $script:DbComposeFile --env-file $script:DbEnvFile exec -T mariadb sh -lc "mariadb --default-character-set=utf8mb4 -u${user} -p${password} ${db}"
 }
 
 function Invoke-MariaDbFile {
@@ -59,15 +67,15 @@ function Invoke-MariaDbFile {
     $containerSqlPath = "/tmp/$tempFileName"
 
     try {
-        docker compose --env-file .env cp $SqlFilePath "mariadb:${containerSqlPath}" | Out-Null
-        docker compose --env-file .env exec -T mariadb sh -lc "mariadb --default-character-set=utf8mb4 -u${user} -p${password} ${db} < ${containerSqlPath}"
+        docker compose -f $script:DbComposeFile --env-file $script:DbEnvFile cp $SqlFilePath "mariadb:${containerSqlPath}" | Out-Null
+        docker compose -f $script:DbComposeFile --env-file $script:DbEnvFile exec -T mariadb sh -lc "mariadb --default-character-set=utf8mb4 -u${user} -p${password} ${db} < ${containerSqlPath}"
     } finally {
-        docker compose --env-file .env exec -T mariadb sh -lc "rm -f ${containerSqlPath}" | Out-Null
+        docker compose -f $script:DbComposeFile --env-file $script:DbEnvFile exec -T mariadb sh -lc "rm -f ${containerSqlPath}" | Out-Null
     }
 }
 
 function Assert-MariaDbContainerRunning {
-    $name = docker compose --env-file .env ps -q mariadb
+    $name = docker compose -f $script:DbComposeFile --env-file $script:DbEnvFile ps -q mariadb
     if (-not $name) {
         throw "mariadb 컨테이너가 실행 중이 아닙니다. infra에서 docker compose up -d mariadb를 먼저 실행하세요."
     }

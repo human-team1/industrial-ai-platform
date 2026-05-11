@@ -1,6 +1,7 @@
 package com.example.factoryguard.application.service.inspection;
 
 import com.example.factoryguard.adapter.out.persistence.model.ModelVersionJpaEntity;
+import com.example.factoryguard.adapter.out.persistence.model.ModelJpaEntity;
 import com.example.factoryguard.adapter.out.storage.minio.MinioProperties;
 import com.example.factoryguard.application.dto.inspection.AiInspectionCommand;
 import com.example.factoryguard.application.dto.inspection.AiInspectionResult;
@@ -326,9 +327,16 @@ public class AiInferenceJobWorker {
         DecisionCode decisionCode = outcome.decisionCode();
         ReviewQueuedReason queuedReason = outcome.queuedReason();
         String resultStatus = decisionCode == DecisionCode.RECHECK ? RESULT_STATUS_REVIEW_REQUIRED : RESULT_STATUS_SUCCESS;
+        ModelVersionJpaEntity modelVersion = result.getModelVersionId() == null
+                ? null
+                : modelManagementPort.findModelVersionById(result.getModelVersionId()).orElse(null);
+        ModelJpaEntity model = modelVersion == null || modelVersion.getModelId() == null
+                ? null
+                : modelManagementPort.findModelById(modelVersion.getModelId()).orElse(null);
+        BigDecimal anomalyScore = toBigDecimal(result.getScore());
         InspectionResult saved = saveInspectionResultPort.save(InspectionResult.builder()
                 .inspectionId(run.getInspectionId())
-                .score(toBigDecimal(result.getScore()))
+                .score(anomalyScore)
                 .confidence(toBigDecimal(result.getConfidence()))
                 .decisionCode(decisionCode)
                 .finalDecisionCode(decisionCode)
@@ -337,6 +345,25 @@ public class AiInferenceJobWorker {
                 .thresholdId(effectiveThreshold.getThresholdId())
                 .thresholdVersion(effectiveThreshold.getThresholdVersion())
                 .modelVersionId(result.getModelVersionId())
+                .imagePath(firstNonBlank(result.getImagePath(), findInputImagePath(input)))
+                .categoryType(firstNonBlank(
+                        result.getCategoryType(),
+                        modelVersion == null ? null : modelVersion.getModelCategory().name()))
+                .category(firstNonBlank(
+                        result.getCategory(),
+                        modelVersion == null ? null : modelVersion.getModelCategory().name()))
+                .modelProfile(firstNonBlank(
+                        result.getModelProfile(),
+                        modelVersion == null ? null : modelVersion.getModelProfile().name()))
+                .modelName(firstNonBlank(result.getModelName(), model == null ? null : model.getModelName()))
+                .anomalyScore(anomalyScore)
+                .imageThreshold(toBigDecimal(result.getImageThreshold() == null
+                        ? effectiveThreshold.getAnomalyThreshold()
+                        : result.getImageThreshold()))
+                .predictedLabel(decisionCode.name())
+                .heatmapPath(firstNonBlank(result.getHeatmapPath(), findArtifactPath(result.getArtifacts(), "HEATMAP")))
+                .pixelThreshold(toBigDecimal(result.getPixelThreshold()))
+                .inferenceTime(result.getInferenceTime())
                 .failureReason(null)
                 .build());
 
@@ -419,6 +446,35 @@ public class AiInferenceJobWorker {
                         .build());
             }
         }
+    }
+
+    private String findInputImagePath(InspectionInput input) {
+        if (input == null || input.getFileId() == null) {
+            return null;
+        }
+        return loadFilePort.findById(input.getFileId())
+                .map(StoredFile::getObjectKey)
+                .orElse(null);
+    }
+
+    private String findArtifactPath(List<AiInspectionResult.Artifact> artifacts, String artifactType) {
+        if (artifacts == null) {
+            return null;
+        }
+        return artifacts.stream()
+                .filter(artifact -> artifactType.equalsIgnoreCase(artifact.getArtifactType()))
+                .map(AiInspectionResult.Artifact::getFileKey)
+                .filter(this::hasText)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        return hasText(primary) ? primary : fallback;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private ArtifactType mapArtifactType(String artifactType) {

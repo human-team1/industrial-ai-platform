@@ -234,16 +234,30 @@ class VisionInferenceService:
                         exc_info=True,
                     )
 
+        heatmap_path = next(
+            (artifact["fileKey"] for artifact in artifacts if artifact.get("artifactType") == "HEATMAP"),
+            None,
+        )
+        inference_time_ms = round((perf_counter() - started_at) * 1000)
         response = {
             "success": True,
             "data": {
                 "inspectionId": request.inspectionId,
                 "modelVersionId": model_request.modelVersionId,
+                "imagePath": request.fileKey,
+                "categoryType": model_request.modelCategory,
+                "category": model_request.modelCategory,
+                "modelProfile": model_request.modelProfile,
+                "modelName": None,
+                "anomalyScore": score,
                 "score": score,
                 "scoreType": "ANOMALIB_PRED_SCORE",
                 "scoreSource": "anomalib.pred_score",
                 "imageThreshold": threshold,
                 "pixelThreshold": spec.pixel_threshold,
+                "predictedLabel": decision_code,
+                "heatmapPath": heatmap_path,
+                "inferenceTime": inference_time_ms,
                 "confidence": confidence,
                 "decisionCode": decision_code,
                 "quality": {

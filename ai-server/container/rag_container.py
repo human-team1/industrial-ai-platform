@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+
 from application.rag.graph_runner import RagGraphRunner, build_rag_graph
 from config.settings import Settings, get_settings
 from application.rag.prompt_builder import PromptBuilder
@@ -11,8 +14,13 @@ from infrastructure.llm.ollama_llm_client import OllamaLLMClient
 from infrastructure.result_context.mock_result_context_store import (
     MockResultContextStore,
 )
+from infrastructure.result_context.empty_result_context_store import (
+    EmptyResultContextStore,
+)
 from infrastructure.retriever.chroma_retriever import ChromaRetriever
 from infrastructure.tracing.noop_tracer import NoOpTracer
+
+logger = logging.getLogger(__name__)
 
 
 def _resolve_settings(settings: Settings | None = None) -> Settings:
@@ -35,8 +43,23 @@ def create_retriever(settings: Settings | None = None):
 
 def create_result_context_store(
     settings: Settings | None = None,
-) -> MockResultContextStore:
+) -> MockResultContextStore | EmptyResultContextStore:
     current = _resolve_settings(settings)
+    sample_path = Path(current.result_context_sample_path)
+
+    if not current.result_context_resolution_enabled:
+        logger.info(
+            "result context resolution disabled; using empty result context store"
+        )
+        return EmptyResultContextStore()
+
+    if current.result_context_source == "mock" and not sample_path.exists():
+        logger.warning(
+            "result context sample file not found; using empty result context store, path=%s",
+            sample_path,
+        )
+        return EmptyResultContextStore()
+
     return MockResultContextStore(current.result_context_sample_path)
 
 

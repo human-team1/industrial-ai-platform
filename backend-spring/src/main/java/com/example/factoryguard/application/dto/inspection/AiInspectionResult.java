@@ -13,6 +13,16 @@ public class AiInspectionResult {
     private final Double score;
     private final double confidence;
     private final Long modelVersionId;
+    private final String imagePath;
+    private final String categoryType;
+    private final String category;
+    private final String modelProfile;
+    private final String modelName;
+    private final Double imageThreshold;
+    private final String predictedLabel;
+    private final String heatmapPath;
+    private final Double pixelThreshold;
+    private final Long inferenceTime;
     private final String decisionCode;
     private final Quality quality;
     private final List<Artifact> artifacts;
