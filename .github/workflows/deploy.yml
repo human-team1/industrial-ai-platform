@@ -1,0 +1,107 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare env
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $sourceEnvFile = "C:\industrial-ai-runtime\env\.env.prod"
+          $workspaceEnvFile = "infra\.env.prod"
+          $runtimeSslDir = "C:\industrial-ai-runtime\nginx\ssl"
+          $pemNames = @("fullchain.pem", "privkey.pem")
+
+          if (!(Test-Path $sourceEnvFile)) {
+            throw ".env file not found: $sourceEnvFile"
+          }
+
+          if (!(Test-Path "infra")) {
+            New-Item -ItemType Directory -Path "infra" | Out-Null
+          }
+
+          Copy-Item $sourceEnvFile $workspaceEnvFile -Force
+          Write-Host ".env.prod copied from runtime env to workspace infra directory"
+
+          if (!(Test-Path -LiteralPath $runtimeSslDir -PathType Container)) {
+            throw "Nginx TLS directory not found on runner: $runtimeSslDir"
+          }
+
+          foreach ($name in $pemNames) {
+            $pemPath = Join-Path $runtimeSslDir $name
+            if (!(Test-Path -LiteralPath $pemPath -PathType Leaf)) {
+              throw "Nginx TLS PEM not found on runner (place files then re-run): $pemPath"
+            }
+          }
+          Write-Host "Nginx TLS PEM files present on runner (paths only; contents not logged)."
+
+      - name: Deploy with Docker Compose
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $cf = "infra/docker-compose.prod.yml"
+          $ef = "infra/.env.prod"
+          $compose = @("-f", $cf, "--env-file", $ef)
+
+          docker compose @compose config
+          docker rm -f industrial-nginx-prod 2>$null
+          docker compose @compose up -d --build
+
+          function Get-ContainerHealth([string]$containerName) {
+            $raw = docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-health{{end}}' $containerName 2>$null
+            if ($LASTEXITCODE -ne 0) { return "missing" }
+            return ($raw | Out-String).Trim()
+          }
+
+          $targets = @(
+            @{ Name = "industrial-nginx-prod"; Role = "nginx" },
+            @{ Name = "industrial-spring-prod"; Role = "spring" },
+            @{ Name = "industrial-frontend-prod"; Role = "frontend" },
+            @{ Name = "industrial-ai-server-prod"; Role = "ai-server" },
+            @{ Name = "industrial-mariadb-prod"; Role = "mariadb" },
+            @{ Name = "industrial-redis-prod"; Role = "redis" },
+            @{ Name = "industrial-minio-prod"; Role = "minio" },
+            @{ Name = "industrial-chroma-prod"; Role = "chroma" }
+          )
+
+          $deadline = (Get-Date).AddMinutes(5)
+          $allHealthy = $false
+          while ((Get-Date) -lt $deadline) {
+            $lineParts = @()
+            $pending = $false
+            foreach ($t in $targets) {
+              $h = Get-ContainerHealth $t.Name
+              $lineParts += "$($t.Role)=$h"
+              if ($h -ne "healthy") { $pending = $true }
+            }
+            if (-not $pending) {
+              $allHealthy = $true
+              Write-Host "All monitored containers are healthy: $($lineParts -join ', ')"
+              break
+            }
+            Write-Host "Waiting for container health (max 5 min)... $($lineParts -join ', ')"
+            Start-Sleep -Seconds 5
+          }
+
+          if (-not $allHealthy) {
+            Write-Host "::error::Container health timed out (includes nginx). See diagnostics below."
+            Write-Host "--- docker compose ps ---"
+            docker compose @compose ps -a
+            Write-Host "--- nginx logs (tail 100) ---"
+            docker logs industrial-nginx-prod --tail 100 2>&1
+            exit 1
+          }
+
+          docker compose @compose ps

@@ -127,3 +127,9 @@ Nginx
 - Compose 파일: [`infra/docker-compose.prod.yml`](infra/docker-compose.prod.yml)
 
 다른 문서에서는 권한 상세를 중복 설명하지 않고 위 문서를 참조합니다.
+
+## GitHub Actions (Windows self-hosted 수동 배포)
+
+- 배포용 Windows PC에서 self-hosted Actions Runner를 실행해 둡니다(설치 디렉터리의 `run.cmd` 수동 실행 등). 해당 프로세스가 떠 있어야 저장소 Actions가 해당 머신에서 실행됩니다.
+- GitHub 저장소의 **Actions** 탭에서 **Deploy** 워크플로를 연 뒤 **Run workflow**로 수동 실행합니다. (`.github/workflows/deploy.yml` → `workflow_dispatch`)
+- Deploy 직전에 runner PC에 두는 로컬 `.env` 위치 및 Compose 동작은 `deploy.yml`의 단계와 맞추면 됩니다. `.env`(비밀 포함)는 **저장소에 커밋하지 않습니다.**
