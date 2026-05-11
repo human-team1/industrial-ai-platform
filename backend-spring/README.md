@@ -194,9 +194,10 @@ WHERE c.document_version_id = 1001;
 - `bootrun-*.txt`, `.env`, `build/`, `.gradle/`은 커밋하지 않습니다.
 ## CORS 메모
 
-- 기본 로컬 값은 `APP_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost`입니다.
-- 중간발표 Cloudflare Tunnel 예시: `APP_CORS_ALLOWED_ORIGINS=https://xxxx.trycloudflare.com`
-- 최종발표 도메인 예시: `APP_CORS_ALLOWED_ORIGINS=https://your-domain.com`
+- Spring 은 **`APP_CORS_ALLOWED_ORIGIN_PATTERNS`** 만 사용합니다(`APP_CORS_ALLOWED_ORIGINS` 는 무시).
+- 기본 로컬 값은 `APP_CORS_ALLOWED_ORIGIN_PATTERNS=http://localhost:5173,http://localhost`입니다.
+- 운영 확정 도메인 예: `APP_CORS_ALLOWED_ORIGIN_PATTERNS=https://industrial-ai.ddns.net`
+- Cloudflare Tunnel 예시: `APP_CORS_ALLOWED_ORIGIN_PATTERNS=https://xxxx.trycloudflare.com`
 - 운영/외부 공개 기준에서 `*`는 사용하지 않습니다.
 - 프론트가 `/api/v1` 상대경로를 사용하고 Nginx가 같은 origin에서 프록시하면 CORS 의존도를 줄일 수 있습니다.
 ## Async Inspection Worker
