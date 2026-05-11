@@ -87,6 +87,7 @@ class RedisDocumentIndexJobStore:
             organization_id=data["organization_id"],
             indexing_status=DocumentIndexJobStatus(data["indexing_status"]),
             collection_name=data["collection_name"],
+            embedding_model=data.get("embedding_model"),
             indexed_chunk_count=data.get("indexed_chunk_count", 0),
             chunks=chunks,
             error_message=data.get("error_message"),

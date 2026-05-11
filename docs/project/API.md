@@ -2000,7 +2000,7 @@ FastAPI 내부 API는 Spring 전용이다. 외부 사용자와 프론트엔드�
   },
   "chunking": {
     "chunkSize": 800,
-    "chunkOverlap": 120
+    "chunkOverlap": 100
   },
   "embedding": {
     "embeddingModel": "default"

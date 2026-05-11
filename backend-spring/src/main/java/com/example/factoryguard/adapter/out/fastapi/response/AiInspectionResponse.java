@@ -22,7 +22,18 @@ public class AiInspectionResponse {
     public static class ResponseData {
         private Long inspectionId;
         private Long modelVersionId;
+        private String imagePath;
+        private String categoryType;
+        private String category;
+        private String modelProfile;
+        private String modelName;
+        private Double anomalyScore;
         private Double score;
+        private Double imageThreshold;
+        private String predictedLabel;
+        private String heatmapPath;
+        private Double pixelThreshold;
+        private Long inferenceTime;
         private double confidence;
         private String decisionCode;
         private Quality quality;

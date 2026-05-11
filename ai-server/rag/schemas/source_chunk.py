@@ -9,7 +9,7 @@ class SourceChunkMetadata(BaseModel):
     chunk_size: int = Field(default=800)
     chunk_overlap: int = Field(default=100)
 
-    embedding_model: str = Field(default="text-embedding-3-small")
+    embedding_model: str = Field(default="BAAI/bge-m3")
     vector_ref: str | None = None
 
     source_group: str | None = None

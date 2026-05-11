@@ -60,6 +60,39 @@ public class InspectionResultJpaEntity {
     @Column(name = "model_version_id")
     private Long modelVersionId;
 
+    @Column(name = "image_path", length = 500)
+    private String imagePath;
+
+    @Column(name = "category_type", length = 50)
+    private String categoryType;
+
+    @Column(name = "category", length = 100)
+    private String category;
+
+    @Column(name = "model_profile", length = 20)
+    private String modelProfile;
+
+    @Column(name = "model_name", length = 100)
+    private String modelName;
+
+    @Column(name = "anomaly_score", precision = 12, scale = 6)
+    private BigDecimal anomalyScore;
+
+    @Column(name = "image_threshold", precision = 12, scale = 6)
+    private BigDecimal imageThreshold;
+
+    @Column(name = "predicted_label", length = 50)
+    private String predictedLabel;
+
+    @Column(name = "heatmap_path", length = 500)
+    private String heatmapPath;
+
+    @Column(name = "pixel_threshold", precision = 12, scale = 6)
+    private BigDecimal pixelThreshold;
+
+    @Column(name = "inference_time")
+    private Long inferenceTime;
+
     @Column(name = "failure_reason", columnDefinition = "TEXT")
     private String failureReason;
 
@@ -72,7 +105,12 @@ public class InspectionResultJpaEntity {
                                      DecisionCode decisionCode, DecisionCode finalDecisionCode,
                                      String resultStatus, String thresholdSource,
                                      Long thresholdId, Integer thresholdVersion,
-                                     Long modelVersionId, String failureReason) {
+                                     Long modelVersionId, String imagePath, String categoryType,
+                                     String category, String modelProfile, String modelName,
+                                     BigDecimal anomalyScore, BigDecimal imageThreshold,
+                                     String predictedLabel, String heatmapPath,
+                                     BigDecimal pixelThreshold, Long inferenceTime,
+                                     String failureReason) {
         this.inspectionId = inspectionId;
         this.score = score;
         this.confidence = confidence;
@@ -83,6 +121,17 @@ public class InspectionResultJpaEntity {
         this.thresholdId = thresholdId;
         this.thresholdVersion = thresholdVersion;
         this.modelVersionId = modelVersionId;
+        this.imagePath = imagePath;
+        this.categoryType = categoryType;
+        this.category = category;
+        this.modelProfile = modelProfile;
+        this.modelName = modelName;
+        this.anomalyScore = anomalyScore;
+        this.imageThreshold = imageThreshold;
+        this.predictedLabel = predictedLabel;
+        this.heatmapPath = heatmapPath;
+        this.pixelThreshold = pixelThreshold;
+        this.inferenceTime = inferenceTime;
         this.failureReason = failureReason;
     }
 }
