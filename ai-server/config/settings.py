@@ -133,8 +133,6 @@ class Settings(BaseSettings):
 
     rag_organization_filter_required: bool = True
     rag_document_status_filter_required: bool = True
-    # rag_default_organization_id: str = "org-001"
-    rag_default_organization_id: str = "9001"
     rag_default_document_status: str = "PUBLISHED"
 
     rag_source_fields: str = (

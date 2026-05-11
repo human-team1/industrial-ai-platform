@@ -110,7 +110,6 @@ def create_rag_runtime(settings: Settings | None = None) -> RagRuntime:
         retrieval_config_id=current.retrieval_config_id,
         rag_top_k=current.rag_top_k,
         rag_default_document_status=current.rag_default_document_status,
-        rag_default_organization_id=current.rag_default_organization_id,
         prompt_version=current.prompt_version,
         llm_provider=current.llm_provider,
         llm_model_name=current.llm_model_name,

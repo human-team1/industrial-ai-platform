@@ -92,6 +92,7 @@ def build_rag_graph(runtime: RagRuntime):
             "document_search": "build_answer_prompt",
             "no_source": "build_no_source_response",
             "retriever_error": "build_retriever_error_response",
+            "validation_error": "finalize_response",
             "general": "build_general_response",
         },
     )

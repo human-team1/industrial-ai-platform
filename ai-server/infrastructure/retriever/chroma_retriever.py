@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from config.settings import Settings
 from domain.rag.source_chunk import SourceChunk
 from infrastructure.chroma_client import ChromaClientWrapper
 from infrastructure.embedding_client import EmbeddingClient
+
+
+logger = logging.getLogger(__name__)
 
 
 class ChromaRetriever:
@@ -50,7 +54,11 @@ class ChromaRetriever:
             where=self._build_where(filters),
             include=["documents", "metadatas", "distances"],
         )
-        return self._to_source_chunks(result, effective_top_k)
+        return self._to_source_chunks(
+            result,
+            effective_top_k,
+            fallback_organization_id=organization_id,
+        )
 
     def _build_where(self, filters: dict[str, Any]) -> dict | None:
         conditions: list[dict[str, Any]] = []
@@ -77,7 +85,13 @@ class ChromaRetriever:
             return conditions[0]
         return {"$and": conditions}
 
-    def _to_source_chunks(self, result: dict[str, Any], top_k: int) -> list[SourceChunk]:
+    def _to_source_chunks(
+        self,
+        result: dict[str, Any],
+        top_k: int,
+        *,
+        fallback_organization_id: Any = None,
+    ) -> list[SourceChunk]:
         ids = self._first(result.get("ids"))
         documents = self._first(result.get("documents"))
         metadatas = self._first(result.get("metadatas"))
@@ -91,34 +105,53 @@ class ChromaRetriever:
             if score is not None and score < self._settings.rag_min_score:
                 continue
 
-            sources.append(
-                SourceChunk(
-                    chunk_id=str(metadata.get("chunkId") or metadata.get("chunk_id") or chunk_id),
-                    document_id=str(metadata.get("documentId") or metadata.get("document_id") or "unknown-document"),
-                    document_version_id=str(
-                        metadata.get("documentVersionId")
-                        or metadata.get("document_version_id")
-                        or "unknown-document-version"
-                    ),
-                    title=str(metadata.get("documentTitle") or metadata.get("title") or "제목 없음"),
-                    document_type=self._optional_str(metadata.get("documentType") or metadata.get("document_type")),
-                    category=self._optional_str(metadata.get("category")),
-                    equipment_name=self._optional_str(metadata.get("equipmentType") or metadata.get("equipment_name")),
-                    section_title=self._optional_str(metadata.get("section") or metadata.get("section_title")),
-                    page=self._optional_int(metadata.get("pageNo") or metadata.get("page")),
-                    content=content,
-                    score=score,
-                    rank=len(sources) + 1,
-                    source_uri=self._optional_str(metadata.get("source_uri")),
-                    metadata={
-                        "organization_id": str(metadata.get("organizationId") or metadata.get("organization_id") or ""),
-                        "document_status": str(metadata.get("document_status") or self._settings.rag_default_document_status),
-                        "vector_ref": self._optional_str(metadata.get("vector_ref") or metadata.get("chunkId")),
-                    },
-                )
+            resolved_organization_id = (
+                metadata.get("organizationId")
+                or metadata.get("organization_id")
+                or fallback_organization_id
             )
+
+            try:
+                sources.append(
+                    SourceChunk(
+                        chunk_id=str(metadata.get("chunkId") or metadata.get("chunk_id") or chunk_id),
+                        document_id=str(metadata.get("documentId") or metadata.get("document_id") or "unknown-document"),
+                        document_version_id=str(
+                            metadata.get("documentVersionId")
+                            or metadata.get("document_version_id")
+                            or "unknown-document-version"
+                        ),
+                        title=str(metadata.get("documentTitle") or metadata.get("title") or "제목 없음"),
+                        document_type=self._optional_str(metadata.get("documentType") or metadata.get("document_type")),
+                        category=self._optional_str(metadata.get("category")),
+                        equipment_name=self._optional_str(metadata.get("equipmentType") or metadata.get("equipment_name")),
+                        section_title=self._optional_str(metadata.get("section") or metadata.get("section_title")),
+                        page=self._optional_int(metadata.get("pageNo") or metadata.get("page")),
+                        content=content,
+                        score=score,
+                        rank=len(sources) + 1,
+                        source_uri=self._optional_str(metadata.get("source_uri")),
+                        metadata={
+                            "organization_id": str(resolved_organization_id or ""),
+                            "document_status": str(
+                                metadata.get("document_status") or self._settings.rag_default_document_status
+                            ),
+                            "vector_ref": self._optional_str(metadata.get("vector_ref") or metadata.get("chunkId")),
+                        },
+                    )
+                )
+            except Exception as exc:
+                logger.warning(
+                    "rag source skipped due to invalid metadata chunkId=%s documentId=%s error=%s",
+                    chunk_id,
+                    metadata.get("documentId") or metadata.get("document_id"),
+                    exc,
+                )
+                continue
+
             if len(sources) >= top_k:
                 break
+
         return sources
 
     def _distance_to_score(self, distance: Any) -> float | None:
