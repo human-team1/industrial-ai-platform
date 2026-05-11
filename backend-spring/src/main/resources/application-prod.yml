@@ -10,3 +10,6 @@ logging:
 app:
   minio:
     auto-create-buckets: false
+  cors:
+    # 운영 확정 도메인(환경변수 APP_CORS_ALLOWED_ORIGIN_PATTERNS 가 있으면 그 값이 우선)
+    allowed-origin-patterns: "https://industrial-ai.ddns.net"
