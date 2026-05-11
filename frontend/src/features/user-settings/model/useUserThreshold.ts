@@ -10,6 +10,7 @@ import type { SaveMyThresholdRequest } from '../api/types'
 
 export type UseUserThresholdResult = {
   threshold: UserThreshold
+  lastServerThreshold: UserThreshold
   hasServerValue: boolean
   loaded: boolean
   loadError: string | null
@@ -21,6 +22,7 @@ export type UseUserThresholdResult = {
 
 export function useUserThreshold(): UseUserThresholdResult {
   const [threshold, setThreshold] = useState<UserThreshold>(DEFAULT_USER_THRESHOLD)
+  const [lastServerThreshold, setLastServerThreshold] = useState<UserThreshold>(DEFAULT_USER_THRESHOLD)
   const [hasServerValue, setHasServerValue] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -36,10 +38,12 @@ export function useUserThreshold(): UseUserThresholdResult {
         if (cancelled) return
         if (data) {
           setThreshold(data)
+          setLastServerThreshold(data)
           setHasServerValue(true)
         } else {
           // GET 결과 없음 → 화면 초기값으로만 사용. 서버 저장 전까지 실제 서버 값으로 취급하지 않는다.
           setThreshold(DEFAULT_USER_THRESHOLD)
+          setLastServerThreshold(DEFAULT_USER_THRESHOLD)
           setHasServerValue(false)
         }
         setLoaded(true)
@@ -67,6 +71,7 @@ export function useUserThreshold(): UseUserThresholdResult {
   async function saveToServer(payload: SaveMyThresholdRequest): Promise<UserThreshold> {
     const result = await saveMyThreshold(payload, threshold.thresholdId)
     setThreshold(result)
+    setLastServerThreshold(result)
     setHasServerValue(true)
     return result
   }
@@ -77,6 +82,7 @@ export function useUserThreshold(): UseUserThresholdResult {
 
   return {
     threshold,
+    lastServerThreshold,
     hasServerValue,
     loaded,
     loadError,

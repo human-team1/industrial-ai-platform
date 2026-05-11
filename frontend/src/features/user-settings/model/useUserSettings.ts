@@ -8,9 +8,11 @@ import type { PatchMySettingsRequest } from '../api/types'
 
 export type UseUserSettingsResult = {
   settings: UserSettings
+  lastServerSettings: UserSettings
   loaded: boolean
   loadError: string | null
   setLocal: <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => void
+  replaceLocal: (next: UserSettings) => void
   reloadFromServer: () => void
   applyServerResponse: (next: UserSettings) => void
   saveToServer: (payload: PatchMySettingsRequest) => Promise<UserSettings>
@@ -18,6 +20,7 @@ export type UseUserSettingsResult = {
 
 export function useUserSettings(): UseUserSettingsResult {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS)
+  const [lastServerSettings, setLastServerSettings] = useState<UserSettings>(DEFAULT_USER_SETTINGS)
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
@@ -31,6 +34,7 @@ export function useUserSettings(): UseUserSettingsResult {
       .then((data) => {
         if (cancelled) return
         setSettings(data)
+        setLastServerSettings(data)
         setLoaded(true)
       })
       .catch((error: unknown) => {
@@ -49,25 +53,35 @@ export function useUserSettings(): UseUserSettingsResult {
     setSettings((prev) => ({ ...prev, [key]: value }))
   }
 
+  // 화면 상태(settings)만 통째로 교체. baseline(lastServerSettings)은 건드리지 않는다.
+  // handleCancel/handleReset에서 사용.
+  function replaceLocal(next: UserSettings) {
+    setSettings(next)
+  }
+
   function reloadFromServer() {
     setReloadKey((k) => k + 1)
   }
 
   function applyServerResponse(next: UserSettings) {
     setSettings(next)
+    setLastServerSettings(next)
   }
 
   async function saveToServer(payload: PatchMySettingsRequest): Promise<UserSettings> {
     const result = await patchMySettings(payload)
     setSettings(result)
+    setLastServerSettings(result)
     return result
   }
 
   return {
     settings,
+    lastServerSettings,
     loaded,
     loadError,
     setLocal,
+    replaceLocal,
     reloadFromServer,
     applyServerResponse,
     saveToServer,
