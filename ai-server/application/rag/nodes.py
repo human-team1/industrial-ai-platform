@@ -34,24 +34,7 @@ def validate_input(state: GraphState | dict[str, Any]) -> dict[str, Any]:
 
     question = current.question or ""
     normalized = normalize_question(question)
-    organization_id = normalize_organization_id_for_retrieval(current.organization_id)
-
-    if organization_id is None:
-        safety_flags = list(current.safety_flags)
-        if SafetyFlag.VALIDATION_ERROR not in safety_flags:
-            safety_flags.append(SafetyFlag.VALIDATION_ERROR)
-
-        return {
-            "normalized_question": normalized,
-            "answer": "조직 정보가 누락되어 문서 검색을 진행할 수 없습니다. 다시 로그인한 뒤 시도해주세요.",
-            "answer_type": AnswerType.VALIDATION_ERROR,
-            "need_clarification": True,
-            "need_llm": False,
-            "llm_called": False,
-            "route_path": route_path,
-            "errors": [*current.errors, "organization_id_missing"],
-            "safety_flags": safety_flags,
-        }
+    # organization_id validation is handled only for retrieval paths.
 
     if len(normalized) < 2:
         return {
@@ -510,6 +493,28 @@ def retrieve_documents(
         "document_status": runtime.rag_default_document_status,
     }
 
+    if filters["organization_id"] is None:
+        errors = list(current.errors)
+        if "organization_id_missing" not in errors:
+            errors.append("organization_id_missing")
+
+        safety_flags = list(current.safety_flags)
+        if SafetyFlag.VALIDATION_ERROR not in safety_flags:
+            safety_flags.append(SafetyFlag.VALIDATION_ERROR)
+
+        return {
+            "sources": [],
+            "answer": "조직 정보가 누락되어 문서 검색을 진행할 수 없습니다. 다시 로그인한 뒤 시도해주세요.",
+            "answer_type": AnswerType.VALIDATION_ERROR,
+            "need_clarification": True,
+            "need_llm": False,
+            "llm_called": False,
+            "retriever_called": False,
+            "errors": errors,
+            "safety_flags": safety_flags,
+            "route_path": route_path,
+        }
+
     try:
         raw_result = runtime.retriever.search(
             query=query,
@@ -559,6 +564,14 @@ def check_retrieval_result(state: GraphState | dict[str, Any]) -> dict[str, Any]
         return {
             "route_path": route_path,
             "answer_type": AnswerType.RETRIEVER_ERROR,
+            "need_llm": False,
+            "llm_called": False,
+        }
+
+    if current.answer_type == AnswerType.VALIDATION_ERROR:
+        return {
+            "route_path": route_path,
+            "answer_type": AnswerType.VALIDATION_ERROR,
             "need_llm": False,
             "llm_called": False,
         }
@@ -625,6 +638,9 @@ def select_retrieval_guard_route(state: GraphState | dict[str, Any]) -> str:
     # retrieval 이후에는 오류/빈 결과를 먼저 처리하고, 정상 케이스만 placeholder로 넘긴다.
     if current.answer_type == AnswerType.RETRIEVER_ERROR:
         return "retriever_error"
+
+    if current.answer_type == AnswerType.VALIDATION_ERROR:
+        return "validation_error"
 
     if current.answer_type == AnswerType.NO_RETRIEVAL_RESULT:
         return "no_source"
