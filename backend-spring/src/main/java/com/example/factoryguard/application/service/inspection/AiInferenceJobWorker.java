@@ -37,6 +37,7 @@ import com.example.factoryguard.domain.inspection.model.InspectionInput;
 import com.example.factoryguard.domain.inspection.model.InspectionResult;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import com.example.factoryguard.domain.inspection.model.RunStatus;
+import com.example.factoryguard.domain.inspection.model.RunType;
 import com.example.factoryguard.domain.inspection.vo.RoiMode;
 import com.example.factoryguard.domain.model.vo.ModelArtifactType;
 import com.example.factoryguard.domain.model.vo.ModelUsagePurpose;
@@ -201,7 +202,7 @@ public class AiInferenceJobWorker {
         StoredFile originalFile = loadFilePort.findById(input.getFileId())
                 .orElseThrow(() -> new IllegalStateException("INPUT_FILE_NOT_FOUND"));
 
-        ModelUsagePurpose purpose = run.getRunType() == com.example.factoryguard.domain.inspection.model.RunType.REALTIME
+        ModelUsagePurpose purpose = run.getRunType() == RunType.REALTIME
                 ? ModelUsagePurpose.REALTIME_INSPECTION
                 : ModelUsagePurpose.UPLOAD_INSPECTION;
         Long selectedDeploymentId = InspectionRunSourceMetadata.parseDeploymentId(run.getSourceId());
@@ -283,15 +284,16 @@ public class AiInferenceJobWorker {
 
     private Notification buildInspectionNotification(InspectionRun run, Long resultId, DecisionCode decisionCode) {
         boolean defect = decisionCode == DecisionCode.DEFECT;
+        boolean isUpload = run.getRunType() == RunType.UPLOAD;
         return Notification.builder()
                 .userId(run.getUserId())
                 .notificationType(defect ? NotificationType.DEFECT_DETECTED : NotificationType.REINSPECTION_REQUIRED)
                 .severity(defect ? NotificationSeverity.CRITICAL : NotificationSeverity.WARNING)
                 .title(defect ? "이상이 감지되었습니다." : "재검사가 필요합니다.")
                 .message("inspectionId=" + run.getInspectionId() + ", resultId=" + resultId)
-                .relatedType("INSPECTION_RESULT")
+                .relatedType("RESULT")
                 .relatedId(resultId)
-                .targetUrl("/inspections/" + run.getInspectionId())
+                .targetUrl(isUpload ? "/results/" + resultId : null)
                 .dedupKey("inspection-result:" + resultId)
                 .isRead(false)
                 .build();

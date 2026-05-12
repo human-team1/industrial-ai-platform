@@ -170,10 +170,10 @@ public class SubmitRealtimeInspectionService implements SubmitRealtimeInspection
                     .notificationType(NotificationType.SYSTEM_ERROR)
                     .severity(NotificationSeverity.WARNING)
                     .title("검사 처리 중 오류가 발생했습니다.")
-                    .message("검사 처리 중 오류가 발생했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.")
+                    .message("검사(#" + inspectionId + ") 처리 중 오류가 발생했습니다. 잠시 후 다시 시도하거나 관리자에게 문의해 주세요.")
                     .relatedType("INSPECTION")
                     .relatedId(inspectionId)
-                    .targetUrl("/inspections/" + inspectionId)
+                    .targetUrl(null)
                     .dedupKey("inspection:" + inspectionId + ":system-error")
                     .build());
         } catch (Exception notifyEx) {

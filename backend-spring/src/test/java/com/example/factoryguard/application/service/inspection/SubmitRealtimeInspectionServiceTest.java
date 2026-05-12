@@ -3,7 +3,9 @@ package com.example.factoryguard.application.service.inspection;
 import com.example.factoryguard.application.dto.inspection.ResolvedThreshold;
 import com.example.factoryguard.application.dto.inspection.SubmitInspectionResult;
 import com.example.factoryguard.application.dto.inspection.SubmitRealtimeInspectionCommand;
+import com.example.factoryguard.application.dto.notification.CreateNotificationCommand;
 import com.example.factoryguard.application.port.in.notification.CreateNotificationUseCase;
+import com.example.factoryguard.domain.notification.vo.NotificationType;
 import com.example.factoryguard.application.port.out.inspection.CallAiInspectionPort;
 import com.example.factoryguard.application.port.out.inspection.LoadAnalysisTargetPort;
 import com.example.factoryguard.application.port.out.inspection.LoadCameraSourcePort;
@@ -41,6 +43,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -147,6 +150,42 @@ class SubmitRealtimeInspectionServiceTest {
                 1L, "session-1", null, 3L, 700L, null
         ))).isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.FORBIDDEN.getDefaultMessage());
+    }
+
+    @Test
+    void unexpectedErrorTriggersSystemErrorNotificationWithoutTargetUrl() {
+        givenActiveUser();
+        when(resolveInspectionThresholdService.resolve(1L, null)).thenReturn(defaultThreshold());
+        when(loadCameraSourcePort.findById(3L)).thenReturn(Optional.of(camera(3L, 10L)));
+        when(inferenceModelArtifactResolver.resolve(10L, null, 700L)).thenReturn(ResolvedInspectionModelArtifacts.builder()
+                .deployment(ModelDeploymentJpaEntity.builder()
+                        .deploymentId(700L)
+                        .organizationId(10L)
+                        .deploymentScope(DeploymentScope.ORGANIZATION)
+                        .deployStatus(DeploymentStatus.DEPLOYED)
+                        .isActive(true)
+                        .build())
+                .build());
+        when(runRecorder.create(any())).thenAnswer(invocation -> {
+            InspectionRun run = invocation.getArgument(0);
+            return run.toBuilder().inspectionId(1001L).build();
+        });
+        doThrow(new RuntimeException("storage down")).when(inputRecorder).record(any());
+
+        assertThatThrownBy(() -> service.execute(new SubmitRealtimeInspectionCommand(
+                1L, "session-1", null, 3L, 700L, null
+        ))).isInstanceOf(BusinessException.class)
+                .hasMessageContaining(ErrorCode.INSPECTION_FAILED.getDefaultMessage());
+
+        ArgumentCaptor<CreateNotificationCommand> cmdCaptor =
+                ArgumentCaptor.forClass(CreateNotificationCommand.class);
+        verify(createNotificationUseCase).execute(cmdCaptor.capture());
+        CreateNotificationCommand cmd = cmdCaptor.getValue();
+        assertThat(cmd.getNotificationType()).isEqualTo(NotificationType.SYSTEM_ERROR);
+        assertThat(cmd.getRelatedType()).isEqualTo("INSPECTION");
+        assertThat(cmd.getRelatedId()).isEqualTo(1001L);
+        assertThat(cmd.getTargetUrl()).isNull();
+        assertThat(cmd.getMessage()).contains("1001");
     }
 
     @Test

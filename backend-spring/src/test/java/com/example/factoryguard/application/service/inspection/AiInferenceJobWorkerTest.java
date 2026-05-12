@@ -222,7 +222,7 @@ class AiInferenceJobWorkerTest {
     }
 
     @Test
-    @DisplayName("No.37 DEFECT - DEFECT_DETECTED + CRITICAL 알림 1건 생성 (dedupKey=inspection-result:{id})")
+    @DisplayName("No.37 DEFECT (UPLOAD) - DEFECT_DETECTED + CRITICAL 알림 1건 생성 + targetUrl=/results/{id}")
     void defectCreatesCriticalNotification() throws TimeoutException {
         when(callAiInspectionPort.call(any())).thenReturn(aiResult(0.95, 0.90, "PASSED"));
 
@@ -234,10 +234,37 @@ class AiInferenceJobWorkerTest {
         assertThat(saved.getUserId()).isEqualTo(7L);
         assertThat(saved.getNotificationType()).isEqualTo(NotificationType.DEFECT_DETECTED);
         assertThat(saved.getSeverity()).isEqualTo(NotificationSeverity.CRITICAL);
-        assertThat(saved.getRelatedType()).isEqualTo("INSPECTION_RESULT");
+        assertThat(saved.getRelatedType()).isEqualTo("RESULT");
         assertThat(saved.getRelatedId()).isEqualTo(3001L);
+        assertThat(saved.getTargetUrl()).isEqualTo("/results/3001");
         assertThat(saved.getDedupKey()).isEqualTo("inspection-result:3001");
         assertThat(saved.getIsRead()).isFalse();
+    }
+
+    @Test
+    @DisplayName("NOTI-001-03 DEFECT (REALTIME) - 알림은 생성하되 targetUrl=null (이동 페이지 없음)")
+    void realtimeDefectCreatesNotificationWithoutTargetUrl() throws TimeoutException {
+        InspectionRun realtimeRun = InspectionRun.builder()
+                .inspectionId(100L)
+                .organizationId(1L)
+                .userId(7L)
+                .targetId(20L)
+                .runType(RunType.REALTIME)
+                .runStatus(RunStatus.PROCESSING)
+                .build();
+        when(loadInspectionRunPort.findRunById(100L)).thenReturn(Optional.of(realtimeRun));
+        when(callAiInspectionPort.call(any())).thenReturn(aiResult(0.95, 0.90, "PASSED"));
+
+        worker.poll();
+
+        ArgumentCaptor<Notification> captor = ArgumentCaptor.forClass(Notification.class);
+        verify(saveNotificationPort).save(captor.capture());
+        Notification saved = captor.getValue();
+        assertThat(saved.getNotificationType()).isEqualTo(NotificationType.DEFECT_DETECTED);
+        assertThat(saved.getRelatedType()).isEqualTo("RESULT");
+        assertThat(saved.getRelatedId()).isEqualTo(3001L);
+        assertThat(saved.getTargetUrl()).isNull();
+        assertThat(saved.getDedupKey()).isEqualTo("inspection-result:3001");
     }
 
     @Test
