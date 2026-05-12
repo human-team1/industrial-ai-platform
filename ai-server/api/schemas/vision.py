@@ -124,11 +124,20 @@ class ArtifactResponse(BaseModel):
 class InferImageResponseData(BaseModel):
     inspectionId: int
     modelVersionId: int
+    imagePath: str | None = None
+    categoryType: str | None = None
+    category: str | None = None
+    modelProfile: str | None = None
+    modelName: str | None = None
+    anomalyScore: float | None = None
     score: float | None = None
     scoreType: str | None = None
     scoreSource: str | None = None
     imageThreshold: float | None = None
     pixelThreshold: float | None = None
+    predictedLabel: str | None = None
+    heatmapPath: str | None = None
+    inferenceTime: int | None = None
     confidence: float
     # Deprecated: Spring DecisionCalculator is the source of truth.
     # FastAPI returns its internal hint here for diagnostics/back-compat only;

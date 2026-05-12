@@ -77,8 +77,8 @@ app:
     read-timeout-ms: ${AI_SERVER_READ_TIMEOUT_MS:180000}
     document-index:
       default-chunk-size: ${AI_DOCUMENT_INDEX_CHUNK_SIZE:800}
-      default-chunk-overlap: ${AI_DOCUMENT_INDEX_CHUNK_OVERLAP:120}
-      default-embedding-model: ${AI_DOCUMENT_INDEX_EMBEDDING_MODEL:default}
+      default-chunk-overlap: ${AI_DOCUMENT_INDEX_CHUNK_OVERLAP:100}
+      default-embedding-model: ${AI_DOCUMENT_INDEX_EMBEDDING_MODEL:BAAI/bge-m3}
       polling-enabled: ${AI_DOCUMENT_INDEX_POLLING_ENABLED:true}
       poll-interval-ms: ${AI_DOCUMENT_INDEX_POLL_INTERVAL_MS:10000}
       poll-batch-size: ${AI_DOCUMENT_INDEX_POLL_BATCH_SIZE:20}

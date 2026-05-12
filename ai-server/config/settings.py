@@ -133,8 +133,6 @@ class Settings(BaseSettings):
 
     rag_organization_filter_required: bool = True
     rag_document_status_filter_required: bool = True
-    # rag_default_organization_id: str = "org-001"
-    rag_default_organization_id: str = "9001"
     rag_default_document_status: str = "PUBLISHED"
 
     rag_source_fields: str = (
@@ -274,7 +272,8 @@ class Settings(BaseSettings):
 
     gemini_api_key: str | None = None
 
-    rag_embedding_model_name: str = "deterministic-hash-embedding"
+    # rag_embedding_model_name: str = "deterministic-hash-embedding"
+    rag_embedding_model_name: str = "BAAI/bge-m3"
     
 
 @lru_cache

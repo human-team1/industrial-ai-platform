@@ -23,19 +23,10 @@ DocumentVersionPolicy = Literal[
 
 
 class RetrievalConfig(BaseModel):
-    """
-    A/B 통합용 retrieval frozen config.
-
-    R6 기준:
-    - collection: industrial_rag_chunks_a_v1
-    - embedding: text-embedding-3-small
-    - search mode: vector_with_metadata_filter
-    """
-
     retrieval_config_id: str = Field(default="R6")
 
     collection_name: str = Field(default="industrial_rag_chunks_a_v1")
-    embedding_model: str = Field(default="text-embedding-3-small")
+    embedding_model: str = Field(default="BAAI/bge-m3")
 
     chunk_size: int = Field(default=800, ge=100, le=3000)
     chunk_overlap: int = Field(default=100, ge=0)

@@ -16,6 +16,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# EmbeddingClient 기본 캐시 경로(Settings.embedding_cache_dir)에 BGE-M3를 미리 채움(local_files_only=True 기본값 정합). EMBEDDING_* 런타임 env 불필요.
+RUN mkdir -p /app/experiments/rag_langgraph_eval/results/embedding_eval/cache/huggingface/hub \
+ && HF_HOME=/app/experiments/rag_langgraph_eval/results/embedding_eval/cache/huggingface \
+    HUGGINGFACE_HUB_CACHE=/app/experiments/rag_langgraph_eval/results/embedding_eval/cache/huggingface/hub \
+    HF_HUB_DISABLE_SYMLINKS_WARNING=1 \
+    python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3', cache_folder='/app/experiments/rag_langgraph_eval/results/embedding_eval/cache/huggingface')"
+
 ENV PYTHONPATH=/app
 EXPOSE 8001
 

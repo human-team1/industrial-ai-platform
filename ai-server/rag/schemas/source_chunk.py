@@ -2,14 +2,14 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class SourceChunkMetadata(BaseModel):
-    organization_id: str = Field(default="org-001")
+    organization_id: str = Field(min_length=1)
     document_status: str = Field(default="PUBLISHED")
     document_version_policy: str = Field(default="latest_only")
 
     chunk_size: int = Field(default=800)
     chunk_overlap: int = Field(default=100)
 
-    embedding_model: str = Field(default="text-embedding-3-small")
+    embedding_model: str = Field(default="BAAI/bge-m3")
     vector_ref: str | None = None
 
     source_group: str | None = None

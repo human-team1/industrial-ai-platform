@@ -97,6 +97,7 @@ class ProcessDocumentIndexJobUseCase:
                     organization_id=job.organization_id,
                     indexing_status=DocumentIndexJobStatus.COMPLETED,
                     collection_name=result.collection_name,
+                    embedding_model=result.embedding_model,
                     indexed_chunk_count=len(result.chunks),
                     chunks=result.chunks,
                     queued_at=job.queued_at,

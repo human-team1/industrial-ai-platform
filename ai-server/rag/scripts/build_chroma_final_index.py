@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +27,8 @@ INDEX_MANIFEST_PATH = Path(
     "experiments/rag_langgraph_eval/results/retrieval_eval/chroma_index_manifest.json"
 )
 
+logger = logging.getLogger(__name__)
+
 
 def main() -> None:
     load_dotenv()
@@ -39,16 +42,46 @@ def main() -> None:
     chroma_client = ChromaClientWrapper(settings)
     collection = chroma_client.get_or_create_document_collection()
 
-    ids = [str(chunk["chunk_id"]) for chunk in chunks]
-    documents = [str(chunk.get("content") or "") for chunk in chunks]
-    metadatas = [
-        build_metadata(
-            chunk=chunk,
-            settings=settings,
-            vector_ref=str(chunk["chunk_id"]),
+    valid_records: list[tuple[str, str, dict[str, str | int | float | bool]]] = []
+    skipped_chunks: list[dict[str, str]] = []
+
+    for chunk in chunks:
+        try:
+            metadata = build_metadata(
+                chunk=chunk,
+                settings=settings,
+                vector_ref=str(chunk["chunk_id"]),
+            )
+        except ValueError as exc:
+            skipped_chunks.append(
+                {
+                    "chunk_id": str(chunk.get("chunk_id") or "unknown"),
+                    "document_id": str(chunk.get("document_id") or "unknown"),
+                    "reason": str(exc),
+                }
+            )
+            logger.warning(
+                "skip invalid chunk metadata chunk_id=%s document_id=%s reason=%s",
+                chunk.get("chunk_id"),
+                chunk.get("document_id"),
+                exc,
+            )
+            continue
+
+        valid_records.append(
+            (
+                str(chunk["chunk_id"]),
+                str(chunk.get("content") or ""),
+                metadata,
+            )
         )
-        for chunk in chunks
-    ]
+
+    if not valid_records:
+        raise RuntimeError("No valid chunk records found for indexing")
+
+    ids = [record[0] for record in valid_records]
+    documents = [record[1] for record in valid_records]
+    metadatas = [record[2] for record in valid_records]
     embeddings = embedding_client.embed_texts(documents)
 
     collection.upsert(
@@ -73,14 +106,19 @@ def main() -> None:
         "min_score": settings.rag_min_score,
         "document_status_filter": settings.rag_default_document_status,
         "chunk_count": len(chunks),
+        "indexed_chunk_count": len(valid_records),
+        "skipped_chunk_count": len(skipped_chunks),
         "collection_count": count,
         "source_path": str(CHUNK_RECORDS_PATH),
     }
+    if skipped_chunks:
+        event["skipped_chunks"] = skipped_chunks[:20]
     log_event(event)
     write_manifest(event)
 
     print(f"collection: {settings.chroma_collection_documents}")
-    print(f"chunks_indexed: {len(chunks)}")
+    print(f"chunks_indexed: {len(valid_records)}")
+    print(f"chunks_skipped: {len(skipped_chunks)}")
     print(f"collection_count: {count}")
     print(f"log: {INDEX_BUILD_LOG_PATH}")
     print(f"manifest: {INDEX_MANIFEST_PATH}")
@@ -99,9 +137,7 @@ def build_metadata(
     settings: Settings,
     vector_ref: str,
 ) -> dict[str, str | int | float | bool]:
-    organization_id = normalize_organization_id(
-        chunk.get("organization_id") or settings.rag_default_organization_id
-    )
+    organization_id = normalize_organization_id(chunk.get("organization_id"))
 
     metadata: dict[str, Any] = {
         "retrieval_config_id": settings.retrieval_config_id,
@@ -137,9 +173,28 @@ def build_metadata(
 
 
 def normalize_organization_id(value: Any) -> str:
-    if str(value) in {"1", "1.0"}:
-        return "org-001"
-    return str(value)
+    if value is None:
+        raise ValueError("organization_id is required for chunk metadata")
+
+    normalized = str(value).strip()
+    if not normalized:
+        raise ValueError("organization_id is required for chunk metadata")
+
+    if normalized.lower().startswith("org-"):
+        suffix = normalized[4:]
+        if suffix.isdigit() and int(suffix) > 0:
+            return suffix
+        raise ValueError(f"invalid organization_id: {value}")
+
+    if normalized.isdigit() and int(normalized) > 0:
+        return normalized
+
+    if normalized.endswith(".0"):
+        integer_part = normalized[:-2]
+        if integer_part.isdigit() and int(integer_part) > 0:
+            return integer_part
+
+    raise ValueError(f"invalid organization_id: {value}")
 
 
 def sanitize_metadata(values: dict[str, Any]) -> dict[str, str | int | float | bool]:

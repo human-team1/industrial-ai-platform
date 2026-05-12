@@ -1,6 +1,13 @@
+param(
+    [string]$ComposeFile = "docker-compose.yml",
+    [string]$EnvFile = ".env"
+)
+
 $ErrorActionPreference = "Stop"
 $infraRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $infraRoot
+$script:DbComposeFile = $ComposeFile
+$script:DbEnvFile = $EnvFile
 . (Join-Path $PSScriptRoot "db-common.ps1")
 
 Assert-MariaDbContainerRunning

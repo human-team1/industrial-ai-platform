@@ -91,6 +91,13 @@ docker compose --env-file .env up -d
 .\scripts\db-status.ps1
 ```
 
+운영 compose 기준으로 같은 스크립트를 실행해야 할 때는 아래처럼 `-ComposeFile`, `-EnvFile` 인자를 함께 사용합니다.
+
+```powershell
+.\scripts\db-migrate.ps1 -ComposeFile docker-compose.prod.yml -EnvFile .env.prod
+.\scripts\db-status.ps1 -ComposeFile docker-compose.prod.yml -EnvFile .env.prod
+```
+
 ## 한글 샘플 데이터 주의사항
 
 - 모든 SQL 파일은 UTF-8(무 BOM) 기준으로 관리합니다.
