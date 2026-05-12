@@ -1,89 +1,44 @@
 # Infra
 
-로컬 개발용 인프라 실행과 DB 초기화 절차를 정리한 문서입니다.
+Docker Compose, Nginx, MariaDB 초기화/마이그레이션, MinIO 버킷 생성 스크립트를 관리합니다.
 
-## 실행 모드가 헷갈릴 때 (2가지)
+## 실행 모드
 
-| 모드 | 요약 |
-|------|------|
-| **로컬 개발 실행** | ① `infra/docker-compose.yml` + `infra/.env` 로 DB·Redis·MinIO·Chroma → ② 호스트에서 Spring / FastAPI / Frontend. 자세한 표·체크리스트는 [`docs/project/테스트실행가이드.md`](../docs/project/테스트실행가이드.md) |
-| **배포용 로컬 Docker fullstack** | `docker-compose.prod.yml` + `.env.prod` → `https://localhost` (동일 문서 참고) |
+| 모드 | 파일 | 용도 |
+| --- | --- | --- |
+| 로컬 개발 | `docker-compose.yml` + `.env` | MariaDB, Redis, MinIO, ChromaDB, Nginx를 띄우고 Spring/FastAPI/Frontend는 호스트에서 실행 |
+| 로컬 fullstack/prod 검증 | `docker-compose.prod.yml` + `.env.prod` | Nginx, Frontend, Spring, AI Server, DB/Redis/MinIO/Chroma를 모두 Docker로 실행 |
 
-MinIO 필수 버킷(검사 업로드 등): `infra/scripts/init-minio-buckets.ps1` 또는 `init-minio-buckets.sh`.
-
-## 구성 서비스
-
-- MariaDB: `localhost:3307`
-- Redis: `localhost:6379`
-- MinIO: `localhost:9000`, 콘솔 `localhost:9001`
-- ChromaDB: `localhost:8000`
-
-MariaDB는 컨테이너에서 `utf8mb4` / `utf8mb4_unicode_ci` 기본값으로 실행됩니다.
-
-## 시작 전 준비
+## 로컬 개발 인프라
 
 ```powershell
 cd infra
 Copy-Item .env.example .env
+docker compose --env-file .env up -d
+docker compose --env-file .env ps
 ```
 
-실제 비밀번호는 `.env`에만 작성하고 커밋하지 않습니다.
+주요 포트:
 
-## 운영 fullstack Compose (Docker)
+| 서비스 | 주소 |
+| --- | --- |
+| Nginx | `http://localhost` |
+| MariaDB | `localhost:3307` |
+| Redis | `localhost:6379` |
+| MinIO API | `http://localhost:9000` |
+| MinIO Console | `http://localhost:9001` |
+| ChromaDB | `http://localhost:8000` |
 
-로컬은 아래 「신규 클론 기준 …」처럼 `docker compose`만 써도 되고, **배포/운영(SSOT 초안)** 은 다음을 따릅니다.
+## DB 초기화
 
-- **Compose 파일**: `docker-compose.prod.yml` (`nginx`, `frontend`, `spring`, `ai-server`, `mariadb`, `redis`, `minio`, `chroma`)
-- **외부 공개 포트**: 로컬 풀스택은 기본 **`HTTPS 443`** (`NGINX_PUBLISH_HTTPS_PORT`). HTTP·ACME 등은 compose 주석 및 `NGINX_PUBLISH_HTTP_PORT` 로 선택.
-- **내부 통신**: `localhost` 대신 **Compose 서비스명**(`spring`, `ai-server`, `mariadb` 등).
-- **환경 변수 예시**(비밀 없음): `.env.prod.example` → 배포 서버에서는 `.env.prod` 로 복사 후 채움. **`.env.prod`는 Git에 넣지 않음.**
-- **라우팅·매트릭스·볼륨 초기화 주의**: [`docs/project/docker-compose-prod.md`](../docs/project/docker-compose-prod.md)
-
-실행 예:
+신규 로컬 환경 또는 DB를 재생성해도 되는 경우:
 
 ```powershell
 cd infra
-Copy-Item .env.prod.example .env.prod
-# .env.prod 수정 후
-
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
-```
-
-## 신규 클론 기준 DB 초기화 순서
-
-1. 컨테이너 기동
-
-```powershell
-cd infra
-docker compose --env-file .env up -d
-docker compose ps
-```
-
-2. 초기 스키마 적용
-
-```powershell
 .\scripts\db-reset.ps1 -Force
 ```
 
-`db-reset.ps1 -Force`는 아래를 한 번에 수행합니다.
-
-- 데이터베이스 재생성
-- `mariadb/init/industrial-ai-platform.sql` 적용
-- 후속 migration 적용
-- seed 데이터 적용
-- 상태 점검
-
-이미 컨테이너 볼륨까지 완전히 비우고 새로 시작하려면 아래 순서로 실행합니다.
-
-```powershell
-docker compose down
-docker compose --env-file .env up -d
-.\scripts\db-reset.ps1 -Force
-```
-
-주의: 데이터 볼륨 보호를 위해 로컬 재기동 시 `docker compose down -v`는 사용하지 않습니다.
-
-3. 개별 단계만 다시 실행하고 싶을 때
+개별 실행:
 
 ```powershell
 .\scripts\db-migrate.ps1
@@ -91,124 +46,45 @@ docker compose --env-file .env up -d
 .\scripts\db-status.ps1
 ```
 
-운영 compose 기준으로 같은 스크립트를 실행해야 할 때는 아래처럼 `-ComposeFile`, `-EnvFile` 인자를 함께 사용합니다.
+`db-reset.ps1 -Force`는 로컬 DB 데이터를 재생성합니다. 보존해야 할 데이터가 있으면 실행하지 않습니다.
 
-```powershell
-.\scripts\db-migrate.ps1 -ComposeFile docker-compose.prod.yml -EnvFile .env.prod
-.\scripts\db-status.ps1 -ComposeFile docker-compose.prod.yml -EnvFile .env.prod
-```
+## MinIO 버킷
 
-## 한글 샘플 데이터 주의사항
+필수 버킷:
 
-- 모든 SQL 파일은 UTF-8(무 BOM) 기준으로 관리합니다.
-- PowerShell 스크립트는 SQL 파일을 컨테이너로 그대로 복사한 뒤 MariaDB에서 실행합니다.
-- MariaDB client 호출은 항상 `--default-character-set=utf8mb4`를 사용합니다.
-- 이미 깨진 값이 저장된 DB는 `UPDATE`보다 `db-reset.ps1 -Force`로 재생성하는 방식을 우선합니다.
+- `documents`
+- `inspection-artifacts`
+- `reports`
+- `models`
 
-## 검증 명령
-
-```powershell
-.\scripts\db-status.ps1
-```
-
-```powershell
-docker compose --env-file .env exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai -e "SELECT target_id, target_name, equipment_name, product_name, location_name FROM analysis_target LIMIT 10;"
-```
-
-```powershell
-docker compose --env-file .env exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -pchange_me_root_password industrial_ai -e "SELECT notification_id, title, message FROM notification LIMIT 10;"
-```
-
-## Nginx 게이트웨이
-
-`infra/docker-compose.yml`에는 외부 공개용 `industrial-nginx` 컨테이너가 포함됩니다. 1차 작업 기준으로 Nginx는 Docker 컨테이너에서 실행되고, Frontend/Spring/FastAPI는 호스트에서 실행 중인 기본 포트(`5173`, `8080`, `8001`)를 프록시 대상으로 사용합니다.
-
-### 라우팅 규칙
-
-| 외부 경로 | 내부 대상 | 공개 여부 |
-| --- | --- | --- |
-| `/` | Frontend `host.docker.internal:5173` | 공개 |
-| `/api/` | Spring Boot `host.docker.internal:8080` | 공개 |
-| `/ai/` | 차단 | 비공개 |
-| `/minio/` | 차단 | 비공개 |
-| `/chroma/` | 차단 | 비공개 |
-
-### 실행 순서
-
-1. 인프라 컨테이너 실행
+생성:
 
 ```powershell
 cd infra
-docker compose --env-file .env up -d
+.\scripts\init-minio-buckets.ps1
 ```
 
-2. 호스트에서 애플리케이션 실행
-
-```powershell
-cd ..\backend-spring
-.\gradlew.bat bootRun --args="--spring.profiles.active=local"
-```
-
-```powershell
-cd ..\frontend
-npm run dev
-```
-
-3. 게이트웨이 확인
-
-```powershell
-curl http://localhost/
-curl http://localhost/api/v1/health
-curl -i http://localhost/ai/v1/internal/system-status
-curl -i http://localhost/minio/
-curl -i http://localhost/chroma/
-```
-
-기대 결과:
-
-- `http://localhost/`에서 프론트가 열립니다.
-- `http://localhost/api/v1/health`가 Spring으로 프록시됩니다.
-- `/ai`, `/minio`, `/chroma`는 모두 `403`입니다.
-
-### Cloudflare Tunnel 중간발표
-
-Cloudflare Tunnel은 Nginx 단일 진입점만 공개합니다.
+## 운영용 Docker Compose
 
 ```powershell
 cd infra
-docker compose --env-file .env up -d
-cloudflared tunnel --url http://localhost:80
+Copy-Item .env.prod.example .env.prod
+# .env.prod 값 채우기
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
 
-- Spring, FastAPI, DB, Redis, MinIO, ChromaDB를 각각 터널링하지 않습니다.
-- 프론트는 `/api/v1` 상대경로를 사용하므로 trycloudflare URL이 바뀌어도 같은 코드로 동작합니다.
+운영용 compose는 기본적으로 Nginx HTTPS 443을 외부 진입점으로 사용합니다. TLS 파일은 `.env.prod`의 `NGINX_SSL_DIR`에 `fullchain.pem`, `privkey.pem` 이름으로 배치합니다.
 
-### 집컴 도메인/DDNS 최종발표
+상세는 [운영 compose 문서](../docs/project/docker-compose-prod.md)와 [TLS 문서](nginx/ssl/README.md)를 참고합니다.
 
-최종발표도 동일한 Nginx를 사용하고, 외부 공개는 공유기와 방화벽에서 `80`, 추후 `443`만 허용합니다.
+## Nginx 라우팅
 
-```text
-도메인/DDNS
-  ↓
-공유기 포트포워딩 80/443
-  ↓
-집컴 Nginx
-  ├─ /      → Frontend
-  └─ /api   → Spring Boot
-```
+| 외부 경로 | 처리 |
+| --- | --- |
+| `/` | Frontend |
+| `/api/` | Spring Boot |
+| `/ai/` | 차단 |
+| `/minio/` | 차단 |
+| `/chroma/` | 차단 |
 
-체크리스트:
-
-1. 집컴 내부 IP 고정
-2. 공유기 80/443 포트포워딩
-3. Windows 방화벽 80/443 허용
-4. Docker Compose 실행
-5. Nginx 접속 확인
-6. 도메인/DDNS 연결 확인
-7. LTE/5G 등 외부망에서 접속 확인
-
-### 외부 공개 원칙
-
-- 공유기 포트포워딩은 `80`, 추후 HTTPS 적용 시 `443`만 허용합니다.
-- `8080`, `8001`, `3307`, `6379`, `9000`, `9001`, `8000`, `11434`는 외부에 직접 포워딩하지 않습니다.
-- 로컬 개발을 위해 호스트 포트가 열려 있어도, 외부 공개는 반드시 Nginx를 단일 진입점으로 사용합니다.
+FastAPI, MariaDB, Redis, MinIO, ChromaDB는 외부에 직접 공개하지 않습니다.

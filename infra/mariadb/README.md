@@ -14,7 +14,7 @@
 ```
 mariadb/
 ├── init/         # 베이스라인 스키마 (전체 테이블 정의, 최신 상태 유지)
-├── migrations/   # 스키마 변경 이력 (schema_migration 테이블로 추적, 幂等성 보장)
+├── migrations/   # 스키마 변경 이력 (schema_migration 테이블로 추적, 멱등성 보장)
 ├── seed/         # 샘플 데이터 (ON DUPLICATE KEY UPDATE, 반복 적용 가능)
 └── demo-data/    # 특정 환경 전용 데이터 (MinIO 파일 참조 포함, 해당 환경에서만 실행)
 ```
@@ -89,7 +89,7 @@ cd infra
 
 - `schema_migration` 테이블로 적용 여부를 추적합니다.
 - 이미 적용된 파일은 파일명 기준으로 건너뜁니다.
-- `migrations/` 의 모든 SQL은 `IF NOT EXISTS` / `ON DUPLICATE KEY` 등 **幂等성 패턴**을 준수합니다.
+- `migrations/` 의 모든 SQL은 `IF NOT EXISTS` / `ON DUPLICATE KEY` 등 **멱등성 패턴**을 준수합니다.
 - 신규 스키마 변경은 반드시 `migrations/` 에 버전 파일(`V날짜_순번__설명.sql`)로 추가합니다.
 - `init/industrial-ai-platform.sql` 은 **현재 시점 전체 스키마 베이스라인**으로 유지합니다.
   마이그레이션을 추가할 때마다 init 파일도 동기화합니다.
@@ -124,12 +124,10 @@ docker compose exec -T mariadb mariadb --default-character-set=utf8mb4 -uroot -p
 
 ## 재초기화
 
-로컬 DB를 완전히 지워도 되는 경우에만 실행합니다.
+로컬 DB를 완전히 지워도 되는 경우에만 `db-reset.ps1 -Force`를 실행합니다. 데이터 볼륨까지 삭제해야 하는 특수 상황은 먼저 볼륨 이름을 확인한 뒤 필요한 볼륨만 선택 삭제합니다.
 
 ```powershell
 cd infra
-docker compose down -v
-docker compose --env-file .env up -d mariadb
 .\scripts\db-reset.ps1 -Force
 ```
 
