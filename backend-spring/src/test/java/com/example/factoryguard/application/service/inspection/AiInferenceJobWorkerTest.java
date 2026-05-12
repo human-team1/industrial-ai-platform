@@ -22,6 +22,7 @@ import com.example.factoryguard.application.port.out.result.SaveResultArtifactPo
 import com.example.factoryguard.application.port.out.result.SaveResultImagePort;
 import com.example.factoryguard.application.port.out.notification.SaveNotificationPort;
 import com.example.factoryguard.application.port.out.review.SaveReviewQueuePort;
+import com.example.factoryguard.application.port.out.user.LoadUserSettingPort;
 import com.example.factoryguard.application.service.model.ActiveModelDeploymentResolver;
 import com.example.factoryguard.config.inspection.AiJobWorkerProperties;
 import com.example.factoryguard.domain.file.model.StoredFile;
@@ -47,6 +48,7 @@ import com.example.factoryguard.domain.result.vo.ImageRole;
 import com.example.factoryguard.domain.review.model.ReviewQueue;
 import com.example.factoryguard.domain.review.vo.ReviewQueuedReason;
 import com.example.factoryguard.domain.user.model.ThresholdSource;
+import com.example.factoryguard.domain.user.model.UserSetting;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -86,6 +88,7 @@ class AiInferenceJobWorkerTest {
     @Mock SaveResultImagePort saveResultImagePort;
     @Mock SaveReviewQueuePort saveReviewQueuePort;
     @Mock SaveNotificationPort saveNotificationPort;
+    @Mock LoadUserSettingPort loadUserSettingPort;
     @Mock PersistUploadedFilePort persistUploadedFilePort;
     @Mock InspectionEventLogger inspectionEventLogger;
     @Mock RecordOperationLogUseCase recordOperationLogUseCase;
@@ -112,6 +115,7 @@ class AiInferenceJobWorkerTest {
                 callAiInspectionPort, saveInspectionResultPort,
                 saveResultArtifactPort, saveResultImagePort, saveReviewQueuePort,
                 saveNotificationPort,
+                loadUserSettingPort,
                 persistUploadedFilePort, inspectionEventLogger, recordOperationLogUseCase,
                 minioProperties, resolveInspectionThresholdService, evaluator
         );
@@ -293,6 +297,45 @@ class AiInferenceJobWorkerTest {
         verify(saveNotificationPort).save(captor.capture());
         assertThat(captor.getValue().getNotificationType()).isEqualTo(NotificationType.REINSPECTION_REQUIRED);
         assertThat(captor.getValue().getSeverity()).isEqualTo(NotificationSeverity.WARNING);
+    }
+
+    @Test
+    @DisplayName("ST-001 DEFECT + notificationEnabled=false - SaveNotificationPort 미호출")
+    void disabledNotificationSettingSkipsDefectNotification() throws TimeoutException {
+        when(callAiInspectionPort.call(any())).thenReturn(aiResult(0.95, 0.90, "PASSED"));
+        when(loadUserSettingPort.findByUserId(7L)).thenReturn(Optional.of(
+                UserSetting.builder().userId(7L).notificationEnabled(false).build()
+        ));
+
+        worker.poll();
+
+        verify(saveNotificationPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("ST-001 RECHECK + notificationEnabled=false - SaveNotificationPort 미호출")
+    void disabledNotificationSettingSkipsRecheckNotification() throws TimeoutException {
+        when(callAiInspectionPort.call(any())).thenReturn(aiResult(0.30, 0.30, "PASSED"));
+        when(loadUserSettingPort.findByUserId(7L)).thenReturn(Optional.of(
+                UserSetting.builder().userId(7L).notificationEnabled(false).build()
+        ));
+
+        worker.poll();
+
+        verify(saveNotificationPort, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("ST-001 DEFECT + notificationEnabled=null - 알림 1건 생성 (기본값 ON)")
+    void nullNotificationEnabledStillCreatesNotification() throws TimeoutException {
+        when(callAiInspectionPort.call(any())).thenReturn(aiResult(0.95, 0.90, "PASSED"));
+        when(loadUserSettingPort.findByUserId(7L)).thenReturn(Optional.of(
+                UserSetting.builder().userId(7L).notificationEnabled(null).build()
+        ));
+
+        worker.poll();
+
+        verify(saveNotificationPort).save(any());
     }
 
     @Test

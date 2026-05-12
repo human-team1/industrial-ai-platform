@@ -24,6 +24,7 @@ import com.example.factoryguard.application.port.out.operation.SaveAsyncJobPort;
 import com.example.factoryguard.application.port.out.result.SaveResultArtifactPort;
 import com.example.factoryguard.application.port.out.result.SaveResultImagePort;
 import com.example.factoryguard.application.port.out.review.SaveReviewQueuePort;
+import com.example.factoryguard.application.port.out.user.LoadUserSettingPort;
 import com.example.factoryguard.application.service.model.ActiveModelDeploymentResolver;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
@@ -54,6 +55,7 @@ import com.example.factoryguard.domain.result.vo.ImageRole;
 import com.example.factoryguard.domain.review.model.ReviewQueue;
 import com.example.factoryguard.domain.review.vo.ReviewQueueStatus;
 import com.example.factoryguard.domain.review.vo.ReviewQueuedReason;
+import com.example.factoryguard.domain.user.model.UserSetting;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -96,6 +98,7 @@ public class AiInferenceJobWorker {
     private final SaveResultImagePort saveResultImagePort;
     private final SaveReviewQueuePort saveReviewQueuePort;
     private final SaveNotificationPort saveNotificationPort;
+    private final LoadUserSettingPort loadUserSettingPort;
     private final PersistUploadedFilePort persistUploadedFilePort;
     private final InspectionEventLogger inspectionEventLogger;
     private final RecordOperationLogUseCase recordOperationLogUseCase;
@@ -282,6 +285,16 @@ public class AiInferenceJobWorker {
         return threshold.getAnomalyThreshold();
     }
 
+    private boolean isNotificationEnabled(Long userId) {
+        if (userId == null) {
+            return true;
+        }
+        return loadUserSettingPort.findByUserId(userId)
+                .map(UserSetting::getNotificationEnabled)
+                .map(enabled -> !Boolean.FALSE.equals(enabled))
+                .orElse(true);
+    }
+
     private Notification buildInspectionNotification(InspectionRun run, Long resultId, DecisionCode decisionCode) {
         boolean defect = decisionCode == DecisionCode.DEFECT;
         boolean isUpload = run.getRunType() == RunType.UPLOAD;
@@ -380,7 +393,8 @@ public class AiInferenceJobWorker {
                     .build());
         }
 
-        if (decisionCode == DecisionCode.DEFECT || decisionCode == DecisionCode.RECHECK) {
+        if ((decisionCode == DecisionCode.DEFECT || decisionCode == DecisionCode.RECHECK)
+                && isNotificationEnabled(run.getUserId())) {
             saveNotificationPort.save(buildInspectionNotification(run, saved.getResultId(), decisionCode));
         }
 
