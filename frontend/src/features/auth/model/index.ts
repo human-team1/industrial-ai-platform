@@ -156,7 +156,7 @@ export function useGoogleLoginHandler() {
           break
 
         case 'REJECTED':
-          navigate('/rejected')
+          navigate('/rejected', { state: { rejectReason: result.rejectReason } })
           break
       }
     },

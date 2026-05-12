@@ -1,6 +1,7 @@
 package com.example.factoryguard.adapter.in.web.user;
 
 import com.example.factoryguard.adapter.in.web.user.dto.CreateMyThresholdRequest;
+import com.example.factoryguard.adapter.in.web.user.dto.PatchMyProfileRequest;
 import com.example.factoryguard.adapter.in.web.user.dto.PatchMySettingRequest;
 import com.example.factoryguard.adapter.in.web.user.dto.UpdateThresholdRequest;
 import com.example.factoryguard.application.dto.user.UserMeResult;
@@ -10,6 +11,7 @@ import com.example.factoryguard.application.port.in.user.CreateMyThresholdUseCas
 import com.example.factoryguard.application.port.in.user.GetMyProfileUseCase;
 import com.example.factoryguard.application.port.in.user.GetMyThresholdsUseCase;
 import com.example.factoryguard.application.port.in.user.GetUserSettingUseCase;
+import com.example.factoryguard.application.port.in.user.UpdateMyProfileUseCase;
 import com.example.factoryguard.application.port.in.user.UpdateMyThresholdUseCase;
 import com.example.factoryguard.application.port.in.user.UpdateUserSettingUseCase;
 import com.example.factoryguard.common.response.ApiResponse;
@@ -28,6 +30,7 @@ import javax.validation.Valid;
 public class UserController {
 
     private final GetMyProfileUseCase getMyProfileUseCase;
+    private final UpdateMyProfileUseCase updateMyProfileUseCase;
     private final GetMyThresholdsUseCase getMyThresholdsUseCase;
     private final CreateMyThresholdUseCase createMyThresholdUseCase;
     private final UpdateMyThresholdUseCase updateMyThresholdUseCase;
@@ -40,6 +43,16 @@ public class UserController {
         AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
         UserMeResult result = getMyProfileUseCase.execute(p.userId(), p.sessionId());
         return ResponseEntity.ok(ApiResponse.success(result, "내 프로필입니다."));
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<ApiResponse<UserMeResult>> updateMyProfile(
+            @RequestBody PatchMyProfileRequest request) {
+        AuthenticatedPrincipal p = securityUtils.getCurrentPrincipal();
+        UserMeResult result = updateMyProfileUseCase.execute(
+                request.toCommand(p.userId(), p.sessionId())
+        );
+        return ResponseEntity.ok(ApiResponse.success(result, "내 정보를 저장했습니다."));
     }
 
     @GetMapping("/me/settings")

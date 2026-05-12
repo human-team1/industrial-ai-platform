@@ -78,9 +78,13 @@ export function AppHeader({
 
         <div className="h-[33px] w-px bg-[#2d3347]" />
 
-        <button type="button" aria-label="설정" className="text-[#6a7089]">
+        <NavLink
+          to="/settings"
+          aria-label="설정"
+          className="text-[#6a7089] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+        >
           <IconGear />
-        </button>
+        </NavLink>
 
         <div className="h-[33px] w-px bg-[#2d3347]" />
 

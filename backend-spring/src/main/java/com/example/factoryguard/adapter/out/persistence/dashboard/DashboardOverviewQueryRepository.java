@@ -259,7 +259,7 @@ public class DashboardOverviewQueryRepository {
         Map<String, Object> parameters = new LinkedHashMap<>();
         StringBuilder sql = new StringBuilder(baseSql);
         if (organizationId != null) {
-            sql.append(" AND ir.organization_id = :organizationId");
+            sql.append(" AND ir.organization_id = :organizationId\n");
             parameters.put("organizationId", organizationId);
         }
         sql.append(suffix);

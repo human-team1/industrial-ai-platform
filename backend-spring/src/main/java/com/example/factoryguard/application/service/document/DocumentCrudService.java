@@ -135,6 +135,7 @@ public class DocumentCrudService implements DocumentCrudUseCase {
     @Override
     @Transactional
     public DocumentDetailResult updateMetadata(UpdateDocumentMetadataCommand command) {
+        requireCompanyAdminOrSiteAdmin();
         AuthenticatedPrincipal principal = securityUtils.getCurrentPrincipal();
         boolean isAdmin = isAdmin(principal);
         Long organizationId = isAdmin ? null : securityUtils.requireOrganizationId();

@@ -7,6 +7,7 @@ import com.example.factoryguard.application.dto.document.CreateDocumentWithFileC
 import com.example.factoryguard.application.dto.document.DocumentCreateResult;
 import com.example.factoryguard.application.dto.document.DocumentIndexResponse;
 import com.example.factoryguard.application.dto.document.DocumentVersionDetailResult;
+import com.example.factoryguard.application.dto.document.UpdateDocumentMetadataCommand;
 import com.example.factoryguard.application.port.out.document.DocumentCrudPort;
 import com.example.factoryguard.application.port.out.document.DocumentIndexPersistencePort;
 import com.example.factoryguard.application.port.out.document.DocumentIndexingAiPort;
@@ -230,5 +231,40 @@ class DocumentCrudServiceTest {
         assertThat(result.getDocumentId()).isEqualTo(documentId);
         assertThat(result.getDocumentVersionId()).isEqualTo(22L);
         verify(documentCrudPort).createVersion(eq(documentId), eq(100L), anyBoolean(), eq(900L), anyString(), eq("업데이트"));
+    }
+
+    @Test
+    @DisplayName("DOC-001-11 WORKER 권한으로 문서 메타데이터 수정 시도 - FORBIDDEN")
+    void rejectsWorkerUpdateMetadata() {
+        AuthenticatedPrincipal worker = new AuthenticatedPrincipal(2L, "ROLE_COMPANY_WORKER", 100L, "sess");
+        when(securityUtils.getCurrentPrincipal()).thenReturn(worker);
+
+        UpdateDocumentMetadataCommand command = UpdateDocumentMetadataCommand.builder()
+                .userId(2L).organizationId(100L).documentId(10L)
+                .title("변경된 제목").build();
+
+        assertThatThrownBy(() -> service.updateMetadata(command))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getErrorCode())
+                .isEqualTo(ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("DOC-001-11 COMPANY_ADMIN 권한 사용자는 문서 메타데이터 수정 허용 - port 호출 검증")
+    void allowsCompanyAdminUpdateMetadata() {
+        long documentId = 10L;
+        AuthenticatedPrincipal admin = new AuthenticatedPrincipal(1L, "ROLE_COMPANY_ADMIN", 100L, "sess");
+        when(securityUtils.getCurrentPrincipal()).thenReturn(admin);
+        when(securityUtils.requireOrganizationId()).thenReturn(100L);
+        when(documentCrudPort.findDocumentOrganizationId(documentId)).thenReturn(Optional.of(100L));
+
+        UpdateDocumentMetadataCommand command = UpdateDocumentMetadataCommand.builder()
+                .userId(1L).organizationId(100L).documentId(documentId)
+                .title("변경된 제목").build();
+
+        service.updateMetadata(command);
+
+        verify(documentCrudPort).updateMetadata(eq(documentId), eq(100L), anyBoolean(),
+                eq("변경된 제목"), any(), any(), any(), any());
     }
 }

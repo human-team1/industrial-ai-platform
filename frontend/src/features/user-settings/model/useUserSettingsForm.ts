@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import {
   DEFAULT_USER_PREFERENCES,
   DEFAULT_USER_SETTINGS,
+  DEFAULT_USER_THRESHOLD,
   FLOAT_EPSILON,
   isThresholdValueChanged,
   normalizeThresholdValue,
@@ -69,19 +70,8 @@ export function useUserSettingsForm(): UseUserSettingsFormResult {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ kind: 'idle' })
   const [validationError, setValidationError] = useState<string | null>(null)
 
-  // handleCancel/handleReset에서 마지막 서버/저장된 값으로 되돌릴 수 있도록 보관.
-  // settings/threshold는 hook 내부 state를 다시 setLocal로 덮어쓰는 방식.
-  const lastServerSettingsRef = useRef(settingsHook.settings)
-  const lastServerThresholdRef = useRef(thresholdHook.threshold)
+  // preferences는 localStorage 영속 시점에만 baseline을 갱신한다.
   const lastPersistedPreferencesRef = useRef(preferencesHook.preferences)
-  // 서버 응답을 받을 때마다 baseline 갱신
-  if (settingsHook.loaded && lastServerSettingsRef.current !== settingsHook.settings) {
-    // 페이지 진입 후 첫 로드 또는 외부에서 reload된 경우 baseline 동기화
-    lastServerSettingsRef.current = settingsHook.settings
-  }
-  if (thresholdHook.loaded && lastServerThresholdRef.current !== thresholdHook.threshold) {
-    lastServerThresholdRef.current = thresholdHook.threshold
-  }
 
   const loading = !settingsHook.loaded || !thresholdHook.loaded
   const loadError = settingsHook.loadError ?? thresholdHook.loadError
@@ -251,7 +241,7 @@ export function useUserSettingsForm(): UseUserSettingsFormResult {
 
   // ─── 저장 흐름 ──────────────────────────────────────────────────────────
   function buildSettingsPatch(): PatchMySettingsRequest | null {
-    const baseline = lastServerSettingsRef.current ?? DEFAULT_USER_SETTINGS
+    const baseline = settingsHook.lastServerSettings
     const current = settingsHook.settings
     const patch: PatchMySettingsRequest = {}
     if (current.notificationEnabled !== baseline.notificationEnabled) {
@@ -267,7 +257,7 @@ export function useUserSettingsForm(): UseUserSettingsFormResult {
   }
 
   function buildThresholdPayload(): SaveMyThresholdRequest | null {
-    const baseline = lastServerThresholdRef.current
+    const baseline = thresholdHook.lastServerThreshold
     const current = thresholdHook.threshold
     // 서버 값이 한 번도 없었던 경우(hasServerValue=false): 변경된 값이 있으면 신규 저장
     if (!thresholdHook.hasServerValue) {
@@ -406,8 +396,7 @@ export function useUserSettingsForm(): UseUserSettingsFormResult {
       // 의도: 사용자 관점에서 "저장 자체가 실패"한 케이스(전체 실패)에는
       // 클라 항목(localStorage)도 보존되지 않도록 정합을 맞춘다.
       if (failed.length === 0) {
-        lastServerSettingsRef.current = settingsHook.settings
-        lastServerThresholdRef.current = thresholdHook.threshold
+        // baseline은 settingsHook/thresholdHook의 saveToServer 내부에서 갱신됨.
         if (preferencesChanged) {
           preferencesHook.persist()
           lastPersistedPreferencesRef.current = preferencesHook.preferences
@@ -433,12 +422,10 @@ export function useUserSettingsForm(): UseUserSettingsFormResult {
   }
 
   function handleCancel() {
-    // 마지막 서버 값/마지막 영속 preferences로 되돌림. 서버 호출은 하지 않는다.
-    settingsHook.applyServerResponse(lastServerSettingsRef.current)
-    // threshold도 baseline으로 되돌림 — 직접 setLocalAnomaly로 적용
-    thresholdHook.setLocalAnomaly(lastServerThresholdRef.current.anomalyThreshold)
-    thresholdHook.setLocalLowConfidence(lastServerThresholdRef.current.lowConfidenceThreshold)
-    // preferences 되돌리기
+    // 마지막 서버 값/마지막 영속 preferences로 화면만 복원. baseline은 이미 lastServer*이므로 변동 없음.
+    settingsHook.replaceLocal(settingsHook.lastServerSettings)
+    thresholdHook.setLocalAnomaly(thresholdHook.lastServerThreshold.anomalyThreshold)
+    thresholdHook.setLocalLowConfidence(thresholdHook.lastServerThreshold.lowConfidenceThreshold)
     const prev = lastPersistedPreferencesRef.current
     ;(Object.keys(prev) as Array<keyof typeof prev>).forEach((k) => {
       preferencesHook.setLocal(k, prev[k])
@@ -448,10 +435,10 @@ export function useUserSettingsForm(): UseUserSettingsFormResult {
   }
 
   function handleReset() {
-    // 모든 항목을 코드 기본값으로 되돌림. 서버 호출은 하지 않는다.
-    settingsHook.applyServerResponse(DEFAULT_USER_SETTINGS)
-    thresholdHook.setLocalAnomaly(lastServerThresholdRef.current.anomalyThreshold)
-    thresholdHook.setLocalLowConfidence(lastServerThresholdRef.current.lowConfidenceThreshold)
+    // 모든 항목을 코드 기본값으로 화면만 변경. baseline(lastServer*)은 건드리지 않는다.
+    settingsHook.replaceLocal(DEFAULT_USER_SETTINGS)
+    thresholdHook.setLocalAnomaly(DEFAULT_USER_THRESHOLD.anomalyThreshold)
+    thresholdHook.setLocalLowConfidence(DEFAULT_USER_THRESHOLD.lowConfidenceThreshold)
     ;(Object.keys(DEFAULT_USER_PREFERENCES) as Array<keyof typeof DEFAULT_USER_PREFERENCES>).forEach(
       (k) => preferencesHook.setLocal(k, DEFAULT_USER_PREFERENCES[k]),
     )

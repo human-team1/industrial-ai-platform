@@ -70,6 +70,13 @@ public class UserJpaEntity {
         this.status = newStatus;
     }
 
+    public void updateProfile(String name, String phone) {
+        if (name != null) {
+            this.name = name;
+        }
+        this.phone = phone;
+    }
+
     @Builder
     public UserJpaEntity(Long organizationId, String googleSub, String email,
                          String passwordHash, String name, String picture,

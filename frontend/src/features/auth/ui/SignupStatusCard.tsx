@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { SignupStatus } from '../types/signupStatus'
 
 type StatusConfig = {
@@ -51,8 +51,14 @@ type Props = {
   status: SignupStatus
 }
 
+type LocationState = {
+  rejectReason?: string | null
+}
+
 export function SignupStatusCard({ status }: Props) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const rejectReason = (location.state as LocationState | null)?.rejectReason
   const { icon, title, description, badgeClass, badgeText } = STATUS_CONFIG[status]
 
   return (
@@ -65,7 +71,16 @@ export function SignupStatusCard({ status }: Props) {
 
       <h2 className="text-[#1f2937] text-xl font-bold mb-3">{title}</h2>
 
-      <p className="text-[#6c757d] text-sm leading-relaxed mb-8">{description}</p>
+      {status === 'rejected' && rejectReason ? (
+        <div className="w-full text-left mb-8">
+          <p className="text-[#6c757d] text-xs font-medium mb-2">거절 사유</p>
+          <blockquote className="bg-[#f8f9fa] border-l-4 border-[#6c757d] px-4 py-3 text-[#495057] text-sm leading-relaxed whitespace-pre-wrap">
+            {rejectReason}
+          </blockquote>
+        </div>
+      ) : (
+        <p className="text-[#6c757d] text-sm leading-relaxed mb-8">{description}</p>
+      )}
 
       <button
         type="button"
