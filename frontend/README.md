@@ -1,16 +1,15 @@
 # Frontend
 
-## 탐지 MVP 정책
+React + Vite + TypeScript 기반 웹 클라이언트입니다. 사용자는 검사 요청, 결과 조회, 문서/RAG, 챗봇, 대시보드를 사용하고 관리자는 가입 승인과 운영 화면을 사용합니다.
 
-- 업로드 탐지 화면은 이미지 파일만 허용합니다.
-- 허용 파일 형식은 `image/jpeg`, `image/png`, `image/webp`입니다.
-- `video/*` 파일은 선택 단계와 제출 단계에서 차단합니다.
-- 실시간 탐지 화면은 브라우저 카메라 프리뷰를 보여주고, `[현재 화면 검사]` 버튼 클릭 시 현재 프레임 1장을 캡처해 `/api/v1/inspections/upload`로 전송합니다.
-- `POST /inspections/realtime`, `POST /inspections/{inspectionId}/frames`, `PATCH /inspections/{inspectionId}/stop` API는 백엔드 확장 계약으로 유지하지만 현재 프론트에서는 호출하지 않습니다.
+## 현재 범위
 
-React + Vite + TypeScript 기반 웹 클라이언트입니다. 사용자는 검사/결과/문서/RAG/챗봇/대시보드 화면을 이용하고, 관리자는 가입 승인 등 운영 화면을 사용합니다.
+- 이미지 업로드 검사를 지원합니다.
+- 브라우저 카메라 화면은 현재 프레임 1장을 캡처해 업로드 검사 API를 재사용합니다.
+- 영상 전체 분석과 지속 스트리밍 업로드는 확장 예정입니다.
+- FastAPI는 프론트에서 직접 호출하지 않고 Spring API를 통해서만 연동합니다.
 
-## 현재 스택
+## 기술 스택
 
 - React 18.3.1
 - Vite 5.4.10
@@ -30,21 +29,18 @@ Copy-Item .env.example .env
 | --- | --- |
 | `VITE_APP_NAME` | 앱 이름 |
 | `VITE_API_BASE_URL` | Spring API base URL, 기본값 `/api/v1` |
-| `VITE_GOOGLE_CLIENT_ID` | Google OAuth Client ID |
+| `VITE_GOOGLE_CLIENT_ID` | Google OAuth Web Client ID |
 
-## 설치
-
-```powershell
-npm install
-```
+운영/시연 환경에서는 가능한 한 `/api/v1` 상대경로를 사용합니다. 도메인이 바뀌어도 Nginx가 같은 origin에서 Spring으로 프록시할 수 있습니다.
 
 ## 실행
 
 ```powershell
+npm install
 npm run dev
 ```
 
-기본 개발 서버는 `http://localhost:5173`입니다. 포트가 사용 중이면 Vite가 다음 포트를 자동 사용합니다.
+기본 주소는 `http://localhost:5173`입니다.
 
 ## 검증
 
@@ -65,49 +61,19 @@ src/
   shared/     API client, 공통 UI, hooks, lib, types
 ```
 
-상위 계층은 하위 계층만 참조합니다.
+상위 계층은 하위 계층만 참조합니다. API 호출은 `shared/api` 또는 각 feature의 `api` 계층에 둡니다.
 
-## 문서 관리 화면
+## 주요 라우트
 
-현재 문서 관리 라우트:
-
+- `/dashboard`
+- `/inspections`
+- `/results`
 - `/documents`
 - `/documents/new`
 - `/documents/:documentId/edit`
-
-등록/수정은 같은 공통 페이지와 폼을 사용합니다.
-
-- 페이지: `src/pages/documents/DocumentFormPage.tsx`
-- 훅: `src/features/document-form/model/useDocumentForm` 역할의 `useDocumentForm`
-- UI: `src/features/document-form/ui/DocumentForm`
-- API: `src/features/document-form/api`
-
-등록 모드:
-
-- 파일 업로드 필수
-- 문서명 필수
-- 저장 후 문서 목록으로 이동
-
-수정 모드:
-
-- 문서 상세 조회 후 초기값 세팅
-- 기존 파일 정보 표시
-- 새 파일 선택 시 새 버전으로 등록
-- 인덱싱 상태와 미리보기 영역 표시
-
-## 인증 처리
-
-- Access Token은 메모리에 보관합니다.
-- Refresh Token은 HttpOnly Cookie 기반 갱신 API를 사용합니다.
-- 401 응답 시 `/auth/refresh` 재시도 후 원 요청을 재실행합니다.
-- 403 관리자 접근 실패 시 `/dashboard`로 이동합니다.
+- `/chatbot-history`
+- 관리자/운영 화면은 라우터와 권한 설정을 기준으로 확인합니다.
 
 ## 커밋 제외
 
 `node_modules/`, `dist/`, `.env`, `*.log`는 커밋하지 않습니다.
-## Nginx 게이트웨이 기준 API 경로
-
-- `VITE_API_BASE_URL` 기본값은 `/api/v1`입니다.
-- 운영/시연 환경에서는 `http://localhost:8080/api/v1` 같은 절대 주소를 사용하지 않습니다.
-- Cloudflare Tunnel 주소나 최종 도메인이 바뀌어도 같은 프론트 코드가 동작하도록 상대경로를 유지합니다.
-- FastAPI는 프론트에서 직접 호출하지 않고 Spring Boot 내부 연동으로만 사용합니다.
