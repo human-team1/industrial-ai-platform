@@ -23,6 +23,9 @@ public class GoogleLoginResult {
     private final String role;
     private final Long organizationId;
 
+    /** REJECTED 상태일 때만 채워짐 — 관리자가 작성한 거절 사유 */
+    private final String rejectReason;
+
     /** 신규 유저용: googleSub은 signupToken에만 포함, 응답에는 노출하지 않음 */
     private final String signupToken;
 
@@ -44,11 +47,12 @@ public class GoogleLoginResult {
                 .build();
     }
 
-    public static GoogleLoginResult ofRejected(String email, String name) {
+    public static GoogleLoginResult ofRejected(String email, String name, String rejectReason) {
         return GoogleLoginResult.builder()
                 .userStatus(AuthStatus.REJECTED)
                 .email(email)
                 .name(name)
+                .rejectReason(rejectReason)
                 .build();
     }
 

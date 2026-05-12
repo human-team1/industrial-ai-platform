@@ -32,6 +32,7 @@ public enum ErrorCode {
     INVALID_FILE_MIME("FILE-402", HttpStatus.UNPROCESSABLE_ENTITY, "허용되지 않는 MIME 타입입니다."),
     INVALID_FILE_EXTENSION("FILE-403", HttpStatus.UNPROCESSABLE_ENTITY, "허용되지 않는 파일 확장자입니다."),
     INVALID_FILE_NAME("FILE-404", HttpStatus.UNPROCESSABLE_ENTITY, "파일명이 올바르지 않습니다."),
+    INVALID_FILE_CONTENT("FILE-422A", HttpStatus.UNPROCESSABLE_ENTITY, "파일 내용이 손상되었거나 형식이 일치하지 않습니다."),
     CAMERA_NOT_FOUND("CAMERA-404", HttpStatus.NOT_FOUND, "카메라를 찾을 수 없습니다."),
     CAMERA_INVALID_URL("CAMERA-400", HttpStatus.BAD_REQUEST, "스트림 URL 형식이 올바르지 않습니다."),
     MODEL_NOT_FOUND("MODEL-404", HttpStatus.NOT_FOUND, "모델을 찾을 수 없습니다."),

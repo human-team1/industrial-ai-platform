@@ -1,4 +1,5 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
+import { PrivacyPolicyModal } from '../../../shared/ui/legal/PrivacyPolicyModal'
 
 type ConsentFieldProps = {
   value: boolean
@@ -8,6 +9,7 @@ type ConsentFieldProps = {
 
 export function ConsentField({ value, onChange, disabled = false }: ConsentFieldProps) {
   const consentId = useId()
+  const [policyOpen, setPolicyOpen] = useState(false)
 
   return (
     <div className="flex items-center gap-2">
@@ -28,11 +30,13 @@ export function ConsentField({ value, onChange, disabled = false }: ConsentField
       </label>
       <button
         type="button"
+        onClick={() => setPolicyOpen(true)}
         className="text-[#91b9f4] text-xs underline hover:text-[#5591e7] transition-colors"
         aria-label="개인정보 처리방침 전문 보기"
       >
         전문 보기
       </button>
+      <PrivacyPolicyModal open={policyOpen} onClose={() => setPolicyOpen(false)} />
     </div>
   )
 }

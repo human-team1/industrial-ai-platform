@@ -24,6 +24,7 @@ import com.example.factoryguard.application.port.out.operation.SaveAsyncJobPort;
 import com.example.factoryguard.application.port.out.result.SaveResultArtifactPort;
 import com.example.factoryguard.application.port.out.result.SaveResultImagePort;
 import com.example.factoryguard.application.port.out.review.SaveReviewQueuePort;
+import com.example.factoryguard.application.port.out.user.LoadUserSettingPort;
 import com.example.factoryguard.application.service.model.ActiveModelDeploymentResolver;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
@@ -37,6 +38,7 @@ import com.example.factoryguard.domain.inspection.model.InspectionInput;
 import com.example.factoryguard.domain.inspection.model.InspectionResult;
 import com.example.factoryguard.domain.inspection.model.InspectionRun;
 import com.example.factoryguard.domain.inspection.model.RunStatus;
+import com.example.factoryguard.domain.inspection.model.RunType;
 import com.example.factoryguard.domain.inspection.vo.RoiMode;
 import com.example.factoryguard.domain.model.vo.ModelArtifactType;
 import com.example.factoryguard.domain.model.vo.ModelUsagePurpose;
@@ -53,6 +55,7 @@ import com.example.factoryguard.domain.result.vo.ImageRole;
 import com.example.factoryguard.domain.review.model.ReviewQueue;
 import com.example.factoryguard.domain.review.vo.ReviewQueueStatus;
 import com.example.factoryguard.domain.review.vo.ReviewQueuedReason;
+import com.example.factoryguard.domain.user.model.UserSetting;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -95,6 +98,7 @@ public class AiInferenceJobWorker {
     private final SaveResultImagePort saveResultImagePort;
     private final SaveReviewQueuePort saveReviewQueuePort;
     private final SaveNotificationPort saveNotificationPort;
+    private final LoadUserSettingPort loadUserSettingPort;
     private final PersistUploadedFilePort persistUploadedFilePort;
     private final InspectionEventLogger inspectionEventLogger;
     private final RecordOperationLogUseCase recordOperationLogUseCase;
@@ -201,7 +205,7 @@ public class AiInferenceJobWorker {
         StoredFile originalFile = loadFilePort.findById(input.getFileId())
                 .orElseThrow(() -> new IllegalStateException("INPUT_FILE_NOT_FOUND"));
 
-        ModelUsagePurpose purpose = run.getRunType() == com.example.factoryguard.domain.inspection.model.RunType.REALTIME
+        ModelUsagePurpose purpose = run.getRunType() == RunType.REALTIME
                 ? ModelUsagePurpose.REALTIME_INSPECTION
                 : ModelUsagePurpose.UPLOAD_INSPECTION;
         Long selectedDeploymentId = InspectionRunSourceMetadata.parseDeploymentId(run.getSourceId());
@@ -281,17 +285,28 @@ public class AiInferenceJobWorker {
         return threshold.getAnomalyThreshold();
     }
 
+    private boolean isNotificationEnabled(Long userId) {
+        if (userId == null) {
+            return true;
+        }
+        return loadUserSettingPort.findByUserId(userId)
+                .map(UserSetting::getNotificationEnabled)
+                .map(enabled -> !Boolean.FALSE.equals(enabled))
+                .orElse(true);
+    }
+
     private Notification buildInspectionNotification(InspectionRun run, Long resultId, DecisionCode decisionCode) {
         boolean defect = decisionCode == DecisionCode.DEFECT;
+        boolean isUpload = run.getRunType() == RunType.UPLOAD;
         return Notification.builder()
                 .userId(run.getUserId())
                 .notificationType(defect ? NotificationType.DEFECT_DETECTED : NotificationType.REINSPECTION_REQUIRED)
                 .severity(defect ? NotificationSeverity.CRITICAL : NotificationSeverity.WARNING)
                 .title(defect ? "이상이 감지되었습니다." : "재검사가 필요합니다.")
                 .message("inspectionId=" + run.getInspectionId() + ", resultId=" + resultId)
-                .relatedType("INSPECTION_RESULT")
+                .relatedType("RESULT")
                 .relatedId(resultId)
-                .targetUrl("/inspections/" + run.getInspectionId())
+                .targetUrl(isUpload ? "/results/" + resultId : null)
                 .dedupKey("inspection-result:" + resultId)
                 .isRead(false)
                 .build();
@@ -378,7 +393,8 @@ public class AiInferenceJobWorker {
                     .build());
         }
 
-        if (decisionCode == DecisionCode.DEFECT || decisionCode == DecisionCode.RECHECK) {
+        if ((decisionCode == DecisionCode.DEFECT || decisionCode == DecisionCode.RECHECK)
+                && isNotificationEnabled(run.getUserId())) {
             saveNotificationPort.save(buildInspectionNotification(run, saved.getResultId(), decisionCode));
         }
 

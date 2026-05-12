@@ -1,6 +1,7 @@
 export type UserProfile = {
   name: string
   email: string
+  phone: string
   role: string
   joinedAt: string
   lastLoginAt: string

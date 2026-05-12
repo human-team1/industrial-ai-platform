@@ -10,9 +10,11 @@ import com.example.factoryguard.application.port.out.operation.OperationAdminPor
 import com.example.factoryguard.application.port.out.operation.OperationStatusCachePort;
 import com.example.factoryguard.config.client.AiServerProperties;
 import com.example.factoryguard.config.operation.OperationMonitoringProperties;
+import com.example.factoryguard.config.web.RequestIdFilter;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,7 @@ import java.math.RoundingMode;
 import java.net.InetAddress;
 import java.sql.Connection;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -49,16 +52,26 @@ public class SystemStatusCollectorService {
     @Scheduled(fixedDelayString = "${app.operation.monitoring.collect-interval-ms:30000}")
     @Transactional
     public void collect() {
-        SystemComponentStatusResult spring = collectSpringStatus();
-        saveStatusHistory("spring", spring, true);
+        String previousRequestId = MDC.get(RequestIdFilter.MDC_KEY);
+        MDC.put(RequestIdFilter.MDC_KEY, UUID.randomUUID().toString());
+        try {
+            SystemComponentStatusResult spring = collectSpringStatus();
+            saveStatusHistory("spring", spring, true);
 
-        saveStatusHistory(null, checkMariaDb(), false);
-        saveStatusHistory(null, checkRedis(), false);
-        saveStatusHistory("ai", checkAiServer(), false);
-        saveStatusHistory(null, checkMinio(), false);
-        saveStatusHistory(null, checkChroma(), false);
-        saveStatusHistory(null, collectStorageStatus(), false);
-        saveStatusHistory(null, unknown("STREAM_SERVER", "Stream Server", "실시간 스트림 서버가 아직 연결되지 않았습니다."), false);
+            saveStatusHistory(null, checkMariaDb(), false);
+            saveStatusHistory(null, checkRedis(), false);
+            saveStatusHistory("ai", checkAiServer(), false);
+            saveStatusHistory(null, checkMinio(), false);
+            saveStatusHistory(null, checkChroma(), false);
+            saveStatusHistory(null, collectStorageStatus(), false);
+            saveStatusHistory(null, unknown("STREAM_SERVER", "Stream Server", "실시간 스트림 서버가 아직 연결되지 않았습니다."), false);
+        } finally {
+            if (previousRequestId != null) {
+                MDC.put(RequestIdFilter.MDC_KEY, previousRequestId);
+            } else {
+                MDC.remove(RequestIdFilter.MDC_KEY);
+            }
+        }
     }
 
     private SystemComponentStatusResult collectSpringStatus() {

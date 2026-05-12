@@ -4,6 +4,7 @@ import com.example.factoryguard.adapter.out.persistence.user.UserJpaEntity;
 import com.example.factoryguard.adapter.out.persistence.user.UserJpaRepository;
 import com.example.factoryguard.application.dto.signup.SignupRequestSummary;
 import com.example.factoryguard.application.port.out.signuprequest.FindPendingSignupRequestsPort;
+import com.example.factoryguard.application.port.out.signuprequest.FindRejectReasonByUserIdPort;
 import com.example.factoryguard.application.port.out.signuprequest.ProcessSignupRequestPort;
 import com.example.factoryguard.application.port.out.signuprequest.SaveSignupRequestPort;
 import com.example.factoryguard.common.exception.BusinessException;
@@ -14,12 +15,14 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class SignupRequestPersistenceAdapter
-        implements SaveSignupRequestPort, FindPendingSignupRequestsPort, ProcessSignupRequestPort {
+        implements SaveSignupRequestPort, FindPendingSignupRequestsPort, ProcessSignupRequestPort,
+                   FindRejectReasonByUserIdPort {
 
     private final SignupRequestJpaRepository signupRequestJpaRepository;
     private final UserJpaRepository userJpaRepository;
@@ -73,5 +76,13 @@ public class SignupRequestPersistenceAdapter
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         entity.reject(adminUserId, rejectReason);
         return entity.getUserId();
+    }
+
+    @Override
+    public Optional<String> findLatestRejectReasonByUserId(Long userId) {
+        return signupRequestJpaRepository
+                .findTopByUserIdAndRequestStatusOrderByProcessedAtDescRequestedAtDesc(
+                        userId, SignupRequestStatus.REJECTED)
+                .map(SignupRequestJpaEntity::getRejectReason);
     }
 }

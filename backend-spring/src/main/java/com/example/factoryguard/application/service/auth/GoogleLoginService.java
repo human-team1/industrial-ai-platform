@@ -8,6 +8,7 @@ import com.example.factoryguard.application.port.in.auth.GoogleLoginUseCase;
 import com.example.factoryguard.application.port.in.operation.RecordOperationLogUseCase;
 import com.example.factoryguard.application.port.out.auth.TokenStorePort;
 import com.example.factoryguard.application.port.out.auth.VerifyGoogleTokenPort;
+import com.example.factoryguard.application.port.out.signuprequest.FindRejectReasonByUserIdPort;
 import com.example.factoryguard.application.port.out.user.FindUserByGoogleSubPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
@@ -29,6 +30,7 @@ public class GoogleLoginService implements GoogleLoginUseCase {
 
     private final VerifyGoogleTokenPort verifyGoogleTokenPort;
     private final FindUserByGoogleSubPort findUserByGoogleSubPort;
+    private final FindRejectReasonByUserIdPort findRejectReasonByUserIdPort;
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenStorePort tokenStorePort;
     private final JwtProperties jwtProperties;
@@ -109,7 +111,12 @@ public class GoogleLoginService implements GoogleLoginUseCase {
                 );
             }
             case PENDING -> GoogleLoginResult.ofPending(user.getEmail(), user.getName());
-            case REJECTED -> GoogleLoginResult.ofRejected(user.getEmail(), user.getName());
+            case REJECTED -> {
+                String rejectReason = findRejectReasonByUserIdPort
+                        .findLatestRejectReasonByUserId(user.getUserId())
+                        .orElse(null);
+                yield GoogleLoginResult.ofRejected(user.getEmail(), user.getName(), rejectReason);
+            }
             case INACTIVE -> {
                 recordOperationLogUseCase.recordOperationLog(RecordOperationLogCommand.builder()
                         .eventType("LOGIN_FAILED")
