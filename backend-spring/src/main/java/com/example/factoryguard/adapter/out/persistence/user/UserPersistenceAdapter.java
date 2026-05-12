@@ -35,6 +35,12 @@ public class UserPersistenceAdapter implements FindUserByGoogleSubPort, FindUser
 
     @Override
     public User save(User user) {
+        if (user.getUserId() != null) {
+            UserJpaEntity existing = userJpaRepository.findById(user.getUserId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+            existing.updateProfile(user.getName(), user.getPhone());
+            return userPersistenceMapper.toDomain(existing);
+        }
         UserJpaEntity entity = userPersistenceMapper.toEntity(user);
         UserJpaEntity saved = userJpaRepository.save(entity);
         return userPersistenceMapper.toDomain(saved);
