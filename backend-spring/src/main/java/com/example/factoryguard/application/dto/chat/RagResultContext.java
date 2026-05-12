@@ -14,7 +14,10 @@ public class RagResultContext {
     private final String decisionCode;
     private final BigDecimal score;
     private final BigDecimal confidence;
+    private final BigDecimal imageThreshold;
     private final String equipmentName;
     private final Long targetId;
     private final String anomalySummary;
+    private final String modelVersion;
+    private final String modelProfile;
 }

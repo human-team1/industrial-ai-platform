@@ -37,7 +37,7 @@ class GraphState(BaseModel):
     query_case_id: str | None = None
 
     # result-linked context
-    result_id: str | None = None
+    result_id: int | str | None = None
     result_context: ResultContext | None = None
 
     # control flags

@@ -36,5 +36,10 @@ class MockResultContextStore:
 
         return index
 
-    def get_by_result_id(self, result_id: str) -> dict[str, Any] | None:
-        return self.index.get(result_id)
+    def get_by_result_id(self, result_id: int | str) -> dict[str, Any] | None:
+        key = str(result_id)
+        result = self.index.get(key)
+        print(f"[DEBUG] MockResultContextStore.get_by_result_id - searching for '{key}', found: {result is not None}")
+        if result is None:
+            print(f"[DEBUG] Available keys in index: {list(self.index.keys())[:10]}")
+        return result

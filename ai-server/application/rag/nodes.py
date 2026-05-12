@@ -301,14 +301,20 @@ def load_result_context(
     current = to_state(state)
     route_path = append_route(current, "load_result_context")
 
-    # result_id가 없는 document_search 질문은 result_context 없이 계속 진행한다.
-    # result_id가 없는 질문은 result_context 없이 다음 단계로 계속 진행한다.
+    # Spring에서 이미 result_context를 전달했으면 그것을 사용한다.
+    if current.result_context is not None:
+        return {
+            "need_result_context": True,
+            "route_path": route_path,
+        }
+
+    # result_id가 없는 질문은 result_context 없이 계속 진행한다.
     if not current.result_id:
         return {
             "route_path": route_path,
         }
 
-    # 실제 DB 대신 mock store에서 result_id 기준 문맥을 조회한다.
+    # Mock store에서 result_id 기준 문맥을 조회한다.
     result_context = runtime.result_context_store.get_by_result_id(current.result_id)
 
     if result_context is None:
@@ -408,6 +414,16 @@ def build_retrieval_query(state: GraphState | dict[str, Any]) -> dict[str, Any]:
         current.result_context,
         "heatmap_location",
     )
+    model_version = get_context_value(current.result_context, "model_version")
+    model_profile = get_context_value(current.result_context, "model_profile")
+
+    # decision을 한글과 함께 검색 쿼리에 포함
+    if decision == "DEFECT":
+        decision_enhanced = "DEFECT 결함"
+    elif decision == "REVIEW_REQUIRED":
+        decision_enhanced = "REVIEW_REQUIRED 재검사"
+    else:
+        decision_enhanced = decision
 
     extra_terms: list[str] = [
         "점검",
@@ -462,9 +478,11 @@ def build_retrieval_query(state: GraphState | dict[str, Any]) -> dict[str, Any]:
             question,
             equipment_name,
             category,
-            decision,
+            decision_enhanced,
             anomaly_type,
             heatmap_location,
+            model_version,
+            model_profile,
             *extra_terms,
         ]
     )

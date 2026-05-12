@@ -149,6 +149,7 @@ public class RagAnswerAdapter implements RequestRagAnswerPort {
         private final Long userId;
         private final Long organizationId;
         private final Long conversationId;
+        private final Long resultId;
         private final RagResultContext resultContext;
         private final Integer topK;
 
@@ -159,6 +160,7 @@ public class RagAnswerAdapter implements RequestRagAnswerPort {
                     request.getUserId(),
                     request.getOrganizationId(),
                     request.getConversationId(),
+                    request.getResultId(),
                     request.getResultContext(),
                     topK
             );

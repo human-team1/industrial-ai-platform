@@ -21,7 +21,7 @@ class RagQueryRequest(BaseModel):
     user_id: int = Field(..., ge=1)
     organization_id: int = Field(..., ge=1)
     conversation_id: int | str | None = None
-    result_id: str | None = None
+    result_id: int | str | None = None
     result_context: dict[str, Any] | None = None
     top_k: int = Field(default=5, ge=1, le=20)
     prompt_version: str | None = None
@@ -72,7 +72,7 @@ class RagQueryResponse(BaseModel):
     safety_flags: list[SafetyFlag | str] = Field(default_factory=list)
     source_warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
-    result_id: str | None = None
+    result_id: int | str | None = None
     conversation_id: str | None = None
     message_id: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
