@@ -29,6 +29,9 @@ DEFAULT_PROMPT_TEMPLATES = {
 8. 참고 문서나 검사 결과 문맥에 없는 세부 원인 후보를 예시처럼 나열하지 마세요.
 9. result_linked 질문에서 원인이 문서로 직접 확정되지 않으면 추정 원인 목록을 만들지 말고, 재검사 사유, 확인 필요 항목, 다음 조치를 중심으로 답변하세요.
 10. result_linked 질문에서 "가능한 원인"을 작성하더라도 한두 개의 보수적인 표현만 사용하고, 문서에 없는 일반론적 후보를 확장하지 마세요.
+11. 확인 항목과 조치 순서는 반드시 다르게 작성하세요.
+    - 확인 항목: 현재 상태를 파악하기 위해 검토/확인해야 할 항목 (관찰, 측정, 검증)
+    - 조치 순서: 확인 후 취할 구체적인 행동 (수정, 교체, 조정, 교정)
 
 사용자 질문:
 $question
@@ -89,6 +92,8 @@ class PromptBuilder:
         "heatmap_location",
         "model_version",
         "threshold_profile",
+        "model_name",
+        "model_category",
         "artifact_uri",
     )
 

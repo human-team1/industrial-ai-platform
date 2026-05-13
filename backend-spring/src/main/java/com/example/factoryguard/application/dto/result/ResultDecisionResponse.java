@@ -17,6 +17,7 @@ public class ResultDecisionResponse {
     private final String resultStatus;
     private final String thresholdSource;
     private final BigDecimal appliedThreshold;
+    private final BigDecimal imageThreshold;
     private final Long modelVersionId;
     private final String failureReason;
     private final LocalDateTime createdAt;

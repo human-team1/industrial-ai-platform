@@ -34,6 +34,7 @@ import com.example.factoryguard.application.port.out.document.LoadVectorIndexPor
 import com.example.factoryguard.application.port.out.result.ResultQueryPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
+import com.example.factoryguard.common.util.ResultIdExtractor;
 import com.example.factoryguard.domain.chat.model.ChatConversation;
 import com.example.factoryguard.domain.chat.model.ChatMessage;
 import com.example.factoryguard.domain.chat.model.ChatSource;
@@ -42,12 +43,15 @@ import com.example.factoryguard.domain.chat.vo.ChatMessageRole;
 import com.example.factoryguard.domain.chat.vo.ChatMessageStatus;
 import com.example.factoryguard.domain.chat.vo.ChatSourceType;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatService implements AskChatUseCase, CreateChatConversationUseCase, ListChatConversationsUseCase,
@@ -84,6 +88,8 @@ public class ChatService implements AskChatUseCase, CreateChatConversationUseCas
                 .createdAt(LocalDateTime.now())
                 .build());
 
+        Long extractedResultId = command.getResultId() != null ? command.getResultId() : ResultIdExtractor.extractResultId(question);
+
         RagAnswerResponse ragAnswer = requestRagAnswerPort.requestAnswer(RagAnswerRequest.builder()
                 .userId(command.getUserId())
                 .organizationId(command.getOrganizationId())
@@ -91,8 +97,8 @@ public class ChatService implements AskChatUseCase, CreateChatConversationUseCas
                 .question(question)
                 .documentScope(command.getDocumentScope())
                 .documentIds(command.getDocumentIds())
-                .resultId(command.getResultId())
-                .resultContext(resolveResultContext(command))
+                .resultId(extractedResultId)
+                .resultContext(resolveResultContext(command, extractedResultId))
                 .build());
 
         ChatAnswerStatus answerStatus = normalizeAnswerStatus(ragAnswer);
@@ -283,26 +289,31 @@ public class ChatService implements AskChatUseCase, CreateChatConversationUseCas
         };
     }
 
-    private RagResultContext resolveResultContext(AskChatCommand command) {
-        if (command.getResultId() == null) {
+    private RagResultContext resolveResultContext(AskChatCommand command, Long resultId) {
+        if (resultId == null) {
             return null;
         }
-        Long resultOrganizationId = resultQueryPort.findOrganizationIdByResultId(command.getResultId())
+        Long resultOrganizationId = resultQueryPort.findOrganizationIdByResultId(resultId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "검사 결과를 찾을 수 없습니다."));
         if (!resultOrganizationId.equals(command.getOrganizationId())) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "다른 회사의 검사 결과에는 접근할 수 없습니다.");
         }
-        ResultDetailResponse detail = resultQueryPort.findDetail(command.getResultId())
+        ResultDetailResponse detail = resultQueryPort.findDetail(resultId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "검사 결과를 찾을 수 없습니다."));
+        BigDecimal scoreValue = detail.getResult() == null ? null : detail.getResult().getScore();
+        log.info("[resolveResultContext] resultId={}, score={}", resultId, scoreValue);
         return RagResultContext.builder()
                 .resultId(detail.getResultId())
                 .inspectionId(detail.getInspectionId())
                 .decisionCode(detail.getResult() == null ? null : detail.getResult().getFinalDecisionCode())
-                .score(detail.getResult() == null ? null : detail.getResult().getScore())
+                .score(scoreValue)
                 .confidence(detail.getResult() == null ? null : detail.getResult().getConfidence())
+                .imageThreshold(detail.getResult() == null ? null : detail.getResult().getImageThreshold())
                 .equipmentName(detail.getTarget() == null ? null : detail.getTarget().getEquipmentName())
                 .targetId(detail.getTarget() == null ? null : detail.getTarget().getTargetId())
                 .anomalySummary(detail.getResult() == null ? null : detail.getResult().getFailureReason())
+                .modelVersion(detail.getModel() == null ? null : detail.getModel().getVersionName())
+                .modelProfile(detail.getModel() == null ? null : detail.getModel().getModelProfile())
                 .build();
     }
 

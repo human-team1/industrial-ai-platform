@@ -57,8 +57,8 @@ class ResultContext(BaseModel):
     """
     model_config = ConfigDict(extra="ignore", protected_namespaces=())
 
-    result_id: str | None = None
-    inspection_id: str | None = None
+    result_id: int | str | None = None
+    inspection_id: int | str | None = None
 
     equipment_name: str | None = None
     category: str | None = None
@@ -72,6 +72,7 @@ class ResultContext(BaseModel):
 
     model_version: str | None = None
     threshold_profile: str | None = None
+    model_profile: str | None = None
 
     artifact_uri: str | None = None
     artifact_available: bool = False

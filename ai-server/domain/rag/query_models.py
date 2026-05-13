@@ -9,7 +9,7 @@ class RagQueryCommand:
     user_id: int
     organization_id: int
     question: str
-    result_id: str | None = None
+    result_id: int | str | None = None
     result_context: dict[str, Any] | None = None
     top_k: int = 5
     prompt_version: str | None = None
@@ -42,7 +42,7 @@ class RagQueryResult:
     safety_flags: list[SafetyFlag | str] = field(default_factory=list)
     source_warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
-    result_id: str | None = None
+    result_id: int | str | None = None
     conversation_id: str | None = None
     message_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
