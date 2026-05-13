@@ -410,6 +410,10 @@ def build_retrieval_query(state: GraphState | dict[str, Any]) -> dict[str, Any]:
         current.result_context,
         "anomaly_type",
     )
+    anomaly_summary = get_context_value(
+        current.result_context,
+        "anomaly_summary",
+    )
     heatmap_location = get_context_value(
         current.result_context,
         "heatmap_location",
@@ -480,6 +484,7 @@ def build_retrieval_query(state: GraphState | dict[str, Any]) -> dict[str, Any]:
             category,
             decision_enhanced,
             anomaly_type,
+            anomaly_summary,
             heatmap_location,
             model_version,
             model_profile,

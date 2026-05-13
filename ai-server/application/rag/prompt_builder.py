@@ -83,17 +83,18 @@ class PromptBuilder:
     RESULT_CONTEXT_FIELDS = (
         "result_id",
         "inspection_id",
+        "target_id",
         "equipment_name",
         "category",
         "decision",
         "anomaly_score",
         "confidence",
         "anomaly_type",
+        "anomaly_summary",
         "heatmap_location",
         "model_version",
         "threshold_profile",
-        "model_name",
-        "model_category",
+        "model_profile",
         "artifact_uri",
     )
 
