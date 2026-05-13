@@ -62,12 +62,14 @@ class ResultContext(BaseModel):
 
     equipment_name: str | None = None
     category: str | None = None
+    target_id: int | str | None = None
 
     decision: DecisionCode | str | None = None
     anomaly_score: float | None = None
     confidence: float | None = None
 
     anomaly_type: str | None = None
+    anomaly_summary: str | None = None
     heatmap_location: str | None = None
 
     model_version: str | None = None
