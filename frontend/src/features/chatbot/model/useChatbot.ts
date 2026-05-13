@@ -15,7 +15,7 @@ type RetrySnapshot = {
   text: string
 }
 
-export function useChatbot(initialConversationId?: number | null) {
+export function useChatbot(initialConversationId?: number | null, resultId?: number | null) {
   const [conversationId, setConversationId] = useState<number | null>(initialConversationId ?? null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
@@ -69,7 +69,7 @@ export function useChatbot(initialConversationId?: number | null) {
           context: {
             documentScope,
             documentIds: [],
-            resultId: null,
+            resultId: resultId ?? null,
           },
         })
         setConversationId(result.conversationId)
@@ -100,7 +100,7 @@ export function useChatbot(initialConversationId?: number | null) {
         setLoading(false)
       }
     },
-    [conversationId, documentScope],
+    [conversationId, documentScope, resultId],
   )
 
   const sendQuestion = useCallback(

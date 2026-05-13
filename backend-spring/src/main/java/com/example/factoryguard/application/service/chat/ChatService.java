@@ -256,6 +256,9 @@ public class ChatService implements AskChatUseCase, CreateChatConversationUseCas
     }
 
     private String normalizeAnswer(RagAnswerResponse ragAnswer, ChatAnswerStatus answerStatus) {
+        if (ragAnswer != null && ragAnswer.getAnswerText() != null && !ragAnswer.getAnswerText().isBlank()) {
+            return ragAnswer.getAnswerText().trim();
+        }
         if (answerStatus == ChatAnswerStatus.NO_RELEVANT_SOURCE) {
             return NO_SOURCE_ANSWER;
         }
@@ -283,9 +286,8 @@ public class ChatService implements AskChatUseCase, CreateChatConversationUseCas
 
     private ChatMessageStatus normalizeMessageStatus(ChatAnswerStatus answerStatus) {
         return switch (answerStatus) {
-            case ANSWERED, NO_RELEVANT_SOURCE -> ChatMessageStatus.SUCCESS;
-            case LLM_FAILED, VECTOR_STORE_FAILED, DOCUMENT_SCOPE_FORBIDDEN, VALIDATION_FAILED -> ChatMessageStatus.FAILED;
-            case OUT_OF_SCOPE -> ChatMessageStatus.SUCCESS;
+            case ANSWERED, NO_RELEVANT_SOURCE, OUT_OF_SCOPE, VALIDATION_FAILED -> ChatMessageStatus.SUCCESS;
+            case LLM_FAILED, VECTOR_STORE_FAILED, DOCUMENT_SCOPE_FORBIDDEN -> ChatMessageStatus.FAILED;
         };
     }
 
