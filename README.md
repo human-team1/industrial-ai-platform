@@ -231,7 +231,7 @@ industrial-ai-platform/
 | <a href="https://github.com/user-attachments/assets/bb47f40e-6e4f-4190-9cd8-754f315201b6" target="_blank"><img src="https://github.com/user-attachments/assets/bb47f40e-6e4f-4190-9cd8-754f315201b6" width="200" /></a> | 마이페이지 | 개인 정보를 조회하고 수정합니다. |
 | <a href="https://github.com/user-attachments/assets/2ca7f144-4a9f-4c1a-891e-a93a08d0be26" target="_blank"><img src="https://github.com/user-attachments/assets/2ca7f144-4a9f-4c1a-891e-a93a08d0be26" width="200" /></a> | 설정 | 임계값과 탐지 옵션 등 사용자 설정을 관리합니다. |
 | <a href="https://github.com/user-attachments/assets/704b1366-a41f-4f49-ba93-bb8424f4f5ba" target="_blank"><img src="https://github.com/user-attachments/assets/704b1366-a41f-4f49-ba93-bb8424f4f5ba" width="200" /></a> | 관리자 - 회원가입 요청 | 가입 신청을 검토하고 승인/거절합니다. |
-| <a href="https://github.com/user-attachments/assets/f64cc2a7-c5fe-4441-b989-c2a9ef3f35a4" target="_blank"><img src="https://github.com/user-attachments/assets/f64cc2a7-c5fe-4441-b989-c2a9ef3f35a4" width="200" /></a> | 관리자 - 운영 모니터링 | 시스템 상태, 비동기 작업, 운영 로그를 확인합니다. |
+| <a href="https://github.com/user-attachments/assets/ea15fc5c-31aa-4e07-adc5-a257cfbbcd2b" target="_blank"><img src="https://github.com/user-attachments/assets/ea15fc5c-31aa-4e07-adc5-a257cfbbcd2b" height="200" /></a> | 관리자 - 운영 모니터링 | 시스템 상태, 비동기 작업, 운영 로그를 확인합니다. |
 | <a href="https://github.com/user-attachments/assets/a15d73c6-2229-455f-8a9a-2f0c6f09d6d6" target="_blank"><img src="https://github.com/user-attachments/assets/a15d73c6-2229-455f-8a9a-2f0c6f09d6d6" height="200" /></a> | 관리자 - 사이트 설정 | 사이트 전역 정책과 운영 설정을 관리합니다. |
 
 화면 목록과 와이어프레임은 [페이지 목록](docs/project/페이지목록.md)과 `docs/project/wireframes/`를 참고합니다.
