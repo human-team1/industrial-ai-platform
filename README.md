@@ -50,9 +50,9 @@
 
 ## 2. 시연 동영상
 
-🎬 <!-- TODO: 시연 동영상 링크 추가 -->
+🎬 아래 썸네일을 클릭하면 YouTube에서 시연 영상을 시청할 수 있습니다.
 
-시연 동영상은 추후 추가 예정입니다.
+[![시연 영상](https://img.youtube.com/vi/CeXO-RZyibw/maxresdefault.jpg)](https://www.youtube.com/watch?v=CeXO-RZyibw)
 
 ---
 
@@ -210,19 +210,29 @@ industrial-ai-platform/
 
 ## 10. 주요 화면
 
-🖼️ <!-- TODO: 주요 화면 스크린샷 추가 -->
+🖼️ 주요 화면 미리보기입니다. 미리보기 이미지를 클릭하면 원본 크기로 열립니다.
 
-| 화면 | 목적 |
-| --- | --- |
-| 로그인 / 회원가입 | 사용자 인증과 신규 계정 승인 요청을 처리합니다. |
-| 대시보드 | 검사 현황, 최근 결과, 주요 운영 지표를 요약합니다. |
-| 업로드 탐지 | 이미지 파일을 업로드해 이상 탐지 검사를 요청합니다. |
-| 실시간 검사 진입 | 브라우저 카메라 프리뷰에서 현재 프레임 1장을 캡처해 검사합니다. |
-| 결과 목록 / 상세 | 판정, 점수, 시각화 결과, 모델 정보, 재검토 상태를 확인합니다. |
-| 문서 목록 / 등록 / 수정 | 설비 문서를 관리하고 인덱싱 상태를 확인합니다. |
-| 챗봇 / RAG 질의응답 | 문서 출처를 기반으로 점검 및 대응 가이드를 제공합니다. |
-| 알림 / 마이페이지 / 설정 | 사용자 알림, 개인 정보, 기본 설정을 관리합니다. |
-| 관리자 운영 모니터링 | 시스템 상태, 비동기 작업, 운영 로그를 확인합니다. |
+| 미리보기 | 화면 | 목적 |
+| --- | --- | --- |
+| <a href="https://github.com/user-attachments/assets/8b76032f-2d03-49ca-bacf-c3505359c065" target="_blank"><img src="https://github.com/user-attachments/assets/8b76032f-2d03-49ca-bacf-c3505359c065" width="200" /></a> | 로그인 | 사용자 인증을 처리합니다. |
+| <a href="https://github.com/user-attachments/assets/68b7f3ae-a289-4bb7-a951-2b021069e63d" target="_blank"><img src="https://github.com/user-attachments/assets/68b7f3ae-a289-4bb7-a951-2b021069e63d" width="200" /></a> | 회원가입 | 신규 계정 가입을 신청합니다. |
+| <a href="https://github.com/user-attachments/assets/c070af1c-d580-4f43-8614-257218d1e389" target="_blank"><img src="https://github.com/user-attachments/assets/c070af1c-d580-4f43-8614-257218d1e389" width="200" /></a> | 회원가입 - 승인 대기(PENDING) | 관리자 승인 대기 상태를 안내합니다. |
+| <a href="https://github.com/user-attachments/assets/67e6857f-f188-4a7b-9ed4-b9277d9a9c9c" target="_blank"><img src="https://github.com/user-attachments/assets/67e6857f-f188-4a7b-9ed4-b9277d9a9c9c" width="200" /></a> | 회원가입 - 가입 거절(REJECTED) | 가입 거절 사유를 안내합니다. |
+| <a href="https://github.com/user-attachments/assets/490d2029-247c-44b7-a209-ac62f5868ea3" target="_blank"><img src="https://github.com/user-attachments/assets/490d2029-247c-44b7-a209-ac62f5868ea3" width="200" /></a> | 대시보드 | 검사 현황, 최근 결과, 주요 운영 지표를 요약합니다. |
+| <a href="https://github.com/user-attachments/assets/9963d86a-f517-4c87-9a97-81705b401c9e" target="_blank"><img src="https://github.com/user-attachments/assets/9963d86a-f517-4c87-9a97-81705b401c9e" width="200" /></a> | 업로드 탐지 | 이미지 파일을 업로드해 이상 탐지 검사를 요청합니다. |
+| <a href="https://github.com/user-attachments/assets/c4d8c347-30da-404b-b370-7932f8da4b0e" target="_blank"><img src="https://github.com/user-attachments/assets/c4d8c347-30da-404b-b370-7932f8da4b0e" width="200" /></a> | 실시간 검사 진입 | 브라우저 카메라 프리뷰에서 현재 프레임 1장을 캡처해 검사합니다. |
+| <a href="https://github.com/user-attachments/assets/e50b3956-d4a9-4e07-8e61-8f89d62a36d2" target="_blank"><img src="https://github.com/user-attachments/assets/e50b3956-d4a9-4e07-8e61-8f89d62a36d2" width="200" /></a> | 결과 목록 | 검사 결과를 필터·요약·차트와 함께 조회하고 상세 페이지로 진입합니다. |
+| <a href="https://github.com/user-attachments/assets/e9bc2032-4942-423c-ba0e-3c68c3aa5236" target="_blank"><img src="https://github.com/user-attachments/assets/e9bc2032-4942-423c-ba0e-3c68c3aa5236" width="200" /></a> | 결과 상세 | 원본/시각화, 판정·점수, 모델·탐지 정보를 확인하고 재검사를 실행합니다. |
+| <a href="https://github.com/user-attachments/assets/885d118e-14d9-4881-af44-0d915892006f" target="_blank"><img src="https://github.com/user-attachments/assets/885d118e-14d9-4881-af44-0d915892006f" width="200" /></a> | 문서 목록 | 등록된 설비 문서와 인덱싱 상태를 확인합니다. |
+| <a href="https://github.com/user-attachments/assets/b9b12a0d-e78e-4ded-8861-cde3138bbc28" target="_blank"><img src="https://github.com/user-attachments/assets/b9b12a0d-e78e-4ded-8861-cde3138bbc28" width="200" /></a> | 문서 등록 / 수정 | 신규 문서를 업로드하거나 메타정보를 수정합니다. |
+| <a href="https://github.com/user-attachments/assets/9d25bec9-9ed6-432d-8d81-2bca02b76b87" target="_blank"><img src="https://github.com/user-attachments/assets/9d25bec9-9ed6-432d-8d81-2bca02b76b87" width="200" /></a> | 챗봇 / RAG 질의응답 - 히스토리 | 이전 대화 세션 목록을 확인합니다. |
+| <a href="https://github.com/user-attachments/assets/203c1f27-527f-4dab-9c57-23517d471cc7" target="_blank"><img src="https://github.com/user-attachments/assets/203c1f27-527f-4dab-9c57-23517d471cc7" width="200" /></a> | 챗봇 / RAG 질의응답 - 대화 | 문서 출처 기반 질의응답을 진행합니다. |
+| <a href="https://github.com/user-attachments/assets/5e50f415-7271-46eb-98a4-fd2d17f5fa1c" target="_blank"><img src="https://github.com/user-attachments/assets/5e50f415-7271-46eb-98a4-fd2d17f5fa1c" width="200" /></a> | 알림 | 사용자 알림 목록을 확인합니다. |
+| <a href="https://github.com/user-attachments/assets/bb47f40e-6e4f-4190-9cd8-754f315201b6" target="_blank"><img src="https://github.com/user-attachments/assets/bb47f40e-6e4f-4190-9cd8-754f315201b6" width="200" /></a> | 마이페이지 | 개인 정보를 조회하고 수정합니다. |
+| <a href="https://github.com/user-attachments/assets/2ca7f144-4a9f-4c1a-891e-a93a08d0be26" target="_blank"><img src="https://github.com/user-attachments/assets/2ca7f144-4a9f-4c1a-891e-a93a08d0be26" width="200" /></a> | 설정 | 임계값과 탐지 옵션 등 사용자 설정을 관리합니다. |
+| <a href="https://github.com/user-attachments/assets/704b1366-a41f-4f49-ba93-bb8424f4f5ba" target="_blank"><img src="https://github.com/user-attachments/assets/704b1366-a41f-4f49-ba93-bb8424f4f5ba" width="200" /></a> | 관리자 - 회원가입 요청 | 가입 신청을 검토하고 승인/거절합니다. |
+| <a href="https://github.com/user-attachments/assets/f64cc2a7-c5fe-4441-b989-c2a9ef3f35a4" target="_blank"><img src="https://github.com/user-attachments/assets/f64cc2a7-c5fe-4441-b989-c2a9ef3f35a4" width="200" /></a> | 관리자 - 운영 모니터링 | 시스템 상태, 비동기 작업, 운영 로그를 확인합니다. |
+| <a href="https://github.com/user-attachments/assets/a15d73c6-2229-455f-8a9a-2f0c6f09d6d6" target="_blank"><img src="https://github.com/user-attachments/assets/a15d73c6-2229-455f-8a9a-2f0c6f09d6d6" height="200" /></a> | 관리자 - 사이트 설정 | 사이트 전역 정책과 운영 설정을 관리합니다. |
 
 화면 목록과 와이어프레임은 [페이지 목록](docs/project/페이지목록.md)과 `docs/project/wireframes/`를 참고합니다.
 
