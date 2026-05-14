@@ -125,9 +125,18 @@ export function ResultDetailPage() {
           <p className="mb-2 text-xs font-semibold text-slate-500">검사 이력 &gt; 결과 상세</p>
           <h1 className="text-2xl font-semibold text-slate-900">결과 상세</h1>
         </div>
-        <button type="button" onClick={goBack} className="btn-secondary">
-          목록으로
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(`/chatbot?resultId=${data.resultId}`)}
+            className="btn-primary"
+          >
+            이 결과로 챗봇 질문
+          </button>
+          <button type="button" onClick={goBack} className="btn-secondary">
+            목록으로
+          </button>
+        </div>
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[45fr_55fr]">

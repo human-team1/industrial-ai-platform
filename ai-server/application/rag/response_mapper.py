@@ -104,6 +104,8 @@ def normalize_answer_status(state: GraphState) -> str:
         return "VECTOR_STORE_FAILED"
     if answer_type == "validation_error":
         return "VALIDATION_FAILED"
-    if answer_type in {"need_result_context", "system_error"}:
+    if answer_type == "need_result_context":
+        return "VALIDATION_FAILED"
+    if answer_type == "system_error":
         return "LLM_FAILED"
     return "LLM_FAILED"

@@ -12,12 +12,14 @@ import com.example.factoryguard.application.port.out.chat.RequestRagAnswerPort;
 import com.example.factoryguard.application.port.out.chat.SaveChatConversationPort;
 import com.example.factoryguard.application.port.out.chat.SaveChatMessagePort;
 import com.example.factoryguard.application.port.out.chat.SaveChatSourcePort;
+import com.example.factoryguard.application.port.out.document.LoadVectorIndexPort;
 import com.example.factoryguard.application.port.out.result.ResultQueryPort;
 import com.example.factoryguard.common.exception.BusinessException;
 import com.example.factoryguard.common.exception.ErrorCode;
 import com.example.factoryguard.domain.chat.model.ChatConversation;
 import com.example.factoryguard.domain.chat.model.ChatMessage;
 import com.example.factoryguard.domain.chat.vo.ChatAnswerStatus;
+import com.example.factoryguard.domain.chat.vo.ChatMessageStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,6 +52,7 @@ class ChatServiceTest {
     @Mock private DeleteChatConversationPort deleteChatConversationPort;
     @Mock private RequestRagAnswerPort requestRagAnswerPort;
     @Mock private ResultQueryPort resultQueryPort;
+    @Mock private LoadVectorIndexPort loadVectorIndexPort;
 
     @InjectMocks
     private ChatService chatService;
@@ -131,5 +134,47 @@ class ChatServiceTest {
 
         assertThat(result.getAssistantMessage().getAnswerStatus()).isEqualTo(ChatAnswerStatus.NO_RELEVANT_SOURCE);
         assertThat(result.getAssistantMessage().getMessageText()).contains("참조 가능한 문서를 찾지 못했습니다");
+    }
+
+    @Test
+    @DisplayName("result_id 필요 안내는 실패 문구로 덮어쓰지 않고 그대로 반환한다")
+    void validationAnswerPreserved() {
+        long userId = 1L;
+        long conversationId = 50L;
+        ChatConversation conv = ChatConversation.builder()
+                .conversationId(conversationId).userId(userId).title("t").build();
+        when(loadChatConversationPort.findById(conversationId)).thenReturn(Optional.of(conv));
+
+        AtomicLong messageIdSeq = new AtomicLong(8000L);
+        when(saveChatMessagePort.save(any())).thenAnswer(invocation -> {
+            ChatMessage in = invocation.getArgument(0);
+            return ChatMessage.builder()
+                    .messageId(messageIdSeq.incrementAndGet())
+                    .conversationId(in.getConversationId())
+                    .role(in.getRole())
+                    .messageText(in.getMessageText())
+                    .messageStatus(in.getMessageStatus())
+                    .answerStatus(in.getAnswerStatus())
+                    .errorCode(in.getErrorCode())
+                    .modelName(in.getModelName())
+                    .createdAt(in.getCreatedAt())
+                    .build();
+        });
+        when(requestRagAnswerPort.requestAnswer(any())).thenReturn(RagAnswerResponse.builder()
+                .answerText("검사 결과 설명을 위해 result_id가 필요합니다.")
+                .answerStatus(ChatAnswerStatus.VALIDATION_FAILED)
+                .sources(List.of())
+                .build());
+        lenient().when(loadChatSourcePort.findAllResultsByMessageId(anyLong())).thenReturn(List.of());
+
+        AskChatCommand command = AskChatCommand.builder()
+                .userId(userId).organizationId(100L).conversationId(conversationId)
+                .question("이 결과 원인 알려줘").documentScope(DocumentScope.ALL).build();
+
+        AskChatResult result = chatService.execute(command);
+
+        assertThat(result.getAssistantMessage().getAnswerStatus()).isEqualTo(ChatAnswerStatus.VALIDATION_FAILED);
+        assertThat(result.getAssistantMessage().getMessageStatus()).isEqualTo(ChatMessageStatus.SUCCESS);
+        assertThat(result.getAssistantMessage().getMessageText()).isEqualTo("검사 결과 설명을 위해 result_id가 필요합니다.");
     }
 }

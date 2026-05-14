@@ -3,8 +3,14 @@ import { Link } from 'react-router-dom'
 import { useChatbot } from '../../features/chatbot/model'
 import { ChatInput, ChatMessageList, RecommendedQuestions } from '../../features/chatbot/ui'
 
-export function ChatbotWidget({ initialConversationId }: { initialConversationId?: number | null }) {
-  const chatbot = useChatbot(initialConversationId)
+export function ChatbotWidget({
+  initialConversationId,
+  resultId,
+}: {
+  initialConversationId?: number | null
+  resultId?: number | null
+}) {
+  const chatbot = useChatbot(initialConversationId, resultId)
   const [inputDraft, setInputDraft] = useState('')
   const pending = chatbot.sendStatus === 'pending'
 
@@ -16,6 +22,7 @@ export function ChatbotWidget({ initialConversationId }: { initialConversationId
           <p className="mt-2 text-sm text-slate-600">
             업로드된 문서와 지식베이스를 기반으로 답변을 제공합니다. (답변 생성은 별도 AI 서버 연동 후 가능합니다.)
           </p>
+          {resultId ? <p className="mt-2 text-xs text-slate-500">검사결과 ID {resultId} 문맥으로 질문합니다.</p> : null}
         </div>
         <div className="flex gap-2">
           <button className="btn-secondary" type="button" onClick={chatbot.startNew}>
